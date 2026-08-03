@@ -1,0 +1,300 @@
+{% extends 'base/site_base.html' %}
+
+{% block body %}
+    <script type="text/javascript">
+
+        $(document).on('click', '.confirm-delete', function () {
+            return confirm('Are you sure you want to delete this?');
+        })
+
+    </script>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="float-right">
+                        {% if user.is_superuser %}
+                        <select class="selectpicker" title="Organization" data-style="btn-secondary"
+                                data-live-search="true" onchange="location = '?org=' + this.value;">
+                            {% for o in orgs %}
+                                <option value="{{ o.id }}" {% if selected_org and o.id == selected_org.id %}selected{% endif %}>{{ o.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+
+                        <select class="selectpicker" title="Add Connector" data-style="btn-primary"
+                                data-live-search="true" onchange="location = this.value;">
+                            <option class="dropdown-item" value="/zapscanner/zap_settings/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">OWASP ZAP</option>
+                            <option class="dropdown-item" value="/networkscanners/openvas_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">OpenVAS</option>
+                            <option class="dropdown-item" value="/jira/jira_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">JIRA</option>
+                            <option class="dropdown-item" value="/settings/email_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">Email</option>
+                        </select>
+                    </div>
+                    <br>
+                    <br>
+                    <br>
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Connectors</h1>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table table-bordered data-table">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Date Time</th>
+                                    <th>Delete</th>
+                                    <th>Test</th>
+                                </tr>
+                                </thead>
+                                <tbody>{% for data in all_settings_data %}
+                                    {% if data.setting_scanner == 'Zap' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/zap.png" alt="user" width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="OWASP ZAP">
+                                                    <b><a href="/zapscanner/zap_settings/">OWASP ZAP</a> </b>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="zap">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% elif data.setting_scanner == 'Openvas' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/openvas.png" alt="user" width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="OpenVAS">
+                                                    <b><a href="/networkscanners/openvas_setting/">OpenVAS</a> </b>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="openvas">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% elif data.setting_scanner == 'Jira' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/jira.png" alt="user" width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="Jira">
+                                                    <b><a href="{% url 'jiraticketing:jira_setting' %}">Jira</a></b>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="jira">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>{% elif data.setting_scanner == 'Email' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/email.png" alt="user"
+                                                                      width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="Email">
+                                                    <b><a href="{% url 'archerysettings:email_setting' %}">Email</a></b>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="email">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if zap_info == False %}
+        <script>
+            $(window).load(function () {
+                toastr.error('ZAP Connection Not Found');
+            });
+        </script>
+    {% endif %}
+    {% if zap_info == True %}
+        <script>
+            $(window).load(function () {
+                toastr.success('ZAP Connection Found');
+            });
+        </script>
+    {% endif %}
+    {% if zap_info == 'Disabled' %}
+        <script>
+            $(window).load(function () {
+                toastr.warning('ZAP Connection Disabled');
+            });
+        </script>
+    {% endif %}
+
+    {% if openvas_info == False %}
+        <script>
+            $(window).load(function () {
+                toastr.error('OpenVAS Connection Not Found');
+            });
+        </script>
+    {% endif %}
+    {% if openvas_info == True %}
+        <script>
+            $(window).load(function () {
+                toastr.success('OpenVAS Connection Found');
+            });
+        </script>
+    {% endif %}
+
+    
+
+    {% if jira_info == False %}
+        <script>
+            $(window).load(function () {
+                toastr.error('Jira Connection Not Found');
+            });
+        </script>
+    {% endif %}
+    {% if jira_info == True %}
+        <script>
+            $(window).load(function () {
+                toastr.success('Jira Connection Found');
+            });
+        </script>
+    {% endif %}
+{% endblock %}

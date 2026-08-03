@@ -1,0 +1,71 @@
+{% extends 'base/site_base.html' %}
+{% load rest_framework %}
+
+{% block body %}
+
+    <div class="row justify-content-md-center">
+        <div class="col-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Organization Details</h1>
+                    </div>
+                    <br>
+                    <div class="card">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="widget-box">
+                                        <form class="form-horizontal"
+                                              action="{% url 'users:add_org' %}" method="POST">
+                                            {% csrf_token %}
+
+
+                                            <div class="card">
+
+                                                <div class="form-group ">
+                                                    <label>Name</label>
+                                                    <small class="form-text text-muted">Organization name must be unique. If the name is already taken, you will be asked to choose another.</small>
+                                                    <input name="name" class="form-control" type="text" value="{{ posted_name|default:'' }}">
+                                                    {% if error_name %}<div class="text-danger small">{{ error_name }}</div>{% endif %}
+                                                </div>
+                                                <div class="form-group ">
+                                                    <label>Description</label>
+                                                    <input name="description" class="form-control" type="text" value="{{ posted_description|default:'' }}">
+                                                </div>
+                                            </div>
+
+                                            <div class="border-top">
+                                                <div class="card-body">
+                                                    <button type="submit" class="btn btn-default">Save
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                        <script>
+                                            (function(){
+                                                const form = document.querySelector('form.form-horizontal');
+                                                if(!form) return;
+                                                function setErr(id,msg){ var el=document.getElementById(id); if(el){ el.textContent = msg||''; } }
+                                                form.addEventListener('submit', function(e){
+                                                    e.preventDefault();
+                                                    setErr('error_name','');
+                                                    const fd = new FormData(form);
+                                                    fetch(form.action, { method:'POST', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}, body: fd })
+                                                     .then(async (res)=>{ let data={}; try{ data=await res.json(); }catch(e){}
+                                                        if(res.ok && data && data.ok){ window.location = data.redirect_url || '/users/list_org/'; return; }
+                                                        const errs=(data&&data.errors)||{}; if(errs.error_name){ setErr('error_name', errs.error_name); if(window.toastr){ toastr.error(errs.error_name); } }
+                                                     }).catch(()=>{ if(window.toastr){ toastr.error('Network error. Please try again.'); } });
+                                                });
+                                            })();
+                                        </script>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

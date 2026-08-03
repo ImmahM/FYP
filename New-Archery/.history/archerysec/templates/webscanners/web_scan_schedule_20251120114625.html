@@ -1,0 +1,450 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% load custom_tags %}
+{% block body %}
+<script>
+(function ($) {
+    if (!$) { return; }
+    $(function () {
+        var deleteUrl = "{% url 'webscanners:del_web_scan_schedule' %}";
+        $("#schedule-delete-selected").on("click", function () {
+            var ids = [];
+            $("input[name='schedule_task_id']:checked").each(function () {
+                ids.push(this.value);
+            });
+            if (!ids.length) {
+                alert("Select at least one scheduled scan to delete.");
+                return;
+            }
+            if (!confirm("Delete the selected scheduled scans?")) {
+                return;
+            }
+            var $btn = $(this).prop("disabled", true);
+            var csrf = $("input[name=csrfmiddlewaretoken]").first().val();
+            $.ajax({
+                type: "POST",
+                url: deleteUrl,
+                data: {
+                    task_id: ids.join(","),
+                    csrfmiddlewaretoken: csrf
+                },
+                complete: function () {
+                    $btn.prop("disabled", false);
+                },
+                success: function () {
+                    window.location.reload();
+                }
+            });
+        });
+        $("#mainCheckbox").on("change", function () {
+            $("input[name='schedule_task_id']").prop("checked", $(this).prop("checked"));
+        });
+    });
+})(window.jQuery);
+</script>
+
+<link href="/static/css/bootstrap-datetimepicker.min.css" rel="stylesheet" media="screen">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/css/bootstrap-select.min.css">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/js/bootstrap-select.min.js"></script>
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-md-flex align-items-center">
+                            <h1 class="card-title">Scan Schedule </h1>
+                        </div>
+                        <br>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <form class="form-horizontal" method="POST"
+                                          action="{% url 'webscanners:web_scan_schedule' %}">
+                                        {% csrf_token %}
+                                        <div class="widget-box">
+                                            <!--<div class="widget-content nopadding">-->
+
+                                            <div class="card-body">
+                                                <h4 class="card-title"></h4>
+                                                <div class="form-group row">
+                                                    <label class="col-sm-3 text-right control-label col-form-label">URL's</label>
+                                                    <div class="col-sm-9">
+                                                    <textarea class="form-control" type="text" name="url" id="url"
+                                                              value="{{ url }}"
+                                                              placeholder="http://website.com,http://website2.com,http://website3.com"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <h4 class="card-title"></h4>
+                                                <div class="form-group row">
+                                                    <label class="control-label">Date & Time :</label>
+                                                    <div class="col-sm-6">
+                                                        <div class="float-right">
+                                                            <div class="controls input-append date form_datetime"
+                                                                 data-date-format="d/mm/yyyy h:ii:ss P"
+                                                                 data-link-field="dtp_input1">
+                                                                <input name="datetime" type="text" value="">
+                                                                <span class="add-on"><i
+                                                                        class="fa fa-calendar"></i></span>
+                                                                <span class="add-on"><i class="icon-th"></i></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <!--<h5 class="card-title"></h5>-->
+                                            <div class="form-group row">
+                                                <label class="col-sm-3 text-right control-label col-form-label">
+                                                    Repeat every
+                                                </label>
+                                                <div class="col-md-9">
+                                                    <select name="periodic_task_value"
+                                                            class="select2 form-control custom-select"
+                                                            style="width: 100%; height:36px;">
+                                                        <option value="None">No repeat</option>
+                                                        <option value="DAILY">Daily</option>
+                                                        <option value="WEEKLY">Weekly</option>
+                                                        <option value="HOURLY">Hourly</option>
+                                                        <option value="EVERY_2_WEEKS">Every 2 weeks</option>
+                                                        <option value="EVERY_4_WEEKS">Every 4 weeks</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <h5 class="card-title"></h5>
+                                            <div class="form-group row">
+                                                <label class="col-sm-3 text-right control-label col-form-label">Projects</label>
+                                                <div class="col-md-9">
+                                                    <select id="project_id" name="project_id"
+                                                            class="select2 form-control custom-select"
+                                                            style="width: 100%; height:36px;">
+                                                        {% for data in all_scans_db %}
+                                                        <option value="{{data.project_id}}">
+                                                            {{data.project_name}}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                </div>
+
+                                <div class="card">
+                                    <div class="card-body">
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                            <input type="hidden" name="scanner" value="zap_scan">
+                                            <div class="d-md-flex align-items-center">
+                                                <h5 class="card-title mb-2">ZAP Scan Types</h5>
+                                            </div>
+                                            <p class="text-muted">Choose which ZAP phases to include when this schedule runs.</p>
+                                            <div class="row">
+                                                <div class="col-md-12 col-lg-8">
+                                                    <div class="form-group mb-3">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="run_zap" id="schedule_run_zap" type="checkbox">
+                                                                <span>Enable ZAP</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <p class="mb-2">Select which ZAP steps to run:</p>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="zap_spider" id="schedule_zap_spider" type="checkbox">
+                                                                <span>Spider (crawl) <span class="text-muted" data-toggle="tooltip" title="Follows links to discover pages and build the site map.">&#x2754;</span></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="zap_ajax_spider" id="schedule_zap_ajax_spider" type="checkbox">
+                                                                <span>AJAX Spider (SPA) <span class="text-muted" data-toggle="tooltip" title="Uses a headless browser to crawl dynamic/JS-driven content.">&#x2754;</span></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="zap_pscan_wait" id="schedule_zap_pscan_wait" type="checkbox">
+                                                                <span>Passive Scan Wait <span class="text-muted" data-toggle="tooltip" title="Waits until ZAP's passive scanner finishes analyzing traffic; no attack payloads.">&#x2754;</span></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="zap_active_scan" id="schedule_zap_active_scan" type="checkbox">
+                                                                <span>Active Scan <span class="text-muted" data-toggle="tooltip" title="Sends attack payloads to detect vulnerabilities; intrusive and can change state.">&#x2754;</span></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <label>
+                                                                <input name="zap_forced_browse" id="schedule_zap_forced_browse" type="checkbox">
+                                                                <span>Forced Browse (DirBuster) <span class="text-muted" data-toggle="tooltip" title="Brute-forces common paths/files to uncover hidden resources; noisy and slower.">&#x2754;</span></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <input type="hidden" name="scanner" value="zap_scan">
+                                            <div class="d-md-flex align-items-center">
+                                                <h5 class="card-title mb-2">Web Scan Types</h5>
+                                            </div>
+                                            <p class="small text-muted mb-3">
+                                                Only ZAP + Nikto scans are available for scheduling at the moment.
+                                            </p>
+                                            <div class="row small">
+                                                <div class="col-md-6">
+                                                    <ul class="list-unstyled pl-3 mb-0">
+                                                        <li class="mb-2">
+                                                            <strong>Spider (crawl)</strong> – Follows links to learn the site structure.
+                                                        </li>
+                                                        <li class="mb-2">
+                                                            <strong>AJAX Spider (SPA)</strong> – Uses a headless browser to crawl JS-heavy apps.
+                                                        </li>
+                                                        <li class="mb-2">
+                                                            <strong>Passive scan wait</strong> – Lets ZAP finish passive analysis before moving on.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <ul class="list-unstyled pl-3 mb-0">
+                                                        <li class="mb-2">
+                                                            <strong>Active scan</strong> – Sends attack payloads to uncover vulnerabilities.
+                                                        </li>
+                                                        <li class="mb-2">
+                                                            <strong>Forced browse</strong> – Brute-forces common paths to reveal hidden content.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if user.is_superuser or user.role == 'Admin' %}
+                                <div class="card mt-3">
+                                    <div class="card-body">
+                                        <div class="d-md-flex align-items-center">
+                                            <h5 class="card-title">Nikto Scan Types</h5>
+                                        </div>
+                                        <div class="form-group mb-3">
+                                            <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                <label>
+                                                    <input name="run_nikto" id="schedule_run_nikto" type="checkbox">
+                                                    <span>Enable Nikto <span class="text-muted" data-toggle="tooltip" title="Run Nikto web server checks for each URL.">&#x2754;</span></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <p class="mb-2">Select which Nikto options to run:</p>
+                                        <style>
+                                            .nikto-options-row{
+                                                display:flex;
+                                                flex-wrap:wrap;
+                                                gap:3rem;
+                                            }
+                                            .nikto-options-row .nikto-column{
+                                                flex:1 1 365px;
+                                            }
+                                        </style>
+                                        <div class="nikto-options-row">
+                                            <div class="nikto-column">
+                                                <div class="form-group">
+                                                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                        <label>
+                                                            <input name="nikto_baseline" id="schedule_nikto_baseline" type="checkbox">
+                                                            <span>Stealthy Information Gathering &amp; Software Identification <span class="text-muted" data-toggle="tooltip" title="Fingerprints web/server software and versions, checks for info disclosure and misconfigurations, and builds a tech inventory. Uses a small pause to be quieter and avoids aggressive probes.">&#x2754;</span></span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                        <label>
+                                                            <input name="nikto_injection" id="schedule_nikto_injection" type="checkbox">
+                                                            <span>Targeted Injection &amp; XSS Vulnerability Scan <span class="text-muted" data-toggle="tooltip" title="Sends crafted payloads to detect injection points and reflected XSS. Adds basic evasion to slip past naive filters.">&#x2754;</span></span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="nikto-column">
+                                                <div class="form-group">
+                                                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                        <label>
+                                                            <input name="nikto_comprehensive" id="schedule_nikto_comprehensive" type="checkbox">
+                                                            <span>Comprehensive File Retrieval &amp; Server-Side Scan <span class="text-muted" data-toggle="tooltip" title="Tries to fetch sensitive/backup files, exposes server-side script issues, default admin panels/credentials, and deeper misconfigurations.">&#x2754;</span></span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                        <label>
+                                                            <input name="nikto_broad" id="schedule_nikto_broad" type="checkbox">
+                                                            <span>Broad Scan with Dangerous Test Exclusions <span class="text-muted" data-toggle="tooltip" title="Runs a wide sweep of Nikto checks while skipping denial-of-service probes.">&#x2754;</span></span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success">Save</button>
+                                </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+     <div class="container-fluid">
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <br>
+                    <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                        <h5 class="card-title mb-0">Scheduled Scans</h5>
+                        <div class="mt-2 mt-md-0">
+                            <button type="button"
+                                    id="schedule-delete-selected"
+                                    class="btn btn-danger btn-sm"
+                                    {% if not all_scheduled_scans %}disabled{% endif %}>
+                                <i class="fas fa-trash-alt"></i> Delete Selected
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-3">View all upcoming web scans and clean up one-time or recurring jobs.</p>
+                    {% if all_scheduled_scans %}
+                    <div class="row">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table table-bordered data-table">
+                                <thead>
+                                <tr>
+                                    <th>
+                                        <label class="customcheckbox m-b-20 mb-0">
+                                            <input type="checkbox" id="mainCheckbox">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </th>
+                                    <th>Target / URL</th>
+                                    <th>Start time</th>
+                                    <th>Project</th>
+                                    <th>{% if user.is_superuser or user.role == 'Admin' %}Scanner{% else %}Scan Type{% endif %}</th>
+                                    <th>Repeat</th>
+                                    <th>Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for data in all_scheduled_scans %}
+                                <tr data-target="#">
+                                    <td>
+                                        <label class="customcheckbox m-0">
+                                            <input type="checkbox"
+                                                   class="schedule-checkbox"
+                                                   value="{{ data.task_id }}"
+                                                   name="schedule_task_id">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </td>
+                                    <td>{{ data.target|default:"-" }}</td>
+                                    <td>{{ data.schedule_time|default:"-" }}</td>
+                                    <td>{{ data.project_id|default:"-" }}</td>
+                                    <td>
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                            {{ data.scanner|default:"-" }}
+                                        {% else %}
+                                            {{ data.scan_type|default:"Web Scan" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ data.periodic_task|schedule_frequency }}</td>
+                                    <td>
+                                        <form action="{% url 'webscanners:del_web_scan_schedule' %}" method="post"
+                                              class="forms-sample d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="task_id" value="{{ data.task_id }}"/>
+                                            <button class="btn btn-outline-danger btn-sm" title="Delete this schedule">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border text-muted mb-0">
+                        No web scans are scheduled yet. Use the form above to add a one-time or recurring scan.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+     </div>
+
+
+<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/static/js/bootstrap-datetimepicker.js" charset="UTF-8"></script>
+<script type="text/javascript">
+    $('.form_datetime').datetimepicker({
+        //language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 2,
+		forceParse: 0,
+        showMeridian: 1
+    });
+	$('.form_date').datetimepicker({
+        language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 2,
+		minView: 2,
+		forceParse: 0
+    });
+	$('.form_time').datetimepicker({
+        language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 1,
+		minView: 0,
+		maxView: 1,
+		forceParse: 0
+    });
+
+
+</script>
+
+{% endblock %}
+

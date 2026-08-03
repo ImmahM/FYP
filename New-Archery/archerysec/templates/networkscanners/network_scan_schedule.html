@@ -1,0 +1,537 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block body %}
+{% load static %}
+<script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
+<script type="text/javascript">
+    // Initialize Legacy API Client
+    const api = new LegacyScannerAPI();
+
+    (function ($) {
+        if (!$) { return; }
+        $(function () {
+            var deleteUrl = "{% url 'networkscanners:del_net_scan_schedule' %}";
+            $("#schedule-delete-selected").on("click", function () {
+                var ids = [];
+                $("input[name='schedule_task_id']:checked").each(function () {
+                    ids.push(this.value);
+                });
+                if (!ids.length) {
+                    alert("Select at least one scheduled scan to delete.");
+                    return;
+                }
+                if (!confirm("Delete the selected scheduled scans?")) {
+                    return;
+                }
+                var $btn = $(this).prop("disabled", true);
+                var csrf = $("input[name=csrfmiddlewaretoken]").first().val();
+                // Use new unified API
+                api.networkScans.scheduleDelete(ids).then(function() {
+                    window.location.reload();
+                }).catch(function(err) {
+                    console.error('Delete failed:', err);
+                    alert('Failed to delete scheduled scans: ' + err.message);
+                }).finally(function() {
+                    $btn.prop("disabled", false);
+                });
+            });
+            $("#mainCheckbox").on("change", function () {
+                $("input[name='schedule_task_id']").prop("checked", $(this).prop("checked"));
+            });
+        });
+    })(window.jQuery);
+</script>
+
+<link href="/static/css/bootstrap-datetimepicker.min.css" rel="stylesheet" media="screen">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/css/bootstrap-select.min.css">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/js/bootstrap-select.min.js"></script>
+
+<style>
+    /* Dark theme overrides for datetime picker (Network scheduling) */
+    .controls.input-append.date.form_datetime input {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
+        color: #f1f5ff !important;
+        border-radius: 10px !important;
+        box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.16);
+        padding: 8px 12px !important;
+    }
+    .controls.input-append.date.form_datetime input:focus {
+        box-shadow: 0 0 0 2px rgba(124, 243, 255, 0.22) !important;
+    }
+    .controls.input-append.date.form_datetime .add-on {
+        background: transparent !important;
+        border: none !important;
+        color: #e5e8ff !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu {
+        background: radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.18), transparent 55%),
+        linear-gradient(135deg, #1c2740, #141d2f) !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 10px 32px rgba(127, 90, 240, 0.18) !important;
+        padding: 12px 18px 16px;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table th,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td {
+        border: none;
+        text-align: center;
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
+        color: #b7c3df !important;
+        background: transparent !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table thead tr:first-child th {
+        font-weight: 600;
+        color: #ced7ef !important;
+        font-size: 14px;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.old,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.new {
+        color: rgba(183, 195, 223, 0.55) !important;
+        background: transparent !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.old:hover,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.new:hover {
+        color: #ffffff !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.day:hover,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td:hover,
+    .bootstrap-datetimepicker-widget.dropdown-menu table span:hover {
+        background: rgba(62, 94, 180, 0.85) !important;
+        border-radius: 12px;
+        cursor: pointer;
+        color: #ffffff !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.today,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.today:hover {
+        background: rgba(62, 94, 180, 0.5) !important;
+        color: #e5edff !important;
+        border-radius: 12px;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.active,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.active:hover,
+    .bootstrap-datetimepicker-widget.dropdown-menu table span.active,
+    .bootstrap-datetimepicker-widget.dropdown-menu table span.active:hover {
+        background: rgba(93, 115, 255, 0.9) !important;
+        color: #fff !important;
+        border-radius: 12px;
+        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.35);
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.disabled:hover {
+        background: transparent !important;
+        color: rgba(255, 255, 255, 0.35) !important;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.active,
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.active:hover,
+    .bootstrap-datetimepicker-widget.dropdown-menu table span.active,
+    .bootstrap-datetimepicker-widget.dropdown-menu table span.active:hover {
+        background: rgba(93, 115, 255, 0.9) !important;
+        color: #fff !important;
+        border-radius: 12px;
+        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.35);
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu table td.today:before {
+        border-bottom-color: #8b5cf6;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu .datepicker-days table thead tr:last-child th {
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: #c1c8dc;
+    }
+    .bootstrap-datetimepicker-widget.dropdown-menu .picker-switch,
+    .bootstrap-datetimepicker-widget.dropdown-menu .timepicker-hour,
+    .bootstrap-datetimepicker-widget.dropdown-menu .timepicker-minute {
+        font-weight: 600;
+        color: #f8fafc;
+    }
+</style>
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-md-flex align-items-center">
+                            <h1 class="card-title">Scan Schedule </h1>
+                        </div>
+                        <br>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <form class="form-horizontal" method="POST"
+                                          action="{% url 'networkscanners:net_scan_schedule' %}">
+                                        {% csrf_token %}
+                                        <div class="widget-box">
+                                            <!--<div class="widget-content nopadding">-->
+
+                                            <div class="card-body">
+                                                <h4 class="card-title"></h4>
+                                                <div class="form-group row">
+                                                    <label class="col-sm-3 text-right control-label col-form-label">IP's</label>
+                                                    <div class="col-sm-9">
+                                                    <textarea class="span4" type="text" name="ip" id="ip"
+                                                              value="{{ ip }}"
+                                                              placeholder="192.168.1.1,192.168.1.2"
+                                                                style="margin: 0px; width: 458px; height: 86px;"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <h4 class="card-title"></h4>
+                                                <div class="form-group row">
+                                                    <label class="control-label">Date & Time :</label>
+                                                    <div class="col-sm-6">
+                                                        <div class="float-right">
+                                                            <div class="controls input-append date form_datetime"
+                                                                 data-date-format="d/mm/yyyy h:ii:ss P"
+                                                                 data-link-field="dtp_input1">
+                                                                <input name="datetime" type="text" value="">
+                                                                <span class="add-on"><i
+                                                                        class="fa fa-calendar"></i></span>
+                                                                <span class="add-on"><i class="icon-th"></i></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <!--<h5 class="card-title"></h5>-->
+                                            <div class="form-group row">
+                                                <label class="col-sm-3 text-right control-label col-form-label">
+                                                    Repeat every
+                                                </label>
+                                                <div class="col-md-9">
+                                                    <select name="periodic_task_value"
+                                                            class="select2 form-control custom-select"
+                                                            style="width: 100%; height:36px;">
+                                                        <option value="None">No repeat</option>
+                                                        <option value="DAILY">Daily</option>
+                                                        <option value="WEEKLY">Weekly</option>
+                                                        <option value="HOURLY">Hourly</option>
+                                                        <option value="EVERY_2_WEEKS">Every 2 weeks</option>
+                                                        <option value="EVERY_4_WEEKS">Every 4 weeks</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <h5 class="card-title"></h5>
+                                            <div class="form-group row">
+                                                <label class="col-sm-3 text-right control-label col-form-label">Projects</label>
+                                                <div class="col-md-9">
+                                                    <select id="project_id" name="project_id"
+                                                            class="select2 form-control custom-select"
+                                                            style="width: 100%; height:36px;">
+                                                        {% for data in all_scans_db %}
+                                                        <option value="{{ data.id }}">
+                                                            {{ data.project_name }}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                </div>
+
+                                <div class="card">
+                                    <div class="card-body">
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                            <div class="d-md-flex align-items-center">
+                                                <h5 class="card-title mb-2">Network Scan Types</h5>
+                                            </div>
+                                            <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-3" style="max-width:220px;">
+                                                <label class="d-flex align-items-center">
+                                                    <input name="openvas_enable" id="schedule_openvas_enable" type="checkbox">
+                                                    <span>Enable Network scan</span>
+                                                </label>
+                                            </div>
+                                            <p class="mb-2">Select which network profile to run:</p>
+                                            <div class="row" id="schedule_ov_group">
+                                                <div class="col-md-6">
+                                                    <style>
+                                                        .schedule-ov-type-list { display: flex; flex-direction: column; gap: 8px; }
+                                                        .schedule-ov-type-list .checkbox label { display: inline-flex; align-items: center; gap: 10px; margin: 0; }
+                                                        .schedule-ov-type-list .checkbox.inline { width: 100%; max-width: 460px; }
+                                                        .schedule-ov-type-list .checkbox input[type="checkbox"] + span { margin-left: 6px; }
+                                                        .schedule-ov-help { color: #6c757d; font-size: 13px; line-height: 1; display: inline-flex; align-items: center; cursor: help; }
+                                                        .schedule-ov-help:hover { color: #343a40; }
+                                                        .schedule-ov-type-list .checkbox-slider--b input + span { line-height: 20px; }
+                                                        .schedule-ov-type-list .checkbox-slider--b input + span:before { top: 0; }
+                                                        .schedule-ov-type-list .checkbox-slider--b input + span:after { top: -1px; }
+                                                    </style>
+                                            <div class="schedule-ov-type-list">
+                                                <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                    <input type="checkbox" name="ov_profile" value="full_fast">
+                                                    <span>Full and fast</span>
+                                                    <span class="schedule-ov-help" title="Optimized full scan with broad coverage at faster runtime." data-toggle="tooltip">&#x2754;</span>
+                                                </label>
+                                                <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                    <input type="checkbox" name="ov_profile" value="full_deep">
+                                                    <span>Full and very deep</span>
+                                                    <span class="schedule-ov-help" title="Extensive, thorough scan with more checks; significantly slower/heavier." data-toggle="tooltip">&#x2754;</span>
+                                                </label>
+                                                <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                    <input type="checkbox" name="ov_profile" value="full_fast_ultimate">
+                                                    <span>Full and fast ultimate</span>
+                                                    <span class="schedule-ov-help" title="Aggressive variant enabling many plugins; heaviest load/longest runtime." data-toggle="tooltip">&#x2754;</span>
+                                                </label>
+                                            </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="schedule-ov-type-list">
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="host_disc">
+                                                            <span>Host discovery</span>
+                                                            <span class="schedule-ov-help" title="Fast ping/port sweep to catch hosts that appear/disappear frequently." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="system_disc">
+                                                            <span>System discovery</span>
+                                                            <span class="schedule-ov-help" title="Lightweight discovery pass to map live hosts and general services." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted d-inline-block mt-2">Only one network profile can be active; selecting one will disable the others.</small>
+                                        {% else %}
+                                            <div class="d-md-flex align-items-center">
+                                                <h5 class="card-title mb-2">Network Scan Types</h5>
+                                            </div>
+                                            <input type="hidden" name="openvas_enable" value="1">
+                                            <p class="small text-muted mb-3">
+                                                Pick the network scan profile to run. (Connector is managed by your administrator.)
+                                            </p>
+                                            <style>
+                                                .schedule-ov-type-list { display: flex; flex-direction: column; gap: 8px; }
+                                                .schedule-ov-type-list .checkbox label { display: inline-flex; align-items: center; gap: 10px; margin: 0; }
+                                                .schedule-ov-type-list .checkbox.inline { width: 100%; max-width: 460px; }
+                                                .schedule-ov-type-list .checkbox input[type="checkbox"] + span { margin-left: 6px; }
+                                                .schedule-ov-help { color: #6c757d; font-size: 13px; line-height: 1; display: inline-flex; align-items: center; cursor: help; }
+                                                .schedule-ov-help:hover { color: #343a40; }
+                                            </style>
+                                            <div class="row small">
+                                                <div class="col-md-6">
+                                                    <div class="schedule-ov-type-list">
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="full_fast">
+                                                            <span>Full and fast</span>
+                                                            <span class="schedule-ov-help" title="Optimized coverage with reduced runtime." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="full_deep">
+                                                            <span>Full and very deep</span>
+                                                            <span class="schedule-ov-help" title="Heavier profile with exhaustive plugin coverage." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="full_fast_ultimate">
+                                                            <span>Full and fast ultimate</span>
+                                                            <span class="schedule-ov-help" title="Aggressive checks that trade speed for findings." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="schedule-ov-type-list">
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="host_disc">
+                                                            <span>Host discovery</span>
+                                                            <span class="schedule-ov-help" title="Quick ping/port probes suited for frequent repeating jobs." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                                                            <input type="checkbox" name="ov_profile" value="system_disc">
+                                                            <span>System discovery</span>
+                                                            <span class="schedule-ov-help" title="Lightweight discovery to map live hosts and services." data-toggle="tooltip">&#x2754;</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted d-inline-block mt-2">Select exactly one network profile for this schedule.</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success">Save</button>
+                                </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+     <div class="container-fluid">
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <br>
+                    <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                        <h5 class="card-title mb-0">Scheduled Scans</h5>
+                        <div class="mt-2 mt-md-0">
+                            <button type="button"
+                                    id="schedule-delete-selected"
+                                    class="btn btn-danger btn-sm"
+                                    {% if not all_scheduled_scans %}disabled{% endif %}>
+                                <i class="fas fa-trash-alt"></i> Delete Selected
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-3">Track upcoming network runs and remove stale entries.</p>
+                    {% if all_scheduled_scans %}
+                    <div class="row">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table table-bordered data-table">
+                                <thead>
+                                <tr>
+                                    <th>
+                                        <label class="customcheckbox m-b-20 mb-0">
+                                            <input type="checkbox" id="mainCheckbox">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </th>
+                                    <th>Target / IP</th>
+                                    <th>Start time</th>
+                                    <th>Project</th>
+                                    <th>{% if user.is_superuser or user.role == 'Admin' %}Scanner{% else %}Scan Type{% endif %}</th>
+                                    <th>Repeat</th>
+                                    <th>Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for data in all_scheduled_scans %}
+                                <tr data-target="#">
+                                    <td>
+                                        <label class="customcheckbox m-0">
+                                            <input type="checkbox"
+                                                   class="schedule-checkbox"
+                                                   value="{{ data.task_id }}"
+                                                   name="schedule_task_id">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </td>
+                                    <td>{{ data.target|default:"-" }}</td>
+                                    <td>{{ data.schedule_time|default:"-" }}</td>
+                                    <td>
+                                        {% if data.project_obj %}
+                                            {{ data.project_obj.project_name }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    {% if user.is_superuser or user.role == 'Admin' %}
+                                    <td>
+                                        {% with scanType=data.scanner_display|default_if_none:'Network Scan' %}
+                                        <div class="p-1">
+                                            <img src="{{ PARSER_DICT | get_icon:scanType }}"
+                                                 alt="{{ PARSER_DICT | get_displayName:scanType }}{% if data.scan_type %} - {{ data.scan_type }}{% endif %}"
+                                                 width="30"
+                                                 class="rounded-circle"
+                                                 data-toggle="tooltip"
+                                                 data-placement="top"
+                                                 title="{% if data.scan_type %}{{ data.scan_type }}{% else %}{{ PARSER_DICT | get_displayName:scanType }}{% endif %}">
+                                        </div>
+                                        {% endwith %}
+                                    </td>
+                                    {% else %}
+                                    <td>{{ data.scan_type|user_scan_type:"Network Scan" }}</td>
+                                    {% endif %}
+                                    <td>{{ data.periodic_task|schedule_frequency }}</td>
+                                    <td>
+                                        <form action="{% url 'networkscanners:del_net_scan_schedule' %}" method="post" class="forms-sample d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="task_id" value="{{ data.task_id }}"/>
+                                            <button class="btn btn-outline-danger btn-sm" title="Delete this schedule">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border text-muted mb-0">
+                        No network scans are scheduled yet. Use the form above to plan one-time or repeating runs.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+     </div>
+
+
+
+<!--<script type="text/javascript" src="/static/js/jquery-1.8.3.min.js" charset="UTF-8"></script>-->
+
+<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/static/js/bootstrap-datetimepicker.js" charset="UTF-8"></script>
+<!--<script type="text/javascript" src="/static/js/bootstrap-datetimepicker.fr.js" charset="UTF-8"></script>-->
+<script type="text/javascript">
+    $('.form_datetime').datetimepicker({
+        //language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 2,
+		forceParse: 0,
+        showMeridian: 1
+    });
+	$('.form_date').datetimepicker({
+        language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 2,
+		minView: 2,
+		forceParse: 0
+    });
+	$('.form_time').datetimepicker({
+        language:  'fr',
+        weekStart: 1,
+        todayBtn:  1,
+		autoclose: 1,
+		todayHighlight: 1,
+		startView: 1,
+		minView: 0,
+		maxView: 1,
+        forceParse: 0
+    });
+
+
+</script>
+
+<script>
+    (function ($) {
+        if (!$) { return; }
+        $(document).on('change', 'input[name="ov_profile"]', function () {
+            $('input[name="ov_profile"]').not(this).prop('checked', false);
+        });
+        $(document).on('change', '#schedule_nmap_profile_quick', function () {
+            if (this.checked) {
+                $('#schedule_nmap_profile_full').prop('checked', false);
+            }
+        });
+        $(document).on('change', '#schedule_nmap_profile_full', function () {
+            if (this.checked) {
+                $('#schedule_nmap_profile_quick').prop('checked', false);
+            }
+        });
+    })(window.jQuery);
+</script>
+
+{% endblock %}

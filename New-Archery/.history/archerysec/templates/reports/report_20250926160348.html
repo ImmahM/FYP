@@ -1,0 +1,298 @@
+{% extends "base/site_base.html" %}
+{% load static %}
+
+{% block body %}
+<div class="container mt-4 report-page">
+
+    <!-- 📊 HEADER SECTION -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="logo">
+            <img src="{% static 'img/teamcloud.jpg' %}" alt="TeamCloud Solutions" style="height:70px;">
+        </div>
+        <div class="text-end">
+            <h1 class="fw-bold">📊 Security Assessment Report</h1>
+            <p class="text-muted mb-0">Generated on: {{ now|date:"Y-m-d H:i" }}</p>
+            {% if selected_project %}
+                <p class="text-muted">Project: <strong>{{ selected_project.project_name }}</strong></p>
+            {% else %}
+                <p class="text-muted">Project: <strong>All Projects</strong></p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 📈 EXECUTIVE SUMMARY -->
+    <div class="card p-4 mb-5 shadow-sm">
+        <h2 class="mb-3">📌 Executive Summary</h2>
+        <p>This report summarizes the results of the security assessment, providing insights into vulnerabilities across different layers of your application and infrastructure. The aim is to help prioritize remediation efforts based on risk levels.</p>
+
+        <div class="row text-center">
+            <div class="col-md-2">
+                <h4 class="text-danger">
+                    {{ dynamic_results.count|default:0|add:infrastructure_results.count|add:static_results.count|add:cloud_results.count }}
+                </h4>
+                <p>Total Findings</p>
+            </div>
+            <div class="col-md-2"><h4 class="text-dark">{{ dynamic_results|dictsort:"critical_vul"|length }}</h4><p>Critical</p></div>
+            <div class="col-md-2"><h4 class="text-danger">{{ dynamic_results|dictsort:"high_vul"|length }}</h4><p>High</p></div>
+            <div class="col-md-2"><h4 class="text-warning">{{ dynamic_results|dictsort:"medium_vul"|length }}</h4><p>Medium</p></div>
+            <div class="col-md-2"><h4 class="text-success">{{ dynamic_results|dictsort:"low_vul"|length }}</h4><p>Low</p></div>
+        </div>
+    </div>
+
+    <!-- 🧭 SCAN METADATA -->
+    <div class="card p-4 mb-5 shadow-sm">
+        <h2 class="mb-3">🧭 Scan Metadata</h2>
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th scope="row" style="width: 30%;">Project Name</th>
+                    <td>
+                        {% if selected_project %}
+                            {{ selected_project.project_name }}
+                        {% else %}
+                            All Projects
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Report Generated</th>
+                    <td>{{ now|date:"Y-m-d H:i" }}</td>
+                </tr>
+                <tr>
+                    <th>Scan Types Included</th>
+                    <td>
+                        {% if selected_scan_types %}
+                            {{ selected_scan_types|join:", " }}
+                        {% else %}
+                            All Scan Types
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Total Scans Performed</th>
+                    <td>
+                        {{ dynamic_results.count|default:0|add:infrastructure_results.count|add:static_results.count|add:cloud_results.count }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Total Findings (All Severities)</th>
+                    <td>
+                        {{ dynamic_results.count|default:0|add:infrastructure_results.count|add:static_results.count|add:cloud_results.count }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Severity Breakdown</th>
+                    <td>
+                        Critical: {{ dynamic_results|dictsort:"critical_vul"|length }},
+                        High: {{ dynamic_results|dictsort:"high_vul"|length }},
+                        Medium: {{ dynamic_results|dictsort:"medium_vul"|length }},
+                        Low: {{ dynamic_results|dictsort:"low_vul"|length }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Scanner Version</th>
+                    <td>ArcherySec v2.0 (TeamCloud Customized)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% if not export_mode %}
+    <!-- 🔎 FILTER SECTION -->
+    <div id="filter-section" class="card p-4 mb-5 shadow-sm">
+        <h3 class="mb-3">🔍 Filter & Customize Report</h3>
+        <form id="report-form" method="get" action="{% url 'reports:generate_report' %}">
+
+            <!-- Project Selection -->
+            <div class="mb-3">
+                <label for="project_id" class="form-label fw-bold">Project</label>
+                <select id="project_id" name="project_id" class="form-select">
+                    <option value="">-- All Projects --</option>
+                    {% for p in projects %}
+                        <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>{{ p.project_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Scan Type Selection -->
+            <div class="mb-4 p-3 border rounded bg-light">
+                <label class="form-label fw-bold d-block mb-2">Scan Types</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="scan_web" name="scan_types" value="web" {% if 'web' in selected_scan_types %}checked{% endif %}>
+                    <label class="form-check-label" for="scan_web">🌐 Dynamic (DAST)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="scan_static" name="scan_types" value="static" {% if 'static' in selected_scan_types %}checked{% endif %}>
+                    <label class="form-check-label" for="scan_static">🧑‍💻 Static (SAST)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="scan_network" name="scan_types" value="network" {% if 'network' in selected_scan_types %}checked{% endif %}>
+                    <label class="form-check-label" for="scan_network">🏗️ Infrastructure</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="scan_cloud" name="scan_types" value="cloud" {% if 'cloud' in selected_scan_types %}checked{% endif %}>
+                    <label class="form-check-label" for="scan_cloud">☁️ Cloud</label>
+                </div>
+            </div>
+
+            <!-- Severity Filter -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">Severity</label><br/>
+                <label class="me-3"><input type="checkbox" name="severity" value="critical" {% if 'critical' in selected_severities %}checked{% endif %}> Critical</label>
+                <label class="me-3"><input type="checkbox" name="severity" value="high" {% if 'high' in selected_severities %}checked{% endif %}> High</label>
+                <label class="me-3"><input type="checkbox" name="severity" value="medium" {% if 'medium' in selected_severities %}checked{% endif %}> Medium</label>
+                <label class="me-3"><input type="checkbox" name="severity" value="low" {% if 'low' in selected_severities %}checked{% endif %}> Low</label>
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">🔎 Preview Report</button>
+                {% if query_string %}
+                <div class="ms-3">
+                    <a class="btn btn-outline-success" href="{% url 'reports:download_report' %}?format=pdf&{{ query_string }}">📄 Download PDF</a>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- 📄 REPORT CONTENT -->
+    <div id="report-content">
+        <h2 class="mb-4">📑 Detailed Findings</h2>
+
+        {% if export_mode or not selected_scan_types or 'web' in selected_scan_types %}
+        <div id="dynamic-section" class="mb-5">
+            <h3>🌐 Dynamic Web Scans</h3>
+            <p class="text-muted">Assessment of web application endpoints for vulnerabilities such as XSS, SQLi, and misconfigurations.</p>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in dynamic_results %}
+                    <tr>
+                        <td>{{ scan.scan_url }}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No dynamic scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if export_mode or not selected_scan_types or 'network' in selected_scan_types %}
+        <div id="infrastructure-section" class="mb-5">
+            <h3>🏗️ Infrastructure Scans</h3>
+            <p class="text-muted">Network-level assessments detecting exposed ports, vulnerable services, and configuration issues.</p>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Target IP</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in infrastructure_results %}
+                    <tr>
+                        <td>{{ scan.ip }}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No infrastructure data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if export_mode or not selected_scan_types or 'static' in selected_scan_types %}
+        <div id="static-section" class="mb-5">
+            <h3>🧑‍💻 Static Analysis Scans</h3>
+            <p class="text-muted">Source code analysis to detect vulnerabilities before deployment, such as insecure functions or hardcoded secrets.</p>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Project / Target</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in static_results %}
+                    <tr>
+                        <td>{% if scan.project_name %}{{ scan.project_name }}{% elif scan.project %}{{ scan.project.project_name }}{% else %}—{% endif %}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No static scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if export_mode or not selected_scan_types or 'cloud' in selected_scan_types %}
+        <div id="cloud-section" class="mb-5">
+            <h3>☁️ Cloud Scans</h3>
+            <p class="text-muted">Evaluation of cloud resources and configurations for misconfigurations, public exposure, and insecure policies.</p>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Cloud Account / Resource</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in cloud_results %}
+                    <tr>
+                        <td>{% if scan.cloudAccountId %}{{ scan.cloudAccountId }}{% elif scan.project %}{{ scan.project.project_name }}{% else %}—{% endif %}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No cloud scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

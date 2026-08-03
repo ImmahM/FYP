@@ -1,0 +1,1299 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap');
+
+:root {
+  --bg-1: #0b0d13;
+  --bg-2: #0f1424;
+  --glass: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.08);
+  --card-glow: 0 20px 60px rgba(59, 130, 246, 0.18);
+  --accent-1: #7f5af0;
+  --accent-2: #7cf3ff;
+  --accent-3: #ff7c5c;
+  --accent-4: #6df59c;
+  --text-1: #f8fafc;
+  --text-2: #cbd5e1;
+  --muted: #94a3b8;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+}
+
+html, body {
+  background: radial-gradient(circle at 10% 20%, rgba(127, 90, 240, 0.25), transparent 30%),
+              radial-gradient(circle at 80% 0%, rgba(124, 243, 255, 0.18), transparent 35%),
+              radial-gradient(circle at 30% 90%, rgba(255, 124, 92, 0.15), transparent 45%),
+              linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  color: var(--text-2);
+  font-family: 'Space Grotesk', 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  font-size: 15px;
+}
+
+#main-wrapper {
+  background: transparent;
+}
+
+.page-wrapper {
+  background: transparent;
+  padding-top: 100px;
+}
+
+.container-fluid {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.topbar, .navbar {
+  background: radial-gradient(circle at 10% 20%, rgba(127, 90, 240, 0.2), transparent 30%),
+              radial-gradient(circle at 85% 0%, rgba(124, 243, 255, 0.16), transparent 40%),
+              linear-gradient(135deg, rgba(11, 15, 24, 0.95), rgba(7, 11, 18, 0.92)) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), 0 6px 18px rgba(124, 243, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  position: fixed;
+  top: 14px;
+  left: 18px;
+  right: 18px;
+  z-index: 1200;
+  margin: 0 auto;
+  width: auto;
+  border-radius: 16px;
+}
+
+.topbar,
+.topbar .top-navbar,
+.topbar .top-navbar .navbar-header,
+.topbar .top-navbar .navbar-collapse,
+#main-wrapper .topbar,
+#main-wrapper .topbar .navbar,
+#main-wrapper .topbar .navbar-collapse,
+#main-wrapper .topbar .navbar-header,
+body .topbar {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.topbar .top-navbar {
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.topbar .top-navbar .navbar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar .navbar-header,
+.topbar .navbar {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.navbar .navbar-brand .logo-text img,
+.navbar .navbar-brand .logo-icon img {
+  filter: drop-shadow(0 10px 25px rgba(127, 90, 240, 0.35));
+}
+
+.navbar .nav-link,
+.navbar .dropdown-toggle {
+  color: var(--text-1) !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.navbar .dropdown-menu {
+  background: rgba(14, 18, 30, 0.9);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+}
+
+.navbar .dropdown-menu.mailbox {
+  padding: 12px;
+  width: 440px;
+  background: linear-gradient(160deg, rgba(16, 20, 34, 0.92), rgba(11, 14, 24, 0.9));
+  border-radius: 18px;
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.48), 0 10px 32px rgba(127, 90, 240, 0.28);
+}
+
+.navbar .dropdown-menu .dropdown-item {
+  color: var(--text-1);
+  font-weight: 600;
+  padding: 10px 14px;
+}
+
+.navbar .dropdown-menu .dropdown-item:hover,
+.navbar .dropdown-menu .dropdown-item:focus {
+  background: linear-gradient(120deg, rgba(127, 90, 240, 0.25), rgba(124, 243, 255, 0.18));
+  color: #fff;
+}
+
+.navbar .dropdown-menu .dropdown-item.disabled,
+.navbar .dropdown-menu .dropdown-item:disabled {
+  color: rgba(255, 255, 255, 0.45);
+  opacity: 1;
+}
+
+#notification-items {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+#notification-items .dropdown-menu-header {
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  background: linear-gradient(120deg, rgba(127, 90, 240, 0.18), rgba(124, 243, 255, 0.12));
+  color: #fff;
+}
+
+#notification-items li {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#notification-items .alert {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(127, 90, 240, 0.08));
+  color: var(--text-1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
+  padding: 12px 14px 10px;
+  width: 100%;
+  max-width: 380px;
+}
+
+#notification-items .alert .close {
+  color: rgba(255, 255, 255, 0.65);
+  opacity: 1;
+}
+
+.notify-toast {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(127, 90, 240, 0.08));
+  color: var(--text-1);
+}
+
+.notify-toast .small,
+#notification-items .small {
+  color: var(--muted);
+}
+
+.left-sidebar {
+  background: linear-gradient(185deg, rgba(87, 108, 158, 0.75), rgba(54, 73, 119, 0.68));
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 8px 26px rgba(124, 243, 255, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  margin: 0;
+  padding-top: 60px;
+  border-radius: 18px;
+  overflow: hidden;
+  position: fixed;
+  top: 96px;
+  left: 18px;
+  height: calc(100vh - 114px);
+  width: 250px;
+  backdrop-filter: blur(14px);
+}
+
+.left-sidebar .scroll-sidebar {
+  padding: 10px 8px 18px;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 4px;
+}
+
+.left-sidebar .scroll-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  margin: 30px 0;
+}
+
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(127, 90, 240, 0.65), rgba(124, 243, 255, 0.65));
+  border-radius: 999px;
+  border: 1px solid rgba(15, 18, 32, 0.4);
+}
+
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(127, 90, 240, 0.85), rgba(124, 243, 255, 0.85));
+}
+
+.ring-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.ring-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.ring-legend span i {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border-radius: 50%;
+}
+
+@media (min-width: 992px) {
+  .page-wrapper {
+    margin-left: 280px;
+    padding-left: 16px;
+    padding-right: 24px;
+  }
+}
+
+@media (max-width: 991px) {
+  .topbar, .navbar {
+    left: 0;
+    right: 0;
+    top: 0;
+    border-radius: 0;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
+  }
+
+  .left-sidebar {
+    top: 0;
+    left: 0;
+    height: 100vh;
+    border-radius: 0;
+    padding-top: 70px;
+  }
+}
+
+/* Force DataTables pagination + length dropdown overrides */
+body .dataTables_wrapper .dataTables_paginate .paginate_button,
+body .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+body .dataTables_wrapper .dataTables_paginate .pagination .page-link {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #e5e8ff !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 10px !important;
+  padding: 6px 10px !important;
+  margin: 0 4px !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate ul.pagination {
+  margin: 0 !important;
+  padding: 4px 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate ul.pagination .page-item {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* DataTables length dropdown (native select) */
+body .dataTables_wrapper .dataTables_length select {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  color: #f1f5ff !important;
+  border-radius: 12px !important;
+  padding: 8px 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.14);
+}
+
+body .dataTables_wrapper .dataTables_length select option {
+  background: #111827 !important;
+  color: #e2e8f0 !important;
+}
+
+body .dataTables_wrapper .dataTables_length select option:checked,
+body .dataTables_wrapper .dataTables_length select option:hover {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+}
+
+/* Bootstrap-select styling for length dropdowns */
+body .dataTables_wrapper .dataTables_length .bootstrap-select > .dropdown-toggle {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  color: #f1f5ff !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.14);
+  padding: 8px 12px !important;
+  height: 44px !important;
+}
+
+body .dataTables_wrapper .dataTables_length .bootstrap-select .dropdown-menu {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+body .dataTables_wrapper .dataTables_length .bootstrap-select .dropdown-menu li a {
+  color: #e5e8ff !important;
+  background: transparent !important;
+}
+
+body .dataTables_wrapper .dataTables_length .bootstrap-select .dropdown-menu li a:hover,
+body .dataTables_wrapper .dataTables_length .bootstrap-select .dropdown-menu li a:focus,
+body .dataTables_wrapper .dataTables_length .bootstrap-select .dropdown-menu li.selected a {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+}
+
+body .bootstrap-select .dropdown-menu li a span.text {
+  color: #e5e8ff !important;
+}
+
+body .bootstrap-select .dropdown-menu li a:hover span.text,
+body .bootstrap-select .dropdown-menu li a:focus span.text,
+body .bootstrap-select .dropdown-menu li.selected a span.text,
+body .bootstrap-select .dropdown-menu li.active a span.text {
+  color: #ffffff !important;
+}
+
+body .bootstrap-select .dropdown-menu li.active a,
+body .bootstrap-select .dropdown-menu li.active a:focus,
+body .bootstrap-select .dropdown-menu li.active a:hover {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+}
+
+body .bootstrap-select .dropdown-menu {
+  background: #0c1325 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+body .bootstrap-select .dropdown-menu li a {
+  color: #e5e8ff !important;
+  background: transparent !important;
+}
+
+body .bootstrap-select .dropdown-menu li a:hover,
+body .bootstrap-select .dropdown-menu li a:focus,
+body .bootstrap-select .dropdown-menu li.selected a {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+}
+
+/* Center select text vertically on custom selects */
+.select2.form-control.custom-select,
+select.form-control.custom-select {
+  height: 44px !important;
+  padding: 10px 12px !important;
+  line-height: 1.4 !important;
+}
+
+.form-control,
+textarea.form-control,
+.form-horizontal textarea {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.14);
+  padding: 10px 12px !important;
+}
+
+.form-control:focus,
+textarea.form-control:focus,
+.form-horizontal textarea:focus {
+  box-shadow: 0 0 0 2px rgba(124, 243, 255, 0.2) !important;
+}
+
+.select2-container--default .select2-selection--single {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 12px !important;
+  height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.14);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: #f1f5ff !important;
+  line-height: 1.4 !important;
+  padding-left: 2px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 42px !important;
+}
+
+/* Date/time inputs + pickers */
+.form_datetime input[type="text"],
+.form_datetime input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.16);
+  padding: 10px 12px !important;
+  height: 44px !important;
+}
+
+.form_datetime input[type="text"]:focus,
+.form_datetime input:focus {
+  box-shadow: 0 0 0 2px rgba(124, 243, 255, 0.22) !important;
+}
+
+.form_datetime .add-on {
+  background: transparent !important;
+  border: none !important;
+  color: #e5e8ff !important;
+}
+
+.bootstrap-datetimepicker-widget.dropdown-menu table th,
+.bootstrap-datetimepicker-widget.dropdown-menu table td {
+  color: #cdd5f0 !important;
+}
+
+.bootstrap-datetimepicker-widget.dropdown-menu table td.day:hover:not(.disabled),
+.bootstrap-datetimepicker-widget.dropdown-menu table td:hover:not(.disabled),
+.bootstrap-datetimepicker-widget.dropdown-menu table span:hover:not(.disabled) {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+  border-radius: 12px;
+}
+
+.bootstrap-datetimepicker-widget.dropdown-menu table td.active,
+.bootstrap-datetimepicker-widget.dropdown-menu table td.active:hover,
+.bootstrap-datetimepicker-widget.dropdown-menu table span.active,
+.bootstrap-datetimepicker-widget.dropdown-menu table span.active:hover,
+.bootstrap-datetimepicker-widget.dropdown-menu table td.today:hover {
+  background: rgba(93, 115, 255, 0.9) !important;
+  color: #ffffff !important;
+}
+
+/* Date/time inputs + pickers */
+input[type="datetime-local"],
+input.datetimepicker-input,
+input.datepicker-input,
+.bootstrap-datetimepicker-widget input,
+.bootstrap-datetimepicker-widget .form-control {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.18);
+}
+
+input[type="datetime-local"]:focus,
+input.datetimepicker-input:focus,
+.bootstrap-datetimepicker-widget .form-control:focus {
+  box-shadow: 0 0 0 2px rgba(124, 243, 255, 0.22) !important;
+}
+
+/* Calendar tray styling */
+body .bootstrap-datetimepicker-widget {
+  background: radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.18), transparent 55%),
+              linear-gradient(135deg, #1c2740, #141d2f) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 10px 32px rgba(127, 90, 240, 0.18) !important;
+}
+
+body .bootstrap-datetimepicker-widget table th {
+  color: #ced7ef !important;
+}
+
+body .bootstrap-datetimepicker-widget table td,
+body .bootstrap-datetimepicker-widget .picker-switch,
+body .bootstrap-datetimepicker-widget .timepicker-hour,
+body .bootstrap-datetimepicker-widget .timepicker-minute,
+body .bootstrap-datetimepicker-widget .timepicker-second {
+  color: #c4cee6 !important;
+}
+
+/* Fallback override for non-Bootstrap-prefixed datetimepicker instances */
+body .datetimepicker,
+body .datetimepicker table,
+body .datetimepicker table td,
+body .datetimepicker table th {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #c4cee6 !important;
+}
+
+body .datetimepicker table td.day:hover,
+body .datetimepicker table td:hover,
+body .datetimepicker table td span:hover {
+  background: rgba(62, 94, 180, 0.85) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+}
+
+body .datetimepicker table td.active,
+body .datetimepicker table td.active:hover,
+body .datetimepicker table td span.active {
+  background: rgba(93, 115, 255, 0.9) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+}
+
+body .datetimepicker table td.today,
+body .datetimepicker table td.today:hover {
+  background: rgba(62, 94, 180, 0.5) !important;
+  color: #e5edff !important;
+  border-radius: 8px !important;
+}
+
+body .datetimepicker table td.old,
+body .datetimepicker table td.new {
+  color: rgba(183, 195, 223, 0.55) !important;
+}
+
+body .datetimepicker table td.disabled,
+body .datetimepicker table td.disabled:hover {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.bootstrap-datetimepicker-widget table td:hover,
+.bootstrap-datetimepicker-widget table th:hover,
+.bootstrap-datetimepicker-widget table td span:hover {
+  background: rgba(62, 94, 180, 0.75) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+}
+
+.bootstrap-datetimepicker-widget table td.active,
+.bootstrap-datetimepicker-widget table td.active:hover,
+.bootstrap-datetimepicker-widget table td span.active {
+  background: rgba(93, 115, 255, 0.85) !important;
+  color: #ffffff !important;
+}
+
+.bootstrap-datetimepicker-widget table td.disabled,
+.bootstrap-datetimepicker-widget table td.disabled:hover {
+  color: rgba(255, 255, 255, 0.35) !important;
+  background: transparent !important;
+}
+/* Dark-themed preload screen */
+.preloader {
+  background: radial-gradient(circle at 10% 20%, rgba(127, 90, 240, 0.25), transparent 30%),
+              radial-gradient(circle at 80% 0%, rgba(124, 243, 255, 0.18), transparent 35%),
+              radial-gradient(circle at 30% 90%, rgba(255, 124, 92, 0.15), transparent 45%),
+              linear-gradient(135deg, #0b0d13, #0f1424) !important;
+}
+
+.preloader .lds-ripple div {
+  border-color: rgba(124, 243, 255, 0.75) !important;
+}
+
+.preloader .lds-ripple div:nth-child(2) {
+  border-color: rgba(127, 90, 240, 0.75) !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate .paginate_button:hover:not(.disabled),
+body .dataTables_wrapper .dataTables_paginate .pagination .page-link:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body .dataTables_wrapper .dataTables_paginate .pagination .page-item.active .page-link {
+  background: rgba(93, 115, 255, 0.24) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+body .dataTables_wrapper .dataTables_paginate .pagination .page-item.disabled .page-link {
+  opacity: 0.6 !important;
+  background: transparent !important;
+  color: #9aa0b5 !important;
+  cursor: default !important;
+}
+
+body .dataTables_wrapper .dataTables_paginate .paginate_button:focus,
+body .dataTables_wrapper .dataTables_paginate .pagination .page-link:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+body .dataTables_wrapper .dataTables_length select {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #e5e8ff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 12px !important;
+  padding: 8px 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+}
+
+body .dataTables_wrapper .dataTables_length select:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18) !important;
+}
+
+body .dataTables_wrapper .dataTables_length select option {
+  background-color: #0f172a !important;
+  color: #e5e8ff !important;
+}
+
+body .dataTables_wrapper .dataTables_length select option:hover,
+body .dataTables_wrapper .dataTables_length select option:checked {
+  background-color: #1f2b48 !important;
+  color: #ffffff !important;
+}
+
+.left-sidebar .sidebar-item > a {
+  color: var(--text-2) !important;
+  font-weight: 500;
+  border-radius: 12px;
+  margin: 2px 10px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+.left-sidebar .sidebar-item > a:hover,
+.left-sidebar .sidebar-item > .active > a,
+.left-sidebar .sidebar-item .selected {
+  color: var(--text-1) !important;
+  background: linear-gradient(120deg, rgba(127, 90, 240, 0.25), rgba(124, 243, 255, 0.12));
+  box-shadow: 0 10px 30px rgba(127, 90, 240, 0.25);
+  border: 1px solid rgba(127, 90, 240, 0.36);
+}
+
+.card {
+  background: radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.08), transparent 55%),
+              radial-gradient(circle at 80% 0%, rgba(124, 243, 255, 0.08), transparent 45%),
+              rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--card-glow);
+  overflow: hidden;
+}
+
+.card .card-body {
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.card-title, h1, h2, h3, h4, h5 {
+  color: var(--text-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 1.15rem;
+}
+
+p, label, small, .text-muted {
+  color: var(--muted) !important;
+}
+
+.btn {
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06));
+  border: 1px solid rgba(127, 90, 240, 0.35);
+  color: #f8fafc !important;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25), 0 8px 22px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary, .btn-info {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.24), rgba(124, 243, 255, 0.2));
+  border: 1px solid rgba(127, 90, 240, 0.55);
+  color: #f8fafc !important;
+}
+
+.btn-outline-primary,
+.btn-secondary,
+.btn-outline-secondary,
+.btn-light,
+.btn-default {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.12), rgba(124, 243, 255, 0.1));
+  border: 1px solid rgba(127, 90, 240, 0.35);
+  color: #e2e8f0 !important;
+}
+
+.btn:hover, .btn:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(127, 90, 240, 0.45);
+  color: #fff !important;
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.form-control, .select2-container .select2-selection--single {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  color: var(--text-1) !important;
+  padding: 12px 14px;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus, .select2-container--default .select2-selection--single:focus {
+  border-color: rgba(124, 243, 255, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(124, 243, 255, 0.2);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--text-1);
+  line-height: 42px;
+}
+
+.select2-container--default .select2-selection--single {
+  height: 46px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 46px;
+}
+
+textarea.form-control {
+  min-height: 120px;
+}
+
+.checkbox input[type=checkbox] + span:before,
+.checkbox-slider--b input + span:before {
+  background: rgba(127, 90, 240, 0.3);
+  border-color: rgba(127, 90, 240, 0.8);
+}
+
+.checkbox input[type=checkbox]:checked + span:before,
+.checkbox-slider--b input:checked + span:before {
+  background: linear-gradient(135deg, #7f5af0, #7cf3ff);
+  border-color: transparent;
+}
+
+.loading-ring {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: #7f5af0 !important;
+}
+
+.table {
+  color: var(--text-2);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(127, 90, 240, 0.05));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(127, 90, 240, 0.2);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+}
+
+.table thead th {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-1);
+  background: linear-gradient(135deg, rgba(16, 20, 34, 0.9), rgba(11, 14, 24, 0.85));
+}
+
+.table td, .table th {
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+/* Override Bootstrap light headers/rows (e.g., report tables) to stay glassy */
+.report-page .table thead th,
+.report-page .table-light th,
+.report-page .table-light td,
+.report-page .table-light > tbody > tr > th,
+.report-page .table-light > tbody > tr > td,
+.report-page .table-light > thead > tr > th {
+  background: linear-gradient(135deg, rgba(16, 20, 34, 0.9), rgba(11, 14, 24, 0.85)) !important;
+  color: var(--text-1) !important;
+  border-color: var(--border) !important;
+}
+
+/* Darken report cards to match overall theme */
+.report-page .card {
+  background: linear-gradient(160deg, rgba(16, 20, 34, 0.92), rgba(11, 14, 24, 0.88)) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.32);
+}
+
+.report-page .card-header,
+.report-page .card-header.bg-white {
+  background: linear-gradient(135deg, rgba(16, 20, 34, 0.9), rgba(11, 14, 24, 0.85)) !important;
+  color: var(--text-1) !important;
+  border-color: var(--border) !important;
+}
+
+/* Sharper legend text across common charting libs */
+.chart-legend li,
+.chartjs-legend li,
+.apexcharts-legend-text,
+.c3-legend-item text,
+.highcharts-legend text,
+.legend,
+.legend text {
+  font-size: 14px !important;
+  fill: var(--text-1) !important;
+  color: var(--text-1) !important;
+  font-weight: 600 !important;
+}
+
+.badge, .label {
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-weight: 600;
+}
+
+.table-responsive {
+  background: transparent;
+}
+
+.dataTables_wrapper {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-1);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 6px 10px;
+}
+
+.dataTables_wrapper .dataTables_length select option {
+  background: #0b0d13;
+  color: #f8fafc;
+}
+
+/* Generic dropdown menus to match glass theme */
+.dropdown-menu,
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+  background: linear-gradient(135deg, rgba(16, 20, 34, 0.9), rgba(11, 14, 24, 0.88)) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  color: var(--text-1) !important;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.dropdown-menu a,
+.dropdown-menu .dropdown-item,
+.select2-container--default .select2-selection__rendered {
+  color: var(--text-1) !important;
+}
+
+.select2-dropdown {
+  background: linear-gradient(135deg, rgba(16, 20, 34, 0.9), rgba(11, 14, 24, 0.88)) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.select2-results__option {
+  color: var(--text-1);
+}
+
+.select2-results__option--highlighted[aria-selected],
+.select2-results__option[aria-selected=true] {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.22), rgba(124, 243, 255, 0.18)) !important;
+  color: #fff;
+}
+
+/* Native selects fallback */
+select,
+select.form-control {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06)) !important;
+  color: var(--text-1) !important;
+  border: 1px solid rgba(127, 90, 240, 0.35) !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25);
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+}
+
+select option {
+  background: #0b0d13 !important;
+  color: #f8fafc !important;
+  color-scheme: dark;
+}
+select option:hover,
+select option:checked,
+select option:focus {
+  background: rgba(127, 90, 240, 0.25) !important;
+  color: #fff !important;
+}
+
+select:focus, select:active, select:hover,
+.dataTables_wrapper .dataTables_length select:focus,
+.dataTables_wrapper .dataTables_length select:hover {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.12), rgba(124, 243, 255, 0.1)) !important;
+  color: var(--text-1) !important;
+  border-color: rgba(127, 90, 240, 0.55) !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(127, 90, 240, 0.35);
+}
+
+.select2-container--default .select2-selection--single {
+  height: 46px;
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06)) !important;
+  border: 1px solid rgba(127, 90, 240, 0.35) !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--text-1) !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 46px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06)) !important;
+  color: var(--text-1) !important;
+  border: 1px solid rgba(127, 90, 240, 0.35) !important;
+  border-radius: 12px !important;
+  margin-left: 4px !important;
+  padding: 6px 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25), 0 8px 18px rgba(0,0,0,0.25);
+  background-color: transparent !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.12), rgba(124, 243, 255, 0.1)) !important;
+  color: var(--text-1) !important;
+  border-color: rgba(127, 90, 240, 0.45) !important;
+  box-shadow: 0 10px 22px rgba(127, 90, 240, 0.28);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:active {
+  opacity: 0.6;
+  color: var(--text-2) !important;
+  border-color: rgba(127, 90, 240, 0.2) !important;
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06)) !important;
+}
+
+.neo-hero {
+  position: relative;
+  padding: 22px 0 30px;
+  margin-bottom: 12px;
+}
+
+.neo-hero .title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #f5f7ff;
+  letter-spacing: -0.02em;
+}
+
+.neo-hero .subtitle {
+  color: var(--muted);
+  max-width: 920px;
+}
+
+.neo-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 18px;
+}
+
+.neo-panel {
+  background: linear-gradient(160deg, rgba(17, 21, 34, 0.92), rgba(13, 16, 26, 0.9));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--card-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.neo-panel:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 25% 20%, rgba(127, 90, 240, 0.2), transparent 45%),
+              radial-gradient(circle at 80% 15%, rgba(124, 243, 255, 0.18), transparent 40%),
+              radial-gradient(circle at 50% 85%, rgba(255, 124, 92, 0.12), transparent 50%);
+  pointer-events: none;
+}
+
+.neo-panel .card-body {
+  position: relative;
+  z-index: 1;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-heading .dot {
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #7f5af0, #7cf3ff);
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(127, 90, 240, 0.3);
+}
+
+.surface {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: linear-gradient(120deg, rgba(124, 243, 255, 0.15), rgba(127, 90, 240, 0.12));
+  color: var(--text-1);
+  font-weight: 600;
+  border: 1px solid rgba(127, 90, 240, 0.4);
+}
+
+.text-gradient {
+  background: linear-gradient(120deg, #7cf3ff, #7f5af0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(120deg, #7f5af0, #7cf3ff);
+  box-shadow: 0 0 0 6px rgba(127, 90, 240, 0.2);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: #7f5af0;
+  box-shadow: 0 0 0 6px rgba(127, 90, 240, 0.2);
+}
+
+.link-ghost {
+  color: var(--text-1);
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.link-ghost:hover {
+  opacity: 1;
+  color: #fff;
+}
+
+.footer {
+  background: transparent;
+  color: var(--muted);
+}
+
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-1);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 6px 10px;
+}
+
+.dataTables_wrapper .dataTables_length select option {
+  background: #0b0d13;
+  color: #f8fafc;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.12), rgba(124, 243, 255, 0.1)) !important;
+  color: var(--text-1) !important;
+  border: 1px solid rgba(127, 90, 240, 0.35) !important;
+  border-radius: 12px !important;
+  margin-left: 4px !important;
+  padding: 6px 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(127, 90, 240, 0.25), 0 8px 18px rgba(0,0,0,0.25);
+  background-color: transparent !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.18), rgba(124, 243, 255, 0.16)) !important;
+  color: #fff !important;
+  border-color: rgba(127, 90, 240, 0.45) !important;
+  box-shadow: 0 10px 22px rgba(127, 90, 240, 0.35);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover,
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:active {
+  opacity: 0.6;
+  color: var(--text-2) !important;
+  border-color: rgba(127, 90, 240, 0.2) !important;
+  background: linear-gradient(135deg, rgba(127, 90, 240, 0.08), rgba(124, 243, 255, 0.06)) !important;
+}
+
+.chart-legend,
+.chartjs-legend,
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chart-legend li,
+.chartjs-legend li,
+.apexcharts-legend-text,
+.c3-legend-item text,
+.highcharts-legend text,
+.legend text {
+  font-size: 14px !important;
+  fill: var(--text-1) !important;
+  color: var(--text-1) !important;
+  font-weight: 600 !important;
+}
+
+/* Dashboard chart layout */
+.chart-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: clamp(320px, 38vh, 460px);
+  padding: 18px 20px 16px;
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.02), rgba(124, 243, 255, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 18px 40px rgba(0, 0, 0, 0.35);
+  isolation: isolate;
+}
+
+.chart-card .chart-canvas {
+  flex: 1 1 auto;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  min-height: clamp(260px, 32vh, 360px);
+  max-height: 460px;
+  border-radius: 16px;
+  padding: 8px;
+  background: radial-gradient(circle at 20% 25%, rgba(124, 243, 255, 0.08), transparent 38%),
+              radial-gradient(circle at 80% 15%, rgba(127, 90, 240, 0.08), transparent 40%),
+              linear-gradient(140deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 20px 50px rgba(0, 0, 0, 0.35);
+  image-rendering: optimizeQuality;
+  transform: translateZ(0);
+}
+
+.chart-legend-side {
+  position: absolute;
+  top: 80px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  z-index: 3;
+}
+
+.chart-legend-side .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(12, 16, 28, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
+  font-weight: 600;
+  font-size: 12px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.chart-legend-side .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+@media (max-width: 991px) {
+  .chart-card {
+    min-height: clamp(260px, 48vh, 340px);
+    padding: 16px 16px 14px;
+  }
+
+  .chart-card .chart-canvas {
+    aspect-ratio: 4 / 3;
+    max-height: 360px;
+  }
+}
+
+.toast {
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+}
+
+.badge-success { background: linear-gradient(135deg, #1dd1a1, #10ac84); }
+.badge-warning { background: linear-gradient(135deg, #f6b93b, #ee5253); }
+.badge-info { background: linear-gradient(135deg, #54a0ff, #5f27cd); }

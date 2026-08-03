@@ -1,0 +1,9 @@
+<td class="jira-col">
+    {% if data.jira_issue %}
+        <a href="{{ data.jira_issue }}" class="btn btn-sm btn-link" target="_blank" rel="noopener">JIRA</a>
+    {% else %}
+-        <a href="#" class="btn btn-sm btn-link">NA</a>
++        <!-- Show NA as a gray, non-clickable label for all roles -->
++        <span class="text-muted">NA</span>
+    {% endif %}
+</td>

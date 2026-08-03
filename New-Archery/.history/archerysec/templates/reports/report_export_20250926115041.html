@@ -1,0 +1,182 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #fff;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #f2f2f2;
+        }
+        .section {
+            margin-bottom: 50px;
+        }
+        .no-data {
+            color: #888;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Security Report</h1>
+    <p>Generated on: {{ now|date:"Y-m-d H:i" }}</p>
+
+    {# Dynamic / Web scans #}
+        <div id="dynamic-section" class="mb-4">
+            <h3>🌐 Dynamic Web Scans</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in dynamic_results %}
+                    <tr>
+                        <td>{{ scan.scan_url }}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No dynamic scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {# Infrastructure / Network scans #}
+        <div id="infrastructure-section" class="mb-4">
+            <h3>🏗️ Infrastructure Scans</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Target IP</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in infrastructure_results %}
+                    <tr>
+                        <td>{{ scan.ip }}</td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No infrastructure data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {# Static scans #}
+        <div id="static-section" class="mb-4">
+            <h3>🧑‍💻 Static Analysis Scans</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Project / Target</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in static_results %}
+                    <tr>
+                        <td>
+                            {# prefer project_name if present, else project relation #}
+                            {% if scan.project_name %}{{ scan.project_name }}
+                            {% elif scan.project %}{{ scan.project.project_name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No static scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {# Cloud scans #}
+        <div id="cloud-section" class="mb-4">
+            <h3>☁️ Cloud Scans</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Cloud Account / Resource</th>
+                        <th>Total</th>
+                        <th>Critical</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in cloud_results %}
+                    <tr>
+                        <td>
+                            {% if scan.cloudAccountId %}{{ scan.cloudAccountId }}
+                            {% elif scan.project %}{{ scan.project.project_name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{{ scan.total_vul }}</td>
+                        <td>{{ scan.critical_vul }}</td>
+                        <td>{{ scan.high_vul }}</td>
+                        <td>{{ scan.medium_vul }}</td>
+                        <td>{{ scan.low_vul }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No cloud scan data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

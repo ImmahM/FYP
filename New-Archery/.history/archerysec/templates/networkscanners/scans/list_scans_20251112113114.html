@@ -1,0 +1,1055 @@
+﻿{% extends 'dashboard/base.html' %}
+
+{% block body %}
+
+    <script type="text/javascript">
+        // Enable simple console debugging for live row updates
+        window.NET_SCAN_LIVE_DEBUG = true;
+        // Robust CSRF setup for AJAX
+        (function(){
+            function getCookie(name){
+                var value = null;
+                if (document.cookie && document.cookie !== ''){
+                    var cookies = document.cookie.split(';');
+                    for (var i=0;i<cookies.length;i++){
+                        var cookie=cookies[i].trim();
+                        if (cookie.substring(0, name.length+1)===(name+'=')){
+                            value=decodeURIComponent(cookie.substring(name.length+1));
+                            break;
+                        }
+                    }
+                }
+                return value;
+            }
+            if (window.jQuery && jQuery.ajaxSetup){
+                jQuery.ajaxSetup({
+                    beforeSend: function(xhr, settings){
+                        var safe = /^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type);
+                        if (!safe){ xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken')); }
+                    }
+                });
+            }
+        })();
+        // Styling tweaks for curvier action buttons
+        (function(){
+            var css = '.btn-action{border-radius:9999px!important;padding:6px 10px!important;line-height:1.1!important;}'+
+                      '.action-group{display:inline-flex;align-items:center;gap:8px;}';
+            try{var s=document.createElement('style'); s.type='text/css'; s.appendChild(document.createTextNode(css)); document.head.appendChild(s);}catch(e){}
+        })();
+
+        try {
+            if (window.jQuery){
+                $("#mainCheckbox").change(function () {
+                    $("input:checkbox").prop('checked', $(this).prop("checked"));
+                });
+                $(document).ready(function () {
+                    $('.btn-delete').click(function () {
+                        if (confirm('Are you sure you want to delete this?')) {
+                            var scan_id = ['a7af5b68-b661-45ad-90fd-ffa27526cdce'];
+                            $.each($("input[name='del_scan_id']:checked"), function () {
+                                scan_id.push($(this).val());
+                            });
+
+                            var json_scanid = scan_id.join(", ");
+                            $.ajax({
+                                type: 'POST',
+                                url: '{% url 'networkscanners:scan_delete' %}',
+                                data: {
+                                    scan_id: json_scanid,
+                                    csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+                                }
+                            });
+                            setTimeout(function () {
+                                location.reload();
+                            }, 1000);
+                        }
+                    });
+                });
+            }
+        } catch(e) { if (window.NET_SCAN_LIVE_DEBUG) { console.warn('[net-scans] jQuery bindings failed', e); } }
+
+        // Enable Bootstrap tooltips across the table (for failure/stopped info)
+        $(function () {
+            if ($.fn.tooltip) { $('[data-toggle="tooltip"]').tooltip(); }
+        });
+    </script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="float-right">
+                        {% if user.is_superuser or user.role == 'Admin' %}
+                        <div class="btn-group" role="group" aria-label="Basic example">
+                            <a href="{% url 'report_upload:upload' %}" class="btn btn-primary btn-mini"
+                               data-toggle="tooltip" data-placement="top" title="Upload Report"><i class="fas fa-upload"></i> Upload</a>
+                        </div>
+                        {% endif %}
+                        <button type="button" class="btn btn-danger btn-mini btn-delete" onclick="">Delete Selected</button>
+                    </div>
+                    <br>
+                    <br>
+                    {% if owners and not orgs %}
+                    <form id="scan-filter-form" method="get" class="mb-3 p-2 border rounded bg-light">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="font-weight-bold d-block">Users</label>
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="ndd-owner" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Select users</button>
+                                    <div class="dropdown-menu p-2" aria-labelledby="ndd-owner" style="max-height:240px; overflow:auto; min-width: 320px;">
+                                        {% for u in owners %}
+                                        <div class="form-check">
+                                            <input class="form-check-input owner-opt" type="checkbox" name="owner" value="{{ u.id }}" id="nowner_{{ u.id }}" {% if selected_owner_ids and u.id|stringformat:'s' in selected_owner_ids %}checked{% endif %}>
+                                            <label class="form-check-label" for="nowner_{{ u.id }}">{{ u.name|default:u.email }} {% if u.organization %}<small class="text-muted">({{ u.organization.name }})</small>{% endif %}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <button type="submit" class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
+                                <a class="btn btn-light btn-sm" href="?">Reset</a>
+                            </div>
+                        </div>
+                    </form>
+                    <script>
+                        (function(){
+                            try{
+                                function upd(btnId, sel, defTxt){
+                                    var b=document.getElementById(btnId); if(!b) return;
+                                    var els=document.querySelectorAll(sel+':checked');
+                                    if(!els||els.length===0){ b.textContent=defTxt; return; }
+                                    if(els.length<=2){ var n=[]; els.forEach(function(e){ var lab=document.querySelector('label[for="'+e.id+'"]'); n.push(lab?lab.textContent.trim():e.value); }); b.textContent=n.join(', '); }
+                                    else { b.textContent=els.length+' selected'; }
+                                }
+                                upd('ndd-owner','.owner-opt','Select users');
+                                document.querySelectorAll('.owner-opt').forEach(function(el){ el.addEventListener('change', function(){ upd('ndd-owner','.owner-opt','Select users'); }); });
+                            }catch(e){}
+                        })();
+                    </script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+                    {% endif %}
+                    {% if orgs %}
+                    <form id="scan-filter-form" method="get" class="mb-3 p-2 border rounded bg-light">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="font-weight-bold d-block">Organizations</label>
+                                <div class="dropdown d-inline-block mr-2">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="ndd-org" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Select organizations</button>
+                                    <div class="dropdown-menu p-2" aria-labelledby="ndd-org" style="max-height:240px; overflow:auto; min-width: 280px;">
+                                        {% for o in orgs %}
+                                        <div class="form-check">
+                                            <input class="form-check-input n-org-opt" type="checkbox" name="org" value="{{ o.id }}" id="norg_{{ o.id }}"
+                                            {% if selected_org_ids and o.id|stringformat:'s' in selected_org_ids %}checked{% endif %}>
+                                            <label class="form-check-label" for="norg_{{ o.id }}">{{ o.name }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="font-weight-bold d-block">Users</label>
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="ndd-owner" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Select users</button>
+                                    <div class="dropdown-menu p-2" aria-labelledby="ndd-owner" style="max-height:240px; overflow:auto; min-width: 320px;" id="nowner-menu">
+                                        {% if owners %}
+                                            {% for u in owners %}
+                                            <div class="form-check">
+                                                <input class="form-check-input n-owner-opt" type="checkbox" name="owner" value="{{ u.id }}" id="nowner_{{ u.id }}"
+                                                {% if selected_owner_ids and u.id|stringformat:'s' in selected_owner_ids %}checked{% endif %}>
+                                                <label class="form-check-label" for="nowner_{{ u.id }}">{{ u.name }} ({{ u.email }})</label>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <small class="text-muted px-2">Select one or more organizations to load users.</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
+                            <a class="btn btn-light btn-sm" href="{% url 'networkscanners:list_scans' %}">Reset</a>
+                        </div>
+                    </form>
+                    {% if orgs %}
+                    <script type="application/json" id="n-org-user-map-json">{{ org_user_map|default:"{}"|safe }}</script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+                    <script>
+                        (function(){
+                            try{
+                                var mapEl = document.getElementById('n-org-user-map-json');
+                                var map = mapEl ? JSON.parse(mapEl.textContent||'{}') : {};
+                                var ownerMenu = document.getElementById('nowner-menu');
+                                function updateBtnLabel(btnId, selector, def){
+                                    var btn=document.getElementById(btnId); if(!btn) return;
+                                    var els=document.querySelectorAll(selector+':checked');
+                                    if (!els || els.length===0){ btn.textContent=def; return; }
+                                    if (els.length<=2){ var names=[]; els.forEach(function(e){ var lab=document.querySelector('label[for="'+e.id+'"]'); names.push(lab?lab.textContent.trim():e.value); }); btn.textContent = names.join(', '); }
+                                    else { btn.textContent = els.length+' selected'; }
+                                }
+                                function rebuildOwners(){
+                                    if(!ownerMenu) return;
+                                    var selectedOrgs = Array.prototype.map.call(document.querySelectorAll('.n-org-opt:checked'), function(i){return i.value;});
+                                    var users=[]; selectedOrgs.forEach(function(oid){ (map[oid]||[]).forEach(function(u){ users.push(u); }); });
+                                    var prev = new Set(Array.prototype.map.call(ownerMenu.querySelectorAll('input.n-owner-opt:checked'), function(i){return i.value;}));
+                                    ownerMenu.innerHTML='';
+                                    if (users.length===0){ ownerMenu.innerHTML='<small class="text-muted px-2">Select one or more organizations to load users.</small>'; }
+                                    users.forEach(function(u){ var wrap=document.createElement('div'); wrap.className='form-check'; var id='nowner_'+u.id; var inp=document.createElement('input'); inp.type='checkbox'; inp.className='form-check-input n-owner-opt'; inp.name='owner'; inp.value=u.id; inp.id=id; if(prev.has(String(u.id))) inp.checked=true; var lab=document.createElement('label'); lab.className='form-check-label'; lab.setAttribute('for', id); lab.textContent=u.name; wrap.appendChild(inp); wrap.appendChild(lab); ownerMenu.appendChild(wrap); });
+                                    updateBtnLabel('ndd-owner', '.n-owner-opt', 'Select users');
+                                    ownerMenu.querySelectorAll('.n-owner-opt').forEach(function(el){ el.addEventListener('change', function(){ updateBtnLabel('ndd-owner', '.n-owner-opt', 'Select users'); }); });
+                                }
+                                updateBtnLabel('ndd-org', '.n-org-opt', 'Select organizations');
+                                updateBtnLabel('ndd-owner', '.n-owner-opt', 'Select users');
+                                document.querySelectorAll('.n-org-opt').forEach(function(el){ el.addEventListener('change', function(){ updateBtnLabel('ndd-org', '.n-org-opt', 'Select organizations'); rebuildOwners(); }); });
+                            }catch(e){}
+                        })();
+                    </script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+                    {% endif %}
+                    {% endif %}
+                    <br>
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Network Scans List</h1>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table table-bordered data-table">
+                                <thead>
+                                <tr>
+                                    {% if user.is_superuser or user.role == 'Admin' %}
+                                    <th class="text-center th-action" style="width:56px;">
+                                        <!-- actions -->
+                                    </th>
+                                    {% endif %}
+                                    <th><label class="customcheckbox m-b-20">
+                                        <input type="checkbox" id="mainCheckbox">
+                                        <span class="checkmark"></span>
+                                    </label></th>
+                                    <th>Target</th>
+                                    <th>Status</th>
+                                        <th>{% if user.is_superuser or user.role == 'Admin' %}Scanner{% else %}Scan Type{% endif %}</th>
+                                    {% if orgs or owners or show_owner %}<th>Owner</th>{% endif %}
+                                    <th>Date Time</th>
+                                    <th>Total</th>
+                                    <th>Critical</th>
+                                    <th>High</th>
+                                    <th>Medium</th>
+                                    <th>Low</th>
+                                    <th>Info</th>
+                                    <th>Duplicates</th>
+                                </tr>
+                                </thead>
+                                <tbody>{% for data in all_scans %}
+                                    <tr class="scan-row" data-scanid="{{ data.scan_id }}" data-ownerid="{% if data.created_by %}{{ data.created_by.id }}{% endif %}" data-percent="{{ data.scan_status|default:'0' }}" data-scanner="{{ data.scanner|lower }}" data-target="#">{% csrf_token %}
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                        <td class="text-center align-middle action-cell">
+                                            <div class="action-group">
+                                                {# Permissions: owner or admin/superuser #}
+                                                {% if user.is_superuser or user.role == 'Admin' or data.created_by and data.created_by.id == user.id %}
+                                                    {# Rescan allowed if stopped or completed #}
+                                                    <button type="button"
+                                                            class="btn btn-primary btn-sm rounded-pill btn-action btn-rescan"
+                                                            title="{% if data.ui_stopped or data.scan_status == '100.0' or data.scan_status == '100' %}Rescan (Task: {{ data.scan_id }}){% else %}Available after scan stops or completes{% endif %}"
+                                                            aria-label="Rescan"
+                                                            data-toggle="tooltip"
+                                                            data-scanid="{{ data.scan_id }}"
+                                                            data-scanner="{{ data.scanner }}"
+                                                            data-target="{{ data.ip }}"
+                                                            {% if data.ui_stopped or data.scan_status == '100.0' or data.scan_status == '100' %}{% else %}disabled{% endif %}>
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                    {# Stop allowed only while in progress #}
+                                                    <button type="button"
+                                                            class="btn btn-danger btn-sm rounded-pill btn-action btn-stop"
+                                                            title="{% if not data.ui_stopped and data.scan_status != '100.0' and data.scan_status != '100' %}Stop Scan (Task: {{ data.scan_id }}){% else %}Stop only available while scan is in progress{% endif %}"
+                                                            aria-label="Stop Scan"
+                                                            data-toggle="tooltip"
+                                                            data-scanid="{{ data.scan_id }}"
+                                                            data-scanner="{{ data.scanner }}"
+                                                            data-target="{{ data.ip }}"
+                                                            {% if data.ui_stopped or data.scan_status == '100.0' or data.scan_status == '100' %}disabled{% endif %}>
+                                                        <i class="fas fa-stop"></i>
+                                                    </button>
+                                                {% else %}
+                                                    <button type="button" class="btn btn-primary btn-sm rounded-pill btn-action btn-rescan" title="Only scan owner or admin can rescan" aria-label="Rescan" data-toggle="tooltip" disabled>
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-danger btn-sm rounded-pill btn-action btn-stop" title="Only scan owner or admin can stop" aria-label="Stop Scan" data-toggle="tooltip" disabled>
+                                                        <i class="fas fa-stop"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        {% endif %}
+                                        
+                                        <td>
+                                            <form>
+                                                <label class="customcheckbox">
+                                                    <input type="checkbox" class="listCheckbox"
+                                                           value="{{ data.scan_id }}"
+                                                           name="del_scan_id"
+                                                           onClick="reload">
+                                                    <span class="checkmark"></span>
+                                                </label>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'networkscanners:list_vuln_info' %}?scan_id={{ data.scan_id }}">{% firstof data.ip 'None' %}</a>
+                                        </td>
+                                        <td width="20%">
+                                            <div>
+                                                {% with t=data.total_vul|default_if_none:0|add:0 c=data.critical_vul|default_if_none:0|add:0 h=data.high_vul|default_if_none:0|add:0 m=data.medium_vul|default_if_none:0|add:0 l=data.low_vul|default_if_none:0|add:0 i=data.info_vul|default_if_none:0|add:0 d=data.total_dup|default_if_none:0|add:0 %}
+                                                {% with sum_all=t|add:c|add:h|add:m|add:l|add:i|add:d %}
+                                            <div class="d-flex no-block align-items-center"><span data-field="status_text">
+                                                    {% if data.scan_status == '100.0' or data.scan_status == '100' %}
+                                                        {% if sum_all == 0 %}
+                                                            <span class="text-danger" data-toggle="tooltip" data-placement="top" title="{% if data.failure_reason %}{{ data.failure_reason }}{% elif data.result_count|default:0|add:0 > 0 %}Failed: results exist ({{ data.result_count }}) but no vulnerabilities were classified. Breakdown: Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}Failed: no scan results saved for this run.{% endif %}">Failed - {{ data.scan_status }}%</span>
+                                                        {% else %}
+                                                            <span>100% Completed</span>
+                                                        {% endif %}
+                                                    {% elif data.ui_stopped %}
+                                                        <span class="text-warning" data-toggle="tooltip" data-placement="top" title="Stopped at {{ data.scan_status }}% - no updates since {{ data.ui_last_update|date:'Y-m-d H:i' }} UTC. {% if data.result_count|default:0|add:0 > 0 %}Results saved: {{ data.result_count }}. Breakdown: Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}No results saved.{% endif %}">{{ data.scan_status }}% Stopped</span>
+                                                    {% else %}
+                                                        <span>{{ data.scan_status }}% In Progress</span>
+                                                    {% endif %}
+                                                </span>
+                                                <span class="badge badge-light ml-2" data-field="row_index" title="Row Number">{{ forloop.counter }}</span></div>
+                                                <div class="progress{% if data.scan_status != '100.0' %} active progress-striped{% endif %}">
+                                                     <div class="progress-bar progress-bar-striped {% if sum_all == 0 and data.scan_status == '100.0' %}bg-danger{% elif sum_all == 0 and data.scan_status == '100' %}bg-danger{% elif data.ui_stopped %}bg-warning{% elif data.scan_status == '100.0' or data.scan_status == '100' %}bg-success{% else %}bg-info{% endif %}"
+                                                          role="progressbar"
+                                                          style="width: {{ data.scan_status }}%"
+                                                          aria-valuenow="10" aria-valuemin="0"
+                                                          aria-valuemax="100"
+                                                         {% if sum_all == 0 %}
+                                                          data-toggle="tooltip" data-placement="top"
+                                                          title="{% if data.failure_reason %}{{ data.failure_reason }}{% elif data.result_count|default:0|add:0 > 0 %}Failed: results exist ({{ data.result_count }}) but no vulnerabilities were classified. Breakdown: Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}Failed: no scan results saved for this run.{% endif %}"
+                                                         {% endif %}
+                                                     ></div>
+                                                </div>
+                                                {# no log link under Status; moved to Scanner column #}
+                                                {% endwith %}
+                                                {% endwith %}
+                                            </div>
+                                        </td>
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                        <td>
+                                            {% with scanType=data.scanner %}
+                                            <div class="p-1">
+                                                <img src="{{ PARSER_DICT | get_icon:scanType }}"
+                                                     alt="{{ PARSER_DICT | get_displayName:scanType }}{% if data.scan_type %} &ndash; {{ data.scan_type }}{% endif %}"
+                                                     width="30"
+                                                     class="rounded-circle"
+                                                     data-toggle="tooltip"
+                                                     data-placement="top"
+                                                     title="{{ PARSER_DICT | get_displayName:scanType }}{% if data.scan_type %} &ndash; {{ data.scan_type }}{% endif %}">
+                                                {% if data.scanner|lower == 'nmap' %}
+                                                    <div class="mt-1">
+                                                        <a class="btn btn-outline-secondary btn-xs" href="{% url 'networkscanners:nmap_log' %}?scan_id={{data.scan_id}}" data-toggle="tooltip" title="View Nmap log">View Log</a>
+                                                    </div>
+                                                {% elif data.scanner|lower == 'openvas' %}
+                                                    <div class="mt-1">
+                                                        <a class="btn btn-outline-secondary btn-xs" href="{% url 'networkscanners:openvas_log' %}?scan_id={{data.scan_id}}" data-toggle="tooltip" title="View OpenVAS log">View Log</a>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endwith %}
+                                        </td>
+                                        {% if orgs or owners or show_owner %}
+                                        <td>{% if data.created_by %}
+                                                {% if data.created_by.name %}{{ data.created_by.name }}
+                                                {% elif data.created_by.email %}{{ data.created_by.email }}
+                                                {% else %}&mdash;{% endif %}
+                                            {% if data.created_by and data.created_by.organization %} <small class="text-muted">({{ data.created_by.organization.name }})</small>{% endif %}{% else %}&mdash;{% endif %}</td>
+                                        {% endif %}
+
+                                        <td>{{ data.date_time }}</td>
+                                        <td>
+                                            <span class="badge badge-pill badge-dark" data-field="total_vul"
+                                                  {% if data.total_vul == None or data.total_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 vulnerabilities, but {{ data.result_count }} results exist. Breakdown: Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.total_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-critical" data-field="critical_vul"
+                                                  {% if data.critical_vul == None or data.critical_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Critical, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.critical_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-danger" data-field="high_vul"
+                                                  {% if data.high_vul == None or data.high_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 High, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.high_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-warning" data-field="medium_vul"
+                                                  {% if data.medium_vul == None or data.medium_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Medium, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.medium_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-info" data-field="low_vul"
+                                                  {% if data.low_vul == None or data.low_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Low, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.low_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-info" data-field="info_vul"
+                                                  {% if data.info_vul == None or data.info_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Info in summary, but results exist ({{data.result_count}}). Info findings present: {{data.res_info}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.info_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-secondary" data-field="total_dup"
+                                                  {% if data.total_dup == None or data.total_dup|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Duplicates in summary, but results exist ({{data.result_count}}). Duplicate findings detected by parser: {{data.res_dup}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.total_dup|default_if_none:'0' }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+    </div>
+<script>
+    // Auto-refresh while any scan is not 100%
+    (function(){
+        try {
+            // Poll interval (seconds) configurable via settings.SCAN_POLL_INTERVAL; defaults to 2
+            var intervalSec = (parseInt('{{ settings.SCAN_POLL_INTERVAL|default:"2" }}', 10) || 2);
+            if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] init; poll every', intervalSec,'s'); }
+            var needsRefresh = false;
+            var anyInProgress = false;
+            var anyCompleted = false;
+            var LAST_NUDGED = {}; // ensure each row gets one last refresh after hitting 100%
+            var lastLiveUpdateTs = Date.now();
+            document.querySelectorAll('tr.scan-row').forEach(function(row){
+                var p = parseInt((row.getAttribute('data-percent')||'0'), 10);
+                if (!isNaN(p) && p < 100) { needsRefresh = true; anyInProgress = true; }
+                if (!isNaN(p) && p >= 100) { anyCompleted = true; }
+            });
+            // Small helper to fetch JSON with or without jQuery
+            function getJSONCompat(url, params, done){
+                try {
+                    if (window.$ && $.getJSON) {
+                        // add cache-buster param
+                        var pr = $.extend({}, params || {}, {_ts: Date.now()});
+                        if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] $.getJSON ?', url, pr); }
+                        $.getJSON(url, pr).done(done).fail(function(){ if (window.NET_SCAN_LIVE_DEBUG) { console.warn('[net-scans] ajax fail', url); } });
+                    } else {
+                        var qs = '';
+                        // add cache-buster param
+                        var p2 = params || {}; p2._ts = Date.now();
+                        if (p2 && typeof URLSearchParams !== 'undefined') {
+                            qs = '?' + new URLSearchParams(p2).toString();
+                        } else if (params) {
+                            var parts = [];
+                            for (var k in p2) { if (p2.hasOwnProperty(k)) { parts.push(encodeURIComponent(k)+'='+encodeURIComponent(p2[k])); } }
+                            qs = parts.length ? ('?' + parts.join('&')) : '';
+                        }
+                        if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] fetch ?', url+qs); }
+                        fetch(url + qs, {
+                            credentials: 'same-origin',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Cache-Control': 'no-cache'
+                            }
+                        })
+                            .then(function(r){ return r.json(); })
+                            .then(function(data){ try { done(data); } catch(e){} })
+                            .catch(function(err){ if (window.NET_SCAN_LIVE_DEBUG) { console.warn('[net-scans] fetch error', err); } });
+                    }
+                } catch(e) {}
+            }
+            function pollActive(){
+                try {
+                    var ids = [];
+                    document.querySelectorAll('tr.scan-row').forEach(function(row){
+                        var p = parseInt((row.getAttribute('data-percent')||'0'), 10);
+                        var stopped = String(row.getAttribute('data-stopped')||'') === '1';
+                        if (!isNaN(p) && p < 100 && !stopped) { ids.push(row.getAttribute('data-scanid')); }
+                    });
+                    if (ids.length === 0){ if (window.NET_SCAN_LIVE_DEBUG) { console.debug('[net-scans] no active rows'); } return; }
+                    if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] polling ids:', ids.join(',')); }
+                    getJSONCompat('{% url "networkscanners:scan_summaries" %}', { ids: ids.join(',') }, function(payload){
+                        lastLiveUpdateTs = Date.now();
+                        Object.keys(payload||{}).forEach(function(id){
+                            var row = document.querySelector('tr.scan-row[data-scanid="'+id+'"]');
+                            // Define item once per id to avoid ReferenceError and use its fields below
+                            var it = payload[id] || {};
+                            if (!row) return;
+                            var prev = parseInt((row.getAttribute('data-percent')||'0'),10) || 0;
+                            var p = parseInt((it.scan_status||'0'),10) || 0;
+                            if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] update row', id, '+', p+'%'); }
+                            row.setAttribute('data-percent', p);
+                            if (it.ui_stopped) { row.setAttribute('data-stopped','1'); } else { row.removeAttribute('data-stopped'); }
+                                var pb = row.querySelector('.progress .progress-bar');
+                                    if (pb) {
+                                        pb.style.width = p+'%';
+                                        // ensure only one state color is applied
+                                        pb.classList.remove('bg-danger','bg-warning','bg-success','bg-info');
+                                        var sumAll = (it.critical_vul||0)+(it.high_vul||0)+(it.medium_vul||0)+(it.low_vul||0)+(it.info_vul||0)+(it.total_dup||0);
+                                        if (p >= 100 && sumAll === 0) {
+                                            pb.classList.add('bg-danger');
+                                        } else if (it.ui_stopped) {
+                                            pb.classList.add('bg-warning');
+                                        } else if (p >= 100) {
+                                            pb.classList.add('bg-success');
+                                        } else {
+                                            pb.classList.add('bg-info');
+                                        }
+                                    }
+                                }
+                                var sEl = row.querySelector('[data-field="status_text"]');
+                                function setTooltip(el, text){
+                                    try {
+                                        if (!el) return;
+                                        if (text) {
+                                            var $el = window.jQuery ? window.jQuery(el) : null;
+                                            el.setAttribute('title', text);
+                                            el.setAttribute('data-toggle', 'tooltip');
+                                            if ($el && $el.tooltip) {
+                                                if ($el.data('bs.tooltip')) { $el.attr('data-original-title', text); }
+                                            }
+                                        } else {
+                                            el.removeAttribute('title');
+                                            el.removeAttribute('data-original-title');
+                                        }
+                                    } catch(e) {}
+                                }
+                                if (sEl) {
+                                    var sumAll2 = (it.critical_vul||0)+(it.high_vul||0)+(it.medium_vul||0)+(it.low_vul||0)+(it.info_vul||0)+(it.total_dup||0);
+                                    var breakdown = 'Breakdown: Critical: '+(it.res_critical||0)+', High: '+(it.res_high||0)+', Medium: '+(it.res_medium||0)+', Low: '+(it.res_low||0)+', Info: '+(it.res_info||0)+', Duplicates: '+(it.res_dup||0)+'.';
+                                    if (p >= 100 || it.ui_stopped) {
+                                        if (sumAll2 === 0) {
+                                            sEl.textContent = 'Failed - '+p+'%';
+                                            var fr = (it.failure_reason||'').trim();
+                                            if (fr) {
+                                                setTooltip(sEl, fr);
+                                            } else if ((it.result_count||0) > 0) {
+                                                setTooltip(sEl, 'Failed: results exist ('+(it.result_count||0)+') but no vulnerabilities were classified. '+breakdown);
+                                            } else {
+                                                setTooltip(sEl, 'Failed: no scan results saved for this run.');
+                                            }
+                                        } else {
+                                            if (it.ui_stopped) {
+                                                sEl.textContent = p+'% Stopped';
+                                                var lastMsg = 'Results saved: '+(it.result_count||0)+'. '+breakdown;
+                                                setTooltip(sEl, 'Stopped at '+p+'% - '+lastMsg);
+                                            } else {
+                                                sEl.textContent = '100% Completed';
+                                                setTooltip(sEl, '');
+                                            }
+                                        }
+                                    } else {
+                                        sEl.textContent = p+'% In Progress';
+                                        setTooltip(sEl, '');
+                                    }
+                                }
+                                function setVal(sel, val){ var el=row.querySelector(sel); if(el){ el.textContent = String(val||0);} }
+                                function setBadgeTip(sel, val, zeroMsg){
+                                    var el = row.querySelector(sel);
+                                    if (!el) return;
+                                    var $el = window.jQuery ? window.jQuery(el) : null;
+                                    if ((val||0) === 0) {
+                                        el.setAttribute('data-toggle','tooltip');
+                                        el.setAttribute('title', zeroMsg);
+                                        if ($el && $el.tooltip) {
+                                            if ($el.data('bs.tooltip')) { $el.attr('data-original-title', zeroMsg); }
+                                        }
+                                    } else {
+                                        el.removeAttribute('title');
+                                        el.removeAttribute('data-original-title');
+                                    }
+                                }
+                                // Prefer persisted summary fields; fall back to live result aggregates during scan
+                                var liveTotal = (it.res_critical||0)+(it.res_high||0)+(it.res_medium||0)+(it.res_low||0)+(it.res_info||0);
+                                var dispTotal = Math.max(parseInt(it.total_vul||0,10)||0, liveTotal);
+                                var dispCrit  = Math.max(parseInt(it.critical_vul||0,10)||0, (it.res_critical||0));
+                                var dispHigh  = Math.max(parseInt(it.high_vul||0,10)||0, (it.res_high||0));
+                                var dispMed   = Math.max(parseInt(it.medium_vul||0,10)||0, (it.res_medium||0));
+                                var dispLow   = Math.max(parseInt(it.low_vul||0,10)||0, (it.res_low||0));
+                                var dispInfo  = Math.max(parseInt(it.info_vul||0,10)||0, (it.res_info||0));
+                                var dispDup   = Math.max(parseInt(it.total_dup||0,10)||0, (it.res_dup||0));
+                                setVal('[data-field="total_vul"]', dispTotal);
+                                setVal('[data-field="critical_vul"]', dispCrit);
+                                setVal('[data-field="high_vul"]', dispHigh);
+                                setVal('[data-field="medium_vul"]', dispMed);
+                                setVal('[data-field="low_vul"]', dispLow);
+                                setVal('[data-field="info_vul"]', dispInfo);
+                                setVal('[data-field="total_dup"]', dispDup);
+                                // renumber rows in current order
+                                try {
+                                    var i = 1;
+                                    document.querySelectorAll('tbody tr.scan-row').forEach(function(r){
+                                        var idx = r.querySelector('[data-field="row_index"]');
+                                        if (idx) idx.textContent = String(i++);
+                                    });
+                                } catch(e) {}
+                                // toggle rescan availability: enabled when stopped/completed AND (admin OR owner)
+                                try {
+                                    var resBtn = row.querySelector('.btn-rescan');
+                                    if (resBtn) {
+                                        var ownerId = row.getAttribute('data-ownerid');
+                                        var currentUserId = '{{ user.id }}';
+                                        var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+                                        var isOwner = !!ownerId && String(ownerId) === String(currentUserId);
+                                        var enable = ((p >= 100) || !!it.ui_stopped) && (isAdmin || isOwner);
+                                        resBtn.disabled = !enable;
+                                        var title = enable ? 'Rescan' : 'Available after scan stops or completes';
+                                        if ($(resBtn).data('bs.tooltip')) { $(resBtn).attr('data-original-title', title); } else { resBtn.setAttribute('title', title); }
+                                    }
+                                } catch(e) {}
+                                // One last refresh after a row hits 100%
+                                try {
+                                    if (p >= 100 && prev < 100 && !LAST_NUDGED[id]){
+                                        LAST_NUDGED[id] = true;
+                                        var url = '{% url "networkscanners:scan_row" %}' + '?scan_id=' + encodeURIComponent(id);
+                                        getJSONCompat(url, {}, function(resp){
+                                            try {
+                                                if (!resp || !resp.html) return;
+                                                var temp = document.createElement('tbody');
+                                                temp.innerHTML = resp.html;
+                                                var newRow = temp.firstElementChild;
+                                                if (newRow && row && row.parentNode){ row.parentNode.replaceChild(newRow, row); }
+                                                if ($.fn.tooltip) { $('[data-toggle="tooltip"]').tooltip(); }
+                                            } catch(e){}
+                                        });
+                                    }
+                                } catch(e){}
+                                // toggle stop availability: enabled only when in progress AND (admin OR owner)
+                                try {
+                                    var stopBtn = row.querySelector('.btn-stop');
+                                    if (stopBtn) {
+                                        var ownerId2 = row.getAttribute('data-ownerid');
+                                        var currentUserId2 = '{{ user.id }}';
+                                        var isAdmin2 = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+                                        var isOwner2 = !!ownerId2 && String(ownerId2) === String(currentUserId2);
+                                        var enableStop = (p < 100) && !it.ui_stopped && (isAdmin2 || isOwner2);
+                                        stopBtn.disabled = !enableStop;
+                                        var stTitle = enableStop ? 'Stop Scan' : 'Stop only available while scan is in progress';
+                                        if ($(stopBtn).data('bs.tooltip')) { $(stopBtn).attr('data-original-title', stTitle); } else { stopBtn.setAttribute('title', stTitle); }
+                                    }
+                                } catch(e) {}
+                                var rc = (it.result_count||0);
+                                var breakdown2 = 'Breakdown: Critical: '+(it.res_critical||0)+', High: '+(it.res_high||0)+', Medium: '+(it.res_medium||0)+', Low: '+(it.res_low||0)+', Info: '+(it.res_info||0)+', Duplicates: '+(it.res_dup||0)+'.';
+                                var totalZeroMsg = rc>0 ? ('0 vulnerabilities, but '+rc+' results exist. '+breakdown2) : 'No results saved for this scan.';
+                                setBadgeTip('[data-field="total_vul"]', it.total_vul, totalZeroMsg);
+                                setBadgeTip('[data-field="critical_vul"]', it.critical_vul, rc>0 ? ('0 Critical, but results exist ('+rc+').') : 'No results saved for this scan.');
+                                setBadgeTip('[data-field="high_vul"]', it.high_vul, rc>0 ? ('0 High, but results exist ('+rc+').') : 'No results saved for this scan.');
+                                setBadgeTip('[data-field="medium_vul"]', it.medium_vul, rc>0 ? ('0 Medium, but results exist ('+rc+').') : 'No results saved for this scan.');
+                                setBadgeTip('[data-field="low_vul"]', it.low_vul, rc>0 ? ('0 Low, but results exist ('+rc+').') : 'No results saved for this scan.');
+                                setBadgeTip('[data-field="info_vul"]', it.info_vul, rc>0 ? ('0 Info in summary, but results exist ('+rc+'). Info findings present: '+(it.res_info||0)+'.') : 'No results saved for this scan.');
+                                setBadgeTip('[data-field="total_dup"]', it.total_dup, rc>0 ? ('0 Duplicates in summary, but results exist ('+rc+'). Duplicate findings detected by parser: '+(it.res_dup||0)+'.') : 'No results saved for this scan.');
+                            });
+                        });
+                } catch(e) {}
+            }
+            // Row-level HTML refresh using server-rendered partials
+            function pollActiveRows(){
+                try{
+                    var ids = [];
+                    document.querySelectorAll('tr.scan-row').forEach(function(row){
+                        var p = parseInt((row.getAttribute('data-percent')||'0'), 10);
+                        var sc = (row.getAttribute('data-scanner')||'').toLowerCase();
+                        // Poll all scanners including OpenVAS so progress stays live for every role
+                        if (!isNaN(p) && p < 100) { ids.push(row.getAttribute('data-scanid')); }
+                    });
+                    if (ids.length === 0){ if (window.NET_SCAN_LIVE_DEBUG) { console.debug('[net-scans] no active rows'); } return; }
+                    ids.forEach(function(id){
+                        getJSONCompat('{% url "networkscanners:scan_row" %}', { scan_id: id }, function(payload){
+                            if (!payload || !payload.html) { if (window.NET_SCAN_LIVE_DEBUG) console.warn('[net-scans] empty row payload for', id); return; }
+                            var row = document.querySelector('tr.scan-row[data-scanid="'+id+'"]');
+                            if (!row) { if (window.NET_SCAN_LIVE_DEBUG) console.warn('[net-scans] row not found in DOM for', id); return; }
+                            var temp = document.createElement('tbody');
+                            temp.innerHTML = payload.html.trim();
+                            var newRow = temp.querySelector('tr.scan-row');
+                            if (!newRow) { if (window.NET_SCAN_LIVE_DEBUG) console.warn('[net-scans] new row not parsed for', id); return; }
+                            // If DataTables is active, update via its API
+                            try {
+                                if (window.jQuery && $.fn.DataTable && $.fn.dataTable.isDataTable('#data_table')){
+                                    var dt = $('#data_table').DataTable();
+                                    // Replace DOM node then ask DataTables to re-read from DOM
+                                    row.parentNode.replaceChild(newRow, row);
+                                    try{ dt.rows().invalidate('dom').draw(false); }catch(e){}
+                                } else {
+                                    row.parentNode.replaceChild(newRow, row);
+                                }
+                            } catch(err){ row.parentNode.replaceChild(newRow, row); }
+                            try{ if ($.fn.tooltip){ $('[data-toggle="tooltip"]').tooltip(); } }catch(e){}
+                        });
+                    });
+                }catch(e){}
+            }
+            // Defer first tick until after window load and then run every interval
+            try { window.addEventListener('load', function(){ pollActiveRows(); pollActive(); }); } catch(e) { }
+            setInterval(pollActiveRows, intervalSec*1000);
+            // Also run the lighter JSON summaries poller alongside row-partial refresh
+            setInterval(pollActive, Math.max(1500, intervalSec*1000));
+            // Poll for newly created/updated scans and append missing rows
+            var lastSince = (new Date()).toISOString();
+            function appendRecent(){
+                try {
+                    getJSONCompat('{% url "networkscanners:recent_scans" %}', { since: lastSince }, function(payload){
+                        if (!payload || !payload.items) return;
+                        lastSince = payload.since || lastSince;
+                        var tbody = document.querySelector('table.data-table tbody') || document.querySelector('tbody');
+                        payload.items.forEach(function(it){
+                            if (!tbody) return;
+                            if (document.querySelector('tr.scan-row[data-scanid="'+it.scan_id+'"]')) return; // already shown
+                            if (window.NET_SCAN_LIVE_DEBUG) { console.log('[net-scans] append recent row', it.scan_id); }
+                                var html = (function(){
+                                  var parts = [];
+                                  parts.push(`<tr class="scan-row" data-scanid="${it.scan_id}" data-ownerid="" data-percent="${it.scan_status||'0'}" data-scanner="${String(it.scanner||'').toLowerCase()}" data-target="#">`);
+                                  {% if user.is_superuser or user.role == 'Admin' %}
+                                  {% if user.is_superuser or user.role == 'Admin' %}
+                                  parts.push('<td class="text-center align-middle action-cell">');
+                                  parts.push('<div class="action-group">');
+                                  parts.push(`<button type="button" class="btn btn-primary btn-sm rounded-pill btn-action btn-rescan" title="Available after scan stops or completes" aria-label="Rescan" data-toggle="tooltip" data-scanid="${it.scan_id}" data-scanner="${it.scanner||''}" data-target="${it.ip||''}" disabled><i class="fas fa-redo"></i></button>`);
+                                  parts.push(`<button type="button" class="btn btn-danger btn-sm rounded-pill btn-action btn-stop" title="Stop only available while scan is in progress" aria-label="Stop Scan" data-toggle="tooltip" data-scanid="${it.scan_id}" data-scanner="${it.scanner||''}" data-target="${it.ip||''}"><i class="fas fa-stop"></i></button>`);
+                                  {% if user.is_superuser or user.role == 'Admin' %}
+                                  if (String((it.scanner||'')).toLowerCase()==='nmap'){
+                                    parts.push(` <a class="btn btn-outline-secondary btn-xs" href="{% url 'networkscanners:nmap_log' %}?scan_id=${it.scan_id}" data-toggle="tooltip" title="View Nmap log">View Log</a>`);
+                                  }
+                                  {% endif %}
+                                  parts.push('</div>');
+                                  parts.push('</td>');
+                                  {% endif %}
+                                  {% endif %}
+                                  parts.push('<td><form><label class="customcheckbox"><input type="checkbox" class="listCheckbox" name="del_scan_id" value="'+it.scan_id+'"><span class="checkmark"></span></label></form></td>');
+                                  parts.push(`<td><a href="{% url 'networkscanners:list_vuln_info' %}?scan_id=${it.scan_id}">${it.ip||''}</a></td>`);
+                                  parts.push(`<td width="20%"><div><div class="d-flex no-block align-items-center"><span data-field="status_text">${it.scan_status||'0'}% In Progress</span><span class="badge badge-light ml-2" data-field="row_index" title="Row Number">*</span></div><div class="progress active progress-striped"><div class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: ${it.scan_status||'0'}%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div></div></div></td>`);
+                                  {% if user.is_superuser or user.role == 'Admin' %}
+                                  (function(){
+                                      var scn = String((it.scanner||'')).toLowerCase();
+                                      var icon = (it.icon||'/static/tools/unknown.png');
+                                      var html = `<td><div class='p-1'><img src='${icon}' alt='Scanner' width='30' class='rounded-circle' data-toggle='tooltip' data-placement='top' title=''>`;
+                                      if (scn === 'nmap'){
+                                          html += ` <div class='mt-1'><a class='btn btn-outline-secondary btn-xs' title='View Nmap log' href='{% url 'networkscanners:nmap_log' %}?scan_id=${it.scan_id}'>View Log</a></div>`;
+                                      } else if (scn === 'openvas'){
+                                          html += ` <div class='mt-1'><a class='btn btn-outline-secondary btn-xs' title='View OpenVAS log' href='{% url 'networkscanners:openvas_log' %}?scan_id=${it.scan_id}'>View Log</a></div>`;
+                                      }
+                                      html += `</div></td>`;
+                                      parts.push(html);
+                                  })();
+                                  {% else %}
+                                  parts.push(`<td>${(String((it.scanner||'')).toLowerCase()==='nmap') ? 'Network Scan' : (it.scan_type||'Network Scan')}</td>`);
+                                  {% endif %}
+                                  {% if orgs or owners or show_owner %}
+                                  parts.push(`<td>${(it.created_by_name||it.created_by_email||it.owner_name||it.owner_email||'&mdash;')}</td>`);
+                                  {% endif %}
+                                  parts.push(`<td>${(it.date_time ? new Date(it.date_time).toLocaleString() : '')}</td>`);
+                                  parts.push('<td><span class="badge badge-pill badge-dark" data-field="total_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-critical" data-field="critical_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-danger" data-field="high_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-warning" data-field="medium_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-info" data-field="low_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-info" data-field="info_vul">0</span></td>');
+                                  parts.push('<td><span class="badge badge-pill badge-secondary" data-field="total_dup">0</span></td>');
+                                  parts.push('</tr>');
+                                  return parts.join('');
+                                })();
+                                var temp = document.createElement('tbody');
+                                temp.innerHTML = html;
+                                var row = temp.firstElementChild;
+                                tbody.appendChild(row);
+                                {% if user.is_superuser or user.role == 'Admin' %}
+                                try {
+                                    var scn = String((it.scanner||'')).toLowerCase();
+                                    var iconTd = row.querySelector('td:nth-child(5) .p-1') || row.querySelector('td:nth-child(5)');
+                                    if (iconTd){
+                                        if (scn === 'nmap'){
+                                            var a = document.createElement('a'); a.className='btn btn-outline-secondary btn-xs'; a.textContent='View Log'; a.title='View Nmap log'; a.href = '{% url 'networkscanners:nmap_log' %}?scan_id='+it.scan_id; var wrap=document.createElement('div'); wrap.className='mt-1'; wrap.appendChild(a); iconTd.appendChild(wrap);
+                                        } else if (scn === 'openvas'){
+                                            var a2 = document.createElement('a'); a2.className='btn btn-outline-secondary btn-xs'; a2.textContent='View Log'; a2.title='View OpenVAS log'; a2.href = '{% url 'networkscanners:openvas_log' %}?scan_id='+it.scan_id; var wrap2=document.createElement('div'); wrap2.className='mt-1'; wrap2.appendChild(a2); iconTd.appendChild(wrap2);
+                                        }
+                                    }
+                                } catch(e) {}
+                                {% endif %}
+                            });
+                        });
+                } catch(e) {}
+            }
+            setInterval(appendRecent, Math.max(8000, intervalSec*2000));
+            // Also refresh action tooltips to reflect enabled/disabled state
+            setInterval(function(){
+                try {
+                    document.querySelectorAll('tr.scan-row').forEach(function(row){
+                        var rb = row.querySelector('.btn-rescan');
+                        if (rb) {
+                            var t = rb.disabled ? 'Available after scan stops or completes' : 'Rescan';
+                            if (window.jQuery && jQuery(rb).data('bs.tooltip')) { jQuery(rb).attr('data-original-title', t); } else { rb.setAttribute('title', t); }
+                        }
+                        var sb = row.querySelector('.btn-stop');
+                        if (sb) {
+                            var st = sb.disabled ? 'Stop only available while scan is in progress' : 'Stop Scan';
+                            if (window.jQuery && jQuery(sb).data('bs.tooltip')) { jQuery(sb).attr('data-original-title', st); } else { sb.setAttribute('title', st); }
+                        }
+                    });
+                } catch(e) {}
+            }, Math.max(2000, intervalSec*1000));
+            // Removed forced page reload logic; update only the affected rows
+            var savedY = sessionStorage.getItem('scanListScroll');
+            if (savedY) {
+                window.scrollTo(0, parseInt(savedY,10));
+                sessionStorage.removeItem('scanListScroll');
+            }
+        } catch(e) { /* no-op */ }
+    })();
+    // Re-init tooltips on async loads
+    $(function () { if ($.fn.tooltip) { $('[data-toggle="tooltip"]').tooltip(); } });
+    // Simple toast/alert
+    function showToast(msg, type){
+        try {
+            var c = type === 'error' ? 'alert-danger' : (type === 'warn' ? 'alert-warning' : 'alert-success');
+            var box = $('<div class="alert '+c+'" role="alert" style="position:fixed;top:10px;right:10px;z-index:1050;min-width:200px;">').text(msg);
+            $('body').append(box);
+            setTimeout(function(){ box.fadeOut(400, function(){ $(this).remove(); }); }, 2000);
+        } catch(e) {}
+    }
+    // Action buttons (wired to backend)
+    $(document).on('click', '.btn-rescan', function (e) {
+        e.preventDefault();
+        var sid = $(this).data('scanid');
+        var tgt = $(this).data('target');
+        var scn = $(this).data('scanner');
+        showConfirm('Re-run scan for:\n' + (tgt || 'this target') + '?', function(){
+            $.post('{% url "networkscanners:rescan" %}', {
+                scan_id: sid,
+                csrfmiddlewaretoken:$('input[name=csrfmiddlewaretoken]').val()
+            }).done(function(){
+                showToast('Rescan started', 'ok');
+                // Quick refresh so the new scan row/state is visible
+                setTimeout(function(){ try{ sessionStorage.setItem('scanListScroll', String(window.scrollY||0)); }catch(e){} window.location.reload(); }, 800);
+            })
+              .fail(function(){ showToast('Failed to start rescan', 'error'); });
+        });
+    });
+    $(document).on('click', '.btn-stop', function (e) {
+        e.preventDefault();
+        var sid = $(this).data('scanid');
+        var tgt = $(this).data('target');
+        var scn = $(this).data('scanner');
+        showConfirm('Stop scan for:\n' + (tgt || 'this target') + '?', function(){
+            try {
+                var row = $(e.currentTarget).closest('tr.scan-row')[0];
+                var p = parseInt((row.getAttribute('data-percent')||'0'),10)||0;
+                var sEl = row.querySelector('[data-field="status_text"]');
+                if (sEl) { sEl.textContent = p + '% Stopped'; }
+                var pb = row.querySelector('.progress .progress-bar');
+                if (pb) { pb.classList.remove('bg-danger','bg-success','bg-info'); pb.classList.add('bg-warning'); pb.style.width = p+'%'; }
+                var resBtn = row.querySelector('.btn-rescan');
+                if (resBtn) { resBtn.disabled = false; }
+                var stopBtn = row.querySelector('.btn-stop');
+                if (stopBtn) { stopBtn.disabled = true; }
+            } catch(err) {}
+            $.post('{% url "networkscanners:stop" %}', {
+                scan_id: sid,
+                csrfmiddlewaretoken:$('input[name=csrfmiddlewaretoken]').val()
+            }).done(function(){
+                showToast('Stop requested', 'ok');
+                try {
+                    var row2 = document.querySelector('tr.scan-row[data-scanid="'+sid+'"]');
+                    if (row2) { row2.setAttribute('data-stopped','1'); }
+                } catch(err) {}
+                // No full-page reload; polling ignores stopped rows.
+            })
+              .fail(function(){ showToast('Failed to stop scan', 'error'); });
+        });
+    });
+    </script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+
+    <script>
+    // Silence DataTables alert popups (log to console instead)
+    try{ if ($.fn && $.fn.dataTable && $.fn.dataTable.ext){ $.fn.dataTable.ext.errMode = 'none'; } }catch(e){}
+    // Partial refresh utilities for Network scans
+    (function(){
+      function qsFromForm(form){
+        const fd = new FormData(form);
+        const params = new URLSearchParams();
+        for (const [k,v] of fd.entries()){
+          if (!v) continue;
+          if (k === 'org' || k === 'owner'){
+            params.append(k, v);
+          } else {
+            params.set(k, v);
+          }
+        }
+        return params.toString();
+      }
+      async function refreshPartial(url){
+        try{
+          const r = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+          const html = await r.text();
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          const newTable = tmp.querySelector('#data_table');
+          const curTable = document.querySelector('#data_table');
+          if (newTable && curTable){
+            try{ if ($.fn.DataTable && $.fn.dataTable.isDataTable('#data_table')) { $('#data_table').DataTable().destroy(); } }catch(e){}
+            curTable.parentNode.replaceChild(newTable, curTable);
+            try{ if ($.fn.DataTable){ $('#data_table').DataTable(); } }catch(e){}
+            try{ if ($.fn.tooltip){ $('[data-toggle="tooltip"]').tooltip(); } }catch(e){}
+          }
+        }catch(e){ console.warn('Partial refresh failed', e); }
+      }
+      const form = document.getElementById('scan-filter-form');
+      if (form){
+        form.addEventListener('submit', function(ev){ ev.preventDefault(); const qs = qsFromForm(form); const url = window.location.pathname + (qs?('?'+qs):''); refreshPartial(url); });
+        const btnRefresh = document.getElementById('btn-refresh');
+        if (btnRefresh){ btnRefresh.addEventListener('click', function(){ const qs = qsFromForm(form); const url = window.location.pathname + (qs?('?'+qs):''); refreshPartial(url); }); }
+      }
+    })();
+    // Lightweight fallback poller: updates active rows every 2s even if the main script failed
+    (function(){
+      if (window.__NET_SCAN_FALLBACK) return; window.__NET_SCAN_FALLBACK = true;
+      var intervalMs = Math.max(2000, (parseInt('{{ settings.SCAN_POLL_INTERVAL|default:"2" }}',10)||2)*1000);
+      setInterval(function(){
+        try{
+          var ids = [];
+          document.querySelectorAll('tr.scan-row').forEach(function(r){
+            var p = parseInt((r.getAttribute('data-percent')||'0'),10);
+            var stopped = String(r.getAttribute('data-stopped')||'')==='1';
+            if (!isNaN(p) && p < 100 && !stopped){ ids.push(r.getAttribute('data-scanid')); }
+          });
+          if (ids.length === 0) return;
+          var url = '{% url "networkscanners:scan_summaries" %}' + '?ids=' + encodeURIComponent(ids.join(',')) + '&_ts=' + Date.now();
+          fetch(url, { credentials:'same-origin', headers:{ 'X-Requested-With':'XMLHttpRequest','Cache-Control':'no-cache' } })
+            .then(function(r){ return r.json(); })
+            .then(function(payload){ if(!payload) return; Object.keys(payload).forEach(function(id){ try{
+              var it = payload[id] || {}; var row = document.querySelector('tr.scan-row[data-scanid="'+id+'"]'); if(!row) return;
+              var p = parseInt((it.scan_status||'0'),10) || 0; row.setAttribute('data-percent', p);
+              var sEl = row.querySelector('[data-field="status_text"]'); if (sEl){ if (p>=100){ sEl.textContent='100% Completed'; } else { sEl.textContent=p+'% In Progress'; } }
+              var pb = row.querySelector('.progress .progress-bar'); if (pb){ pb.style.width=p+'%'; pb.classList.remove('bg-danger','bg-warning','bg-success','bg-info'); if (p>=100){ pb.classList.add('bg-success'); } else { pb.classList.add('bg-info'); } }
+              function setVal(sel,val){ var el=row.querySelector(sel); if(el){ el.textContent=String(val||0);} }
+              var liveTotal = (it.res_critical||0)+(it.res_high||0)+(it.res_medium||0)+(it.res_low||0)+(it.res_info||0);
+              setVal('[data-field="total_vul"]', Math.max(parseInt(it.total_vul||0,10)||0, liveTotal));
+              setVal('[data-field="critical_vul"]', Math.max(parseInt(it.critical_vul||0,10)||0, (it.res_critical||0)));
+              setVal('[data-field="high_vul"]', Math.max(parseInt(it.high_vul||0,10)||0, (it.res_high||0)));
+              setVal('[data-field="medium_vul"]', Math.max(parseInt(it.medium_vul||0,10)||0, (it.res_medium||0)));
+              setVal('[data-field="low_vul"]', Math.max(parseInt(it.low_vul||0,10)||0, (it.res_low||0)));
+              setVal('[data-field="info_vul"]', Math.max(parseInt(it.info_vul||0,10)||0, (it.res_info||0)));
+              setVal('[data-field="total_dup"]', Math.max(parseInt(it.total_dup||0,10)||0, (it.res_dup||0)));
+            }catch(e){} }); })
+            .catch(function(){});
+        }catch(e){}
+      }, intervalMs);
+    })();
+    </script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+<!-- Inline confirm modal for actions -->
+<div class="modal fade" id="actionConfirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Please Confirm</h6>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body"><span id="actionConfirmText"></span></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="actionConfirmYes">Yes</button>
+      </div>
+    </div>
+  </div>
+  </div>
+<script>
+  function showConfirm(message, onConfirm){
+    try {
+      var m = $('#actionConfirmModal');
+      $('#actionConfirmText').text(message||'Are you sure?');
+      m.data('onConfirm', onConfirm);
+      m.modal('show');
+    } catch(e) { if (typeof onConfirm==='function') onConfirm(); }
+  }
+  $('#actionConfirmYes').on('click', function(){
+    var m = $('#actionConfirmModal');
+    var fn = m.data('onConfirm');
+    m.modal('hide');
+    if (typeof fn==='function'){ fn(); }
+  });
+</script>
+{% if not user.is_superuser and user.role != 'Admin' %}
+<style>
+  #data_table thead th.th-action,
+  #data_table tbody td.action-cell { display: none !important; }
+</style>
+{% endif %}
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

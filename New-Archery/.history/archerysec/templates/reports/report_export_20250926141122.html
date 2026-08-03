@@ -1,0 +1,296 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Security Assessment Report</title>
+  <style>
+    /* ---------- Global Page Styling ---------- */
+    @page {
+      size: A4;
+      margin: 2cm;
+      @top-center {
+        content: "📊 Security Report - TeamCloud Solutions";
+        font-size: 14px;
+        color: #444;
+      }
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 12px;
+        color: #666;
+      }
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #222;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    /* ---------- Page Frame ---------- */
+    .page-frame {
+      border: 2px solid #0d6efd;
+      padding: 30px;
+      min-height: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ---------- Header ---------- */
+    header {
+      text-align: center;
+      border-bottom: 3px solid #0d6efd;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      margin: 0;
+      color: #0d6efd;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    header p {
+      margin: 5px 0 0;
+      font-size: 14px;
+      color: #555;
+    }
+
+    /* ---------- Footer ---------- */
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      margin-top: 40px;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+
+    /* ---------- Section Titles ---------- */
+    h2 {
+      font-size: 20px;
+      color: #0d6efd;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      border-left: 5px solid #0d6efd;
+      padding-left: 10px;
+    }
+
+    /* ---------- Tables ---------- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background: #f4f8ff;
+      color: #0d6efd;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+
+    .no-data {
+      color: #888;
+      font-style: italic;
+      text-align: center;
+    }
+
+    /* ---------- Logo (Optional) ---------- */
+    .logo {
+      width: 140px;
+      margin-bottom: 10px;
+    }
+
+    /* ---------- Info Block ---------- */
+    .report-info {
+      margin-bottom: 40px;
+      padding: 15px;
+      background: #f9fbff;
+      border: 1px solid #cfe2ff;
+      border-radius: 8px;
+    }
+    .report-info p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-frame">
+    <header>
+      <!-- Optional Logo -->
+      <img src="{% static 'images/logo.png' %}" alt="TeamCloud Solutions" class="logo" />
+      <h1>Security Assessment Report</h1>
+      <p>Prepared by <strong>TeamCloud Solutions</strong></p>
+    </header>
+
+    <div class="report-info">
+      <p><strong>📅 Generated on:</strong> {{ now|date:"Y-m-d H:i" }}</p>
+      {% if selected_project %}
+      <p><strong>📁 Project:</strong> {{ selected_project.project_name }}</p>
+      {% endif %}
+    </div>
+
+    <!-- 🌐 Dynamic Web Scans -->
+    {% if not selected_scan_types or 'web' in selected_scan_types %}
+    <section>
+      <h2>🌐 Dynamic Web Scans</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in dynamic_results %}
+          <tr>
+            <td>{{ scan.scan_url }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="no-data">No dynamic scan data available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <!-- 🏗️ Infrastructure Scans -->
+    {% if not selected_scan_types or 'network' in selected_scan_types %}
+    <section>
+      <h2>🏗️ Infrastructure Scans</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Target IP</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in infrastructure_results %}
+          <tr>
+            <td>{{ scan.ip }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="no-data">No infrastructure data available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <!-- 🧑‍💻 Static Analysis Scans -->
+    {% if not selected_scan_types or 'static' in selected_scan_types %}
+    <section>
+      <h2>🧑‍💻 Static Analysis Scans</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Project / Target</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in static_results %}
+          <tr>
+            <td>
+              {% if scan.project_name %}{{ scan.project_name }}
+              {% elif scan.project %}{{ scan.project.project_name }}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="no-data">No static scan data available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <!-- ☁️ Cloud Scans -->
+    {% if not selected_scan_types or 'cloud' in selected_scan_types %}
+    <section>
+      <h2>☁️ Cloud Scans</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Cloud Account / Resource</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in cloud_results %}
+          <tr>
+            <td>
+              {% if scan.cloudAccountId %}{{ scan.cloudAccountId }}
+              {% elif scan.project %}{{ scan.project.project_name }}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="no-data">No cloud scan data available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <footer>
+      © {{ now|date:"Y" }} TeamCloud Solutions — All rights reserved.
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+.git
+*.pyc
+*.log
+scanners/zap.log
+.DS_Store
+*Postman*
+archerysecurity/local_settings.py
+static/
+server.log.1
+server.log

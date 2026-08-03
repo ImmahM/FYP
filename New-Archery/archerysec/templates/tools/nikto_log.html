@@ -1,0 +1,108 @@
+{% extends 'base/site_base.html' %}
+{% block body %}
+  <style>
+    /* High‑contrast dark board for readability */
+    .log-board { background: #0f1115; color: #e6e6e6; border: 1px solid #2a2f3a; border-radius: 8px; overflow: hidden; }
+    .toolbar { background: #151821; padding: 8px 12px; border-bottom: 1px solid #2a2f3a; display: flex; align-items: center; gap: 12px; }
+    .status { font-size: 13px; color: #aab2bf; }
+    .wrap { max-height: 70vh; overflow: auto; background: #0f1115; }
+    .log-board pre { margin: 0; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #f0f3f7; line-height: 1.38; font-size: 13.5px; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+    a, a:visited { color: #8cc4ff; }
+    button { background: #242933; color: #e6e6e6; border: 1px solid #3a4150; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #2c3340; }
+  </style>
+  <script>
+    const scanId = "{{ scan_id }}";
+    let timer = null;
+    let paused = false;
+    const pollMs = 2000;
+
+    async function pull() {
+      if (paused) return;
+      try {
+        const resp = await fetch(`?scan_id=${encodeURIComponent(scanId)}&raw=1&ts=${Date.now()}`, { cache: 'no-store' });
+        const statusEl = document.getElementById('status');
+        const capEl = document.getElementById('capnote');
+        const timeEl = document.getElementById('timing');
+        const pre = document.getElementById('log');
+        if (resp.status === 200) {
+          const txt = await resp.text();
+          pre.textContent = txt || '\
+Nikto v2.x\n(Empty yet — waiting for tool output)';
+          statusEl.textContent = 'Live';
+          try {
+            const lower = (txt||'').toLowerCase();
+            capEl.textContent = (lower.indexOf('maximum execution time') !== -1) ? '(time-capped)' : '';
+            // timing line
+            let mStart = /Start Time:\s*(.+?)\r?\n/i.exec(txt||'');
+            let mEnd = /End Time:\s*(.+?)\r?\n/i.exec(txt||'');
+            let mSec = /\((\d+)\s*seconds\)/i.exec(txt||'');
+            if (mStart || mEnd || mSec) {
+              let dur = '';
+              if (mSec) { let s = parseInt(mSec[1]||'0',10)||0; let mm = Math.floor(s/60), ss=s%60; dur = ' • '+mm+'m '+ss+'s'; }
+              let endTxt = mEnd ? (mEnd[1]||'').replace(/\s*\(.*\)\s*$/,'') : '';
+              timeEl.textContent = (endTxt?('finished '+endTxt+' UTC'):'') + dur;
+            } else { timeEl.textContent = ''; }
+          } catch (e) { if (capEl) capEl.textContent = ''; if (timeEl) timeEl.textContent=''; }
+          autoscroll();
+        } else if (resp.status === 202) {
+          statusEl.textContent = 'Waiting for output…';
+        } else if (resp.status === 404) {
+          statusEl.textContent = 'Log not found (yet)';
+        } else {
+          const txt = await resp.text();
+          statusEl.textContent = `Error ${resp.status}`;
+          pre.textContent = txt;
+        }
+      } catch (e) {
+        document.getElementById('status').textContent = 'Network error';
+      }
+    }
+
+    function autoscroll() {
+      if (document.getElementById('autoscroll').checked) {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function toggle() {
+      paused = !paused;
+      document.getElementById('toggle').textContent = paused ? 'Resume' : 'Pause';
+    }
+
+    window.addEventListener('load', () => {
+      document.getElementById('download').href = `?scan_id=${encodeURIComponent(scanId)}&raw=1`;
+      {% if has_log %}
+      document.getElementById('status').textContent = 'Live';
+      {% else %}
+      document.getElementById('status').textContent = 'Waiting for output…';
+      {% endif %}
+      timer = setInterval(pull, pollMs);
+      // do an immediate pull to fill quickly
+      pull();
+    });
+  </script>
+  <div class="row">
+    <div class="col-12">
+      <div class="log-board">
+        <div class="toolbar">
+          <strong style="margin-right:6px;">Nikto Log</strong>
+          <span class="status" id="status"></span>
+          <span class="status" id="capnote" style="margin-left:8px;color:#f0c674;"></span>
+          {% if fallback_note %}
+          <span class="status" id="fallback" style="margin-left:12px;color:#f88;">{{ fallback_note }}</span>
+          {% endif %}
+          <span class="status" id="timing" style="margin-left:12px;color:#9aa;"></span>
+          <label style="margin-left:auto; font-size:13px;">
+            <input type="checkbox" id="autoscroll" checked /> Auto‑scroll
+          </label>
+          <a id="download" download>Download raw</a>
+          <button id="toggle" onclick="toggle()">Pause</button>
+        </div>
+        <div class="wrap">
+          <pre id="log">{{ initial|default:"" }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

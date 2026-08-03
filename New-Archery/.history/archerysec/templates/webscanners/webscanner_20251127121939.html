@@ -1,0 +1,1285 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block body %}
+
+<style>
+  .scan-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));
+    gap:18px;
+    width:100%;
+  }
+  .option-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:12px;
+  }
+  .option-tile{
+    padding:12px 14px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(127,90,240,0.08));
+  }
+  .option-tile .checkbox label{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+  .helper{
+    font-size:0.9rem;
+    color:var(--muted);
+  }
+  .tile-head{
+    font-weight:700;
+    color:var(--text-1);
+  }
+  .tile-sub{
+    color:var(--muted);
+    font-size:0.9rem;
+  }
+  .glow-border{
+    box-shadow:0 12px 40px rgba(127,90,240,0.22);
+  }
+  .loading-ring{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.15);border-top-color:#7f5af0;border-radius:50%;animation:loading-rotate .6s linear infinite;vertical-align:middle}
+  @keyframes loading-rotate{to{transform:rotate(360deg)}}
+  /* Spider modal */
+  .spider-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(8,10,30,0.7);
+    backdrop-filter:blur(6px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:9999;
+    padding:18px;
+  }
+  .spider-modal{
+    background:linear-gradient(145deg, rgba(25,27,45,0.96), rgba(44,49,79,0.94));
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:16px;
+    max-width:1100px;
+    width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+    padding:16px 18px 20px;
+  }
+  .spider-modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  .spider-modal-close{
+    border:none;
+    background:transparent;
+    color:var(--text-1, #fff);
+    font-size:18px;
+    cursor:pointer;
+  }
+  .spider-modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:10px;
+  }
+</style>
+
+<div class="neo-hero mb-3">
+  <span class="pill"><i class="fas fa-bolt mr-2"></i>Launch Web Scans</span>
+</div>
+
+<div class="scan-grid">
+  <div class="card neo-panel">
+    <form id="start_scan" class="form-horizontal mb-0">{% csrf_token %}
+      <div class="card-body">
+        <div class="section-heading">
+          <span class="dot"></span>
+          <div>
+            <div class="tile-head">Targets &amp; project</div>
+            <div class="tile-sub">Paste multiple URLs and map them to a project before launching.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="control-label">URLs</label>
+          <textarea class="form-control" name="url" id="url" placeholder="https://site1.com, https://site2.com">{{ url }}</textarea>
+          <small class="helper">Comma or space separated. Only http/https will be used.</small>
+        </div>
+        <div class="form-group">
+          <label class="control-label">Project</label>
+          <select id="project_id" name="project_id" class="select2 form-control custom-select" style="width: 100%; height:46px;">
+            {% for data in all_scans_db %}
+            <option value="{{data.uu_id}}">{{data.project_name}}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if user.is_superuser or user.role.role == 'Admin' %}
+        <div class="row" id="nikto_limits_group">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="control-label">Max time (minutes)</label>
+              <input class="form-control" type="number" min="0" step="1" id="nikto_maxtime_min" name="nikto_maxtime_min" placeholder="leave blank for no cap">
+              <small class="helper">Keeps long scans predictable.</small>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="control-label">Error limit (FAILURES)</label>
+              <input class="form-control" type="number" min="0" step="1" id="nikto_failures" name="nikto_failures" placeholder="default: {{ settings.NIKTO_DEFAULT_FAILURES|default:'0' }} (0 disables)">
+              <small class="helper">Raise/disable early stop on noisy targets.</small>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
+          <div class="d-flex align-items-center" style="gap:10px;">
+            <input id="launch_btn" type="submit" class="btn btn-primary" value="Launch">
+            <span id="launch_spinner" class="loading-ring ml-1" aria-hidden="true" style="display:none;"></span>
+          </div>
+          <a href="{% url 'webscanners:web_scan_schedule' %}"
+             class="btn btn-outline-primary"
+             title="Plan this scan for later or set up repeats">
+            <i class="fas fa-calendar-alt mr-1"></i>Schedule scan
+          </a>
+        </div>
+        <div id="status" class="mt-2"></div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card neo-panel">
+    <div class="card-body">
+      <div class="section-heading">
+        <span class="dot"></span>
+        <div>
+          <div class="tile-head">{% if user.is_superuser or user.role == 'Admin' %}ZAP Scan Types{% else %}Web Scan Types{% endif %}</div>
+          <div class="tile-sub">Toggle the stages you want to run. Mix-and-match crawl and attack depth.</div>
+        </div>
+      </div>
+      {% if user.is_superuser or user.role == 'Admin' %}
+      <div class="option-tile mb-3">
+        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-0">
+          <label class="d-flex align-items-center mb-0">
+            <input name="run_zap" id="run_zap" type="checkbox">
+            <span>Enable ZAP</span>
+          </label>
+        </div>
+      </div>
+      {% endif %}
+      <div class="option-grid">
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label class="d-flex align-items-center justify-content-between">
+              <span>
+                <input name="zap_spider" id="zap_spider" type="checkbox">
+                <span>Spider (crawl) <span class="text-muted" data-toggle="tooltip" title="Follows links to discover pages and build the site map.">&#x2754;</span></span>
+              </span>
+              <button type="button" id="spider_adv_toggle" class="btn btn-link p-0 ml-2" title="Show spider tuning" aria-expanded="false" style="font-size:16px; line-height:1;">
+                &#x25BC;
+              </button>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label>
+              <input name="zap_ajax_spider" id="zap_ajax_spider" type="checkbox">
+              <span>AJAX Spider (SPA) <span class="text-muted" data-toggle="tooltip" title="Uses a headless browser to crawl dynamic/JS-driven content.">&#x2754;</span></span>
+              <button type="button" id="ajax_adv_toggle" class="btn btn-link p-0 ml-2" title="Show AJAX spider tuning" aria-expanded="false" style="font-size:16px; line-height:1;">
+                &#x25BC;
+              </button>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label>
+              <input name="zap_pscan_wait" id="zap_pscan_wait" type="checkbox">
+              <span>Passive Scan Wait <span class="text-muted" data-toggle="tooltip" title="Waits until ZAP's passive scanner finishes analyzing traffic; no attack payloads.">&#x2754;</span></span>
+              <button type="button" id="pscan_adv_toggle" class="btn btn-link p-0 ml-2" title="Show passive scan tuning" aria-expanded="false" style="font-size:16px; line-height:1;">
+                &#x25BC;
+              </button>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label class="d-flex align-items-center justify-content-between">
+              <span>
+                <input name="zap_active_scan" id="zap_active_scan" type="checkbox">
+                <span>Active Scan <span class="text-muted" data-toggle="tooltip" title="Sends attack payloads to detect vulnerabilities; intrusive and can change state.">&#x2754;</span></span>
+              </span>
+              <button type="button" id="active_adv_toggle" class="btn btn-link p-0 ml-2" title="Show active scan tuning" aria-expanded="false" style="font-size:16px; line-height:1;">
+                &#x25BC;
+              </button>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label class="d-flex align-items-center justify-content-between" style="gap:30px;">
+              <span class="d-flex align-items-center" style="gap:8px;">
+                <input name="zap_forced_browse" id="zap_forced_browse" type="checkbox">
+                <span>Forced Browse (DirBuster) <span class="text-muted" data-toggle="tooltip" title="Brute-forces common paths/files to uncover hidden resources; noisy and slower.">&#x2754;</span></span>
+              </span>
+              <button type="button" id="fb_adv_toggle" class="btn btn-link p-0 ml-2" title="Show forced browse tuning" aria-expanded="false" style="font-size:16px; line-height:1;">
+                &#x25BC;
+              </button>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div id="spider_advanced_modal" class="spider-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="spiderModalTitle">
+        <div class="spider-modal">
+          <div class="spider-modal-header">
+            <div>
+              <div id="spiderModalTitle" class="tile-head mb-0">Spider advanced options</div>
+              <div class="tile-sub" style="margin-top:2px;">Tune crawl speed, depth, scope, and form behavior.</div>
+            </div>
+            <button type="button" class="spider-modal-close" id="spider_modal_close" aria-label="Close spider options">&times;</button>
+          </div>
+          <div id="spider_advanced_panel" class="option-grid mt-1">
+        <div class="option-tile">
+          <div class="form-group mb-2">
+            <label class="tile-head mb-1">
+              Spider threads
+              <span class="text-muted" title="How many concurrent requests the spider uses; higher is faster but louder.">❔</span>
+            </label>
+            <input type="number" min="1" max="50" step="1" class="form-control" id="zap_spider_threads" name="zap_spider_threads" placeholder="20">
+            <small class="helper">Higher = faster; lower = gentler (default 20).</small>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="form-group mb-2">
+            <label class="tile-head mb-1">
+              Max depth
+              <span class="text-muted" title="Limits how deep the spider follows links from the start page; 0 = unlimited.">❔</span>
+            </label>
+            <input type="number" min="0" max="50" step="1" class="form-control" id="zap_spider_max_depth" name="zap_spider_max_depth" placeholder="5">
+            <small class="helper">Limit crawl depth to avoid infinite trees.</small>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="form-group mb-2">
+            <label class="tile-head mb-1">
+              Max children per node
+              <span class="text-muted" title="Caps how many links per page the spider will enqueue; blank/0 keeps default unlimited.">❔</span>
+            </label>
+            <input type="number" min="0" max="1000" step="1" class="form-control" id="zap_spider_max_children" name="zap_spider_max_children" placeholder="leave blank for unlimited">
+            <small class="helper">Cap links per page; 0/blank = unlimited.</small>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="form-group mb-2">
+            <label class="tile-head mb-1">
+              Parameter handling
+              <span class="text-muted" title="Choose how query params affect crawl expansion: use all, ignore values, or ignore params entirely.">❔</span>
+            </label>
+            <select class="form-control" id="zap_spider_handle_parameters" name="zap_spider_handle_parameters">
+              <option value="" selected>Default (ZAP)</option>
+              <option value="2">Use all parameters</option>
+              <option value="1">Ignore values</option>
+              <option value="0">Ignore parameters</option>
+            </select>
+            <small class="helper">Choose how query params affect crawl expansion.</small>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label>
+              <input type="checkbox" id="zap_spider_parse_robots" name="zap_spider_parse_robots">
+              <span>Parse robots.txt for seeds <span class="text-muted" title="Seeds spider with paths listed in robots.txt (may include blocked paths).">❔</span></span>
+            </label>
+          </div>
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+            <label>
+              <input type="checkbox" id="zap_spider_parse_sitemap" name="zap_spider_parse_sitemap">
+              <span>Parse sitemap.xml for seeds <span class="text-muted" title="Seeds spider with URLs from sitemap.xml for faster coverage.">❔</span></span>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label>
+              <input type="checkbox" id="zap_spider_process_forms" name="zap_spider_process_forms">
+              <span>Process forms <span class="text-muted" title="Allows the spider to read forms and follow their actions.">❔</span></span>
+            </label>
+          </div>
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+            <label>
+              <input type="checkbox" id="zap_spider_submit_forms" name="zap_spider_submit_forms">
+              <span>Submit forms (POST) <span class="text-muted" title="Lets the spider submit forms to reach deeper states; ensure targets are safe.">❔</span></span>
+            </label>
+          </div>
+          <small class="helper d-block mt-2">Use allowlists to avoid destructive actions.</small>
+        </div>
+        <div class="option-tile">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+            <label>
+              <input type="checkbox" id="zap_spider_send_referer" name="zap_spider_send_referer">
+              <span>Send Referer header <span class="text-muted" title="Mimics browser referrers so servers that check origin behave normally.">❔</span></span>
+            </label>
+          </div>
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+            <label>
+              <input type="checkbox" id="zap_spider_accept_cookies" name="zap_spider_accept_cookies">
+              <span>Accept cookies <span class="text-muted" title="Keeps session cookies during crawl to stay authenticated/stateful.">❔</span></span>
+            </label>
+          </div>
+        </div>
+        <div class="option-tile">
+          <div class="form-group mb-2">
+            <label class="tile-head mb-1">
+              Include (in-scope) regex
+              <span class="text-muted" title="Regex lines to keep the spider inside scope; only matching URLs are crawled.">❔</span>
+            </label>
+            <textarea class="form-control" id="zap_spider_include_regex" name="zap_spider_include_regex" rows="3" placeholder="^https://example.com/.*"></textarea>
+            <small class="helper">One per line; keeps spider within matched URLs.</small>
+          </div>
+          <div class="form-group mb-0">
+            <label class="tile-head mb-1">
+              Skip URLs containing
+              <span class="text-muted" title="Single substring to drop from crawl (e.g., logout, download, export).">❔</span>
+            </label>
+            <input type="text" class="form-control" id="zap_spider_skip_token" name="zap_spider_skip_token" placeholder="logout, download, export...">
+            <small class="helper">Single substring; helps avoid logout/download paths.</small>
+          </div>
+        </div>
+      </div>
+          <div class="spider-modal-footer">
+            <button type="button" class="btn btn-secondary" id="spider_modal_cancel">Close</button>
+            <button type="button" class="btn btn-primary" id="spider_modal_ok">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ajax_advanced_modal" class="spider-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ajaxModalTitle">
+        <div class="spider-modal">
+          <div class="spider-modal-header">
+            <div>
+              <div id="ajaxModalTitle" class="tile-head mb-0">AJAX spider options</div>
+              <div class="tile-sub" style="margin-top:2px;">Tune headless crawl depth, duration, scope, and interaction safety.</div>
+            </div>
+            <button type="button" class="spider-modal-close" id="ajax_modal_close" aria-label="Close ajax options">&times;</button>
+          </div>
+          <div id="ajax_advanced_panel" class="option-grid mt-1">
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max crawl depth <span class="text-muted" title="Limits link depth for AJAX spider; 0 = unlimited (default 10).">❔</span></label>
+                <input type="number" min="0" max="50" step="1" class="form-control" id="ajax_max_depth" name="ajax_max_depth" placeholder="10">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max states <span class="text-muted" title="Limits distinct DOM states; 0 = unlimited.">❔</span></label>
+                <input type="number" min="0" max="1000" step="1" class="form-control" id="ajax_max_states" name="ajax_max_states" placeholder="0">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max duration (minutes) <span class="text-muted" title="Time cap for AJAX spider; 0 = unlimited (default 60).">❔</span></label>
+                <input type="number" min="0" max="180" step="1" class="form-control" id="ajax_max_duration" name="ajax_max_duration" placeholder="60">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Browsers (parallel) <span class="text-muted" title="Number of headless browser windows; higher is faster but heavier.">❔</span></label>
+                <input type="number" min="1" max="6" step="1" class="form-control" id="ajax_num_browsers" name="ajax_num_browsers" placeholder="1">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label><input type="checkbox" id="ajax_in_scope_only" name="ajax_in_scope_only"><span>Restrict to in-scope only <span class="text-muted" title="Keeps AJAX crawl inside ZAP in-scope URLs only.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="ajax_subtree_only" name="ajax_subtree_only"><span>Subtree only <span class="text-muted" title="Stay under the start path; avoid jumping elsewhere on the host.">❔</span></span></label>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label><input type="checkbox" id="ajax_logout_avoid" name="ajax_logout_avoid"><span>Avoid logout elements <span class="text-muted" title="Skip clicking logout to stay authenticated.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="ajax_click_once" name="ajax_click_once"><span>Click elements once <span class="text-muted" title="Interact once per element to reduce noise.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="ajax_click_default" name="ajax_click_default"><span>Click default elements only <span class="text-muted" title="Only click standard elements (a/button/input).">❔</span></span></label>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label><input type="checkbox" id="ajax_random_inputs" name="ajax_random_inputs"><span>Use random inputs <span class="text-muted" title="Fill forms with random values; off submits empty.">❔</span></span></label>
+              </div>
+              <div class="form-group mb-2 mt-2">
+                <label class="tile-head mb-1">Event wait (ms) <span class="text-muted" title="Wait after events (hover/click) for menus or JS to render.">❔</span></label>
+                <input type="number" min="0" max="5000" step="100" class="form-control" id="ajax_event_wait" name="ajax_event_wait" placeholder="1000">
+              </div>
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Reload wait (ms) <span class="text-muted" title="Wait after page load before interacting (default 1000).">❔</span></label>
+                <input type="number" min="0" max="5000" step="100" class="form-control" id="ajax_reload_wait" name="ajax_reload_wait" placeholder="1000">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Allowed resources (regex) <span class="text-muted" title="Always fetch these (e.g., third-party scripts) even if out of scope.">❔</span></label>
+                <textarea class="form-control" id="ajax_allowed_regex" name="ajax_allowed_regex" rows="3" placeholder="^https://cdn.example.com/.*"></textarea>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Exclude elements (text/xpath) <span class="text-muted" title="One per line; e.g., logout buttons to avoid signing out.">❔</span></label>
+                <textarea class="form-control" id="ajax_excluded_elems" name="ajax_excluded_elems" rows="3" placeholder="logout&#10;//button[@id='logout']"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="spider-modal-footer">
+            <button type="button" class="btn btn-secondary" id="ajax_modal_cancel">Close</button>
+            <button type="button" class="btn btn-primary" id="ajax_modal_ok">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="pscan_advanced_modal" class="spider-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pscanModalTitle">
+        <div class="spider-modal">
+          <div class="spider-modal-header">
+            <div>
+              <div id="pscanModalTitle" class="tile-head mb-0">Passive scan options</div>
+              <div class="tile-sub" style="margin-top:2px;">Control passive scan scope, limits, and rule selection.</div>
+            </div>
+            <button type="button" class="spider-modal-close" id="pscan_modal_close" aria-label="Close passive options">&times;</button>
+          </div>
+          <div id="pscan_advanced_panel" class="option-grid mt-1">
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label><input type="checkbox" id="pscan_scope_only" name="pscan_scope_only"><span>Scan only in scope <span class="text-muted" title="Process responses only if they are in ZAP scope.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="pscan_clear_queue" name="pscan_clear_queue"><span>Clear queue before run <span class="text-muted" title="Flush any old passive records so this run is clean.">❔</span></span></label>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max alerts per rule <span class="text-muted" title="Limit how many alerts each passive rule can raise; blank = default.">❔</span></label>
+                <input type="number" min="0" max="5000" step="1" class="form-control" id="pscan_max_alerts" name="pscan_max_alerts" placeholder="leave blank for default">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Enable scanner IDs <span class="text-muted" title="Comma-separated rule IDs to enable before passive scan.">❔</span></label>
+                <select multiple class="form-control mb-2" id="pscan_enable_ids_select">
+                  <option value="10015">10015 · Debug Error Messages</option>
+                  <option value="10016">10016 · Browser XSS Protection Not Enabled</option>
+                  <option value="10020">10020 · X-Frame-Options Header Not Set</option>
+                  <option value="10021">10021 · X-Content-Type-Options Header Missing</option>
+                  <option value="10023">10023 · Suspicious Comments</option>
+                  <option value="10027">10027 · Sensitive Info in URL</option>
+                  <option value="10029">10029 · User Controllable HTML Attribute (Potential XSS)</option>
+                  <option value="10035">10035 · Server Header Leaks Version</option>
+                  <option value="10036">10036 · X-Powered-By Header Leaks Info</option>
+                  <option value="10038">10038 · Re-examine Cache-Control Directives</option>
+                  <option value="10055">10055 · Incomplete/No Cache-Control or Pragma</option>
+                  <option value="10096">10096 · HTTPS→HTTP Insecure Form Post</option>
+                  <option value="10097">10097 · Absence of Anti-CSRF Tokens</option>
+                  <option value="10098">10098 · X-Frame-Options Header Scanner</option>
+                  <option value="10109">10109 · CSP Header Not Set</option>
+                </select>
+                <textarea class="form-control" id="pscan_enable_ids" name="pscan_enable_ids" rows="2" placeholder="Add custom IDs, e.g., 10016,10054"></textarea>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Disable scanner IDs <span class="text-muted" title="Comma-separated rule IDs to disable (e.g., noisy headers you want to skip).">❔</span></label>
+                <select multiple class="form-control mb-2" id="pscan_disable_ids_select">
+                  <option value="10015">10015 · Debug Error Messages</option>
+                  <option value="10016">10016 · Browser XSS Protection Not Enabled</option>
+                  <option value="10020">10020 · X-Frame-Options Header Not Set</option>
+                  <option value="10021">10021 · X-Content-Type-Options Header Missing</option>
+                  <option value="10023">10023 · Suspicious Comments</option>
+                  <option value="10027">10027 · Sensitive Info in URL</option>
+                  <option value="10029">10029 · User Controllable HTML Attribute (Potential XSS)</option>
+                  <option value="10035">10035 · Server Header Leaks Version</option>
+                  <option value="10036">10036 · X-Powered-By Header Leaks Info</option>
+                  <option value="10038">10038 · Re-examine Cache-Control Directives</option>
+                  <option value="10055">10055 · Incomplete/No Cache-Control or Pragma</option>
+                  <option value="10096">10096 · HTTPS→HTTP Insecure Form Post</option>
+                  <option value="10097">10097 · Absence of Anti-CSRF Tokens</option>
+                  <option value="10098">10098 · X-Frame-Options Header Scanner</option>
+                  <option value="10109">10109 · CSP Header Not Set</option>
+                </select>
+                <textarea class="form-control" id="pscan_disable_ids" name="pscan_disable_ids" rows="2" placeholder="Add custom IDs, e.g., 10015,10035"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="spider-modal-footer">
+            <button type="button" class="btn btn-secondary" id="pscan_modal_cancel">Close</button>
+            <button type="button" class="btn btn-primary" id="pscan_modal_ok">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="active_advanced_modal" class="spider-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="activeModalTitle">
+        <div class="spider-modal">
+          <div class="spider-modal-header">
+            <div>
+              <div id="activeModalTitle" class="tile-head mb-0">Active scan options</div>
+              <div class="tile-sub" style="margin-top:2px;">Control attack concurrency, timing, scope, and rule selection.</div>
+            </div>
+            <button type="button" class="spider-modal-close" id="active_modal_close" aria-label="Close active options">&times;</button>
+          </div>
+          <div id="active_advanced_panel" class="option-grid mt-1">
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Threads per host <span class="text-muted" title="Active scan threads per host; higher is faster but louder.">❔</span></label>
+                <input type="number" min="1" max="50" step="1" class="form-control" id="active_threads_per_host" name="active_threads_per_host" placeholder="30">
+              </div>
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Hosts per scan <span class="text-muted" title="Max concurrent hosts per scan.">❔</span></label>
+                <input type="number" min="1" max="10" step="1" class="form-control" id="active_hosts_per_scan" name="active_hosts_per_scan" placeholder="3">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Request delay (ms) <span class="text-muted" title="Delay between requests; use to throttle on fragile apps.">❔</span></label>
+                <input type="number" min="0" max="5000" step="50" class="form-control" id="active_delay_ms" name="active_delay_ms" placeholder="0">
+              </div>
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max scan duration (min) <span class="text-muted" title="Caps total active scan time; 0 = unlimited.">❔</span></label>
+                <input type="number" min="0" max="240" step="1" class="form-control" id="active_max_scan_mins" name="active_max_scan_mins" placeholder="0">
+              </div>
+              <div class="form-group mb-0">
+                <label class="tile-head mb-1">Max rule duration (min) <span class="text-muted" title="Caps each rule's runtime; 0 = unlimited.">❔</span></label>
+                <input type="number" min="0" max="60" step="1" class="form-control" id="active_max_rule_mins" name="active_max_rule_mins" placeholder="0">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="active_recurse" name="active_recurse"><span>Recurse (follow links) <span class="text-muted" title="Let active scan recurse through discovered links.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="active_in_scope_only" name="active_in_scope_only"><span>Scan only in scope <span class="text-muted" title="Restrict active scan to in-scope URLs.">❔</span></span></label>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Enable scanner IDs <span class="text-muted" title="Comma-separated active rule IDs to enable.">❔</span></label>
+                <select multiple class="form-control mb-2" id="active_enable_ids_select">
+                  <option value="40012">40012 · Cross Site Scripting (Reflected)</option>
+                  <option value="40014">40014 · Cross Site Scripting (Persistent/Stored)</option>
+                  <option value="40016">40016 · Cross Site Scripting (DOM)</option>
+                  <option value="40018">40018 · SQL Injection</option>
+                  <option value="40032">40032 · Path Traversal</option>
+                  <option value="40019">40019 · Server-Side Include</option>
+                  <option value="40020">40020 · Remote File Inclusion</option>
+                  <option value="40021">40021 · Server-Side Code Injection</option>
+                  <option value="40022">40022 · Script Active Scan Rules (JS)</option>
+                  <option value="40025">40025 · External Redirect</option>
+                  <option value="40026">40026 · Info Disclosure - Sensitive Info in Response</option>
+                  <option value="40035">40035 · Command Injection</option>
+                  <option value="40038">40038 · LDAP Injection</option>
+                  <option value="40039">40039 · XML External Entity (XXE)</option>
+                  <option value="40040">40040 · Insecure HTTP Method</option>
+                  <option value="40041">40041 · NoSQL Injection</option>
+                  <option value="40042">40042 · Padding Oracle</option>
+                  <option value="40043">40043 · SOAP XML Injection</option>
+                  <option value="40044">40044 · SQL Injection - Hypersonic</option>
+                  <option value="40045">40045 · SQL Injection - MsSQL</option>
+                  <option value="40046">40046 · SQL Injection - MySQL</option>
+                  <option value="40047">40047 · SQL Injection - Oracle</option>
+                  <option value="40048">40048 · SQL Injection - PostgreSQL</option>
+                  <option value="40049">40049 · XPath Injection</option>
+                  <option value="40050">40050 · Buffer Overflow</option>
+                </select>
+                <textarea class="form-control" id="active_enable_ids" name="active_enable_ids" rows="3" placeholder="Add custom IDs, e.g., 40012,40014"></textarea>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Disable scanner IDs <span class="text-muted" title="Comma-separated active rule IDs to disable.">❔</span></label>
+                <select multiple class="form-control mb-2" id="active_disable_ids_select">
+                  <option value="40012">40012 · Cross Site Scripting (Reflected)</option>
+                  <option value="40014">40014 · Cross Site Scripting (Persistent/Stored)</option>
+                  <option value="40016">40016 · Cross Site Scripting (DOM)</option>
+                  <option value="40018">40018 · SQL Injection</option>
+                  <option value="40032">40032 · Path Traversal</option>
+                  <option value="40019">40019 · Server-Side Include</option>
+                  <option value="40020">40020 · Remote File Inclusion</option>
+                  <option value="40021">40021 · Server-Side Code Injection</option>
+                  <option value="40022">40022 · Script Active Scan Rules (JS)</option>
+                  <option value="40025">40025 · External Redirect</option>
+                  <option value="40026">40026 · Info Disclosure - Sensitive Info in Response</option>
+                  <option value="40035">40035 · Command Injection</option>
+                  <option value="40038">40038 · LDAP Injection</option>
+                  <option value="40039">40039 · XML External Entity (XXE)</option>
+                  <option value="40040">40040 · Insecure HTTP Method</option>
+                  <option value="40041">40041 · NoSQL Injection</option>
+                  <option value="40042">40042 · Padding Oracle</option>
+                  <option value="40043">40043 · SOAP XML Injection</option>
+                  <option value="40044">40044 · SQL Injection - Hypersonic</option>
+                  <option value="40045">40045 · SQL Injection - MsSQL</option>
+                  <option value="40046">40046 · SQL Injection - MySQL</option>
+                  <option value="40047">40047 · SQL Injection - Oracle</option>
+                  <option value="40048">40048 · SQL Injection - PostgreSQL</option>
+                  <option value="40049">40049 · XPath Injection</option>
+                  <option value="40050">40050 · Buffer Overflow</option>
+                </select>
+                <textarea class="form-control" id="active_disable_ids" name="active_disable_ids" rows="3" placeholder="Add custom IDs, e.g., 40018,40032"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="spider-modal-footer">
+            <button type="button" class="btn btn-secondary" id="active_modal_cancel">Close</button>
+            <button type="button" class="btn btn-primary" id="active_modal_ok">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="fb_advanced_modal" class="spider-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="fbModalTitle">
+        <div class="spider-modal">
+          <div class="spider-modal-header">
+            <div>
+              <div id="fbModalTitle" class="tile-head mb-0">Forced browse options</div>
+              <div class="tile-sub" style="margin-top:2px;">Tune threads, recursion, scope, extensions, and limits for DirBuster.</div>
+            </div>
+            <button type="button" class="spider-modal-close" id="fb_modal_close" aria-label="Close forced browse options">&times;</button>
+          </div>
+          <div id="fb_advanced_panel" class="option-grid mt-1">
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Threads <span class="text-muted" title="Concurrency for guessing paths; higher is faster but louder.">❔</span></label>
+                <input type="number" min="1" max="50" step="1" class="form-control" id="fb_threads" name="fb_threads" placeholder="10">
+              </div>
+              <div class="form-group mb-0">
+                <label class="tile-head mb-1">Extensions <span class="text-muted" title="Comma-separated extensions to try (e.g., php,asp,aspx,js,bak).">❔</span></label>
+                <input type="text" class="form-control" id="fb_extensions" name="fb_extensions" placeholder="php,asp,aspx,js,bak">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label><input type="checkbox" id="fb_recursive" name="fb_recursive"><span>Recurse into found dirs <span class="text-muted" title="Crawl deeper into discovered directories.">❔</span></span></label>
+              </div>
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                <label><input type="checkbox" id="fb_in_scope_only" name="fb_in_scope_only"><span>Scan only in scope <span class="text-muted" title="Keep forced browse inside ZAP scope.">❔</span></span></label>
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Max directories <span class="text-muted" title="Cap number of directories discovered; blank/0 = unlimited.">❔</span></label>
+                <input type="number" min="0" max="50000" step="1" class="form-control" id="fb_max_dirs" name="fb_max_dirs" placeholder="0">
+              </div>
+              <div class="form-group mb-0">
+                <label class="tile-head mb-1">Max files <span class="text-muted" title="Cap number of files discovered; blank/0 = unlimited.">❔</span></label>
+                <input type="number" min="0" max="50000" step="1" class="form-control" id="fb_max_files" name="fb_max_files" placeholder="0">
+              </div>
+            </div>
+            <div class="option-tile">
+              <div class="form-group mb-2">
+                <label class="tile-head mb-1">Wordlist name/path <span class="text-muted" title="Optional wordlist to use if supported by your ZAP DirBuster add-on.">❔</span></label>
+                <input type="text" class="form-control" id="fb_wordlist" name="fb_wordlist" placeholder="Optional wordlist">
+              </div>
+            </div>
+          </div>
+          <div class="spider-modal-footer">
+            <button type="button" class="btn btn-secondary" id="fb_modal_cancel">Close</button>
+            <button type="button" class="btn btn-primary" id="fb_modal_ok">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if user.is_superuser or user.role == 'Admin' %}
+<div class="card neo-panel mt-3">
+  <div class="card-body">
+    <div class="section-heading">
+      <span class="dot"></span>
+      <div>
+        <div class="tile-head">Nikto Scan Types</div>
+        <div class="tile-sub">Pick a single Nikto profile for the run or enable custom time limits above.</div>
+      </div>
+    </div>
+    <div class="option-tile mb-3">
+      <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+        <label class="d-flex align-items-center mb-0">
+          <input name="run_nikto" id="run_nikto" type="checkbox">
+          <span>Enable Nikto <span class="text-muted" data-toggle="tooltip" title="Run Nikto web server checks for each URL.">&#x2754;</span></span>
+        </label>
+      </div>
+    </div>
+    <div class="option-grid">
+      <div class="option-tile">
+        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+          <label>
+            <input name="nikto_baseline" id="nikto_baseline" type="checkbox">
+            <span>Stealthy Information Gathering &amp; Software Identification <span class="text-muted" data-toggle="tooltip" title="Fingerprints web/server software and versions, checks for info disclosure and misconfigurations, and builds a tech inventory. Uses a small pause to be quieter and avoids aggressive probes.">&#x2754;</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="option-tile">
+        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+          <label>
+            <input name="nikto_injection" id="nikto_injection" type="checkbox">
+            <span>Targeted Injection &amp; XSS Vulnerability Scan <span class="text-muted" data-toggle="tooltip" title="Sends crafted payloads to parameters and paths to detect injection points and reflected XSS. Adds basic evasion to slip past naive filters. More intrusive and slower than Baseline.">&#x2754;</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="option-tile">
+        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+          <label>
+            <input name="nikto_comprehensive" id="nikto_comprehensive" type="checkbox">
+            <span>Comprehensive File Retrieval &amp; Server-Side Scan <span class="text-muted" data-toggle="tooltip" title="Tries to fetch sensitive/backup files, exposes server-side script issues, default admin panels/credentials, and deeper misconfigurations. Uses heavier evasion and longer pauses. Longest, noisiest, most likely to trigger WAFs; highest chance to find critical exposures.">&#x2754;</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="option-tile">
+        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+          <label>
+            <input name="nikto_broad" id="nikto_broad" type="checkbox">
+            <span>Broad Scan with Dangerous Test Exclusions <span class="text-muted" data-toggle="tooltip" title="Runs a wide sweep of Nikto checks while specifically skipping denial-of-service tests. Broader coverage than Baseline but safer for uptime than fully comprehensive or DoS-inclusive profiles.">&#x2754;</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  function my_special_notification_callback(data) {
+    for (var i = 0; i < data.unread_list.length; i++) {
+      var msg = data.unread_list[i];
+      console.log(msg);
+    }
+  }
+</script>
+
+<script type="text/javascript">
+  $(document).on('submit', '#start_scan', function (e) {
+    e.preventDefault();
+    // Require a project selection; show a small top-right toast if missing
+    try{
+      var pid = String($('#project_id').val()||'').trim();
+      if (!pid){
+        if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.warning('Please select a Project'); }catch(ex){} }
+        return;
+      }
+    }catch(e){}
+    var isAdmin = {% if user.is_superuser or user.role == 'Admin' %} true {% else %} false {% endif %};
+    var launchDelaySec = 0; // launch immediately
+    function showSpinnerStatus(){ try{ $('#launch_spinner').css('display','inline-block'); }catch(e){} }
+    function startRedirectWhenVisible(listUrl, matchText, timeoutMs, intervalMs){
+      var start = Date.now();
+      var pollMs = Math.max(800, intervalMs || 1500);
+      var limit = Math.max(10000, timeoutMs || 90000);
+      var timer = null;
+      function poll(){
+        if ((Date.now() - start) > limit){
+          window.location = listUrl; // safety fallback
+          return;
+        }
+        $.get(listUrl).done(function(html){
+          try{
+            if (html && typeof html === 'string' && html.indexOf(matchText) !== -1){
+              window.location = listUrl;
+              return;
+            }
+          }catch(e){}
+          timer = setTimeout(poll, pollMs);
+        }).fail(function(){ timer = setTimeout(poll, pollMs); });
+      }
+      poll();
+      return function cancel(){ try{ if (timer) clearTimeout(timer); }catch(e){} };
+    }
+    var pending = [];
+    function stopAllWebLaunches(){
+      try{ $('#launch_spinner').hide(); }catch(e){}
+      try{
+        pending.forEach(function(r){
+          try{ if (r && r.abort) r.abort(); }catch(err){}
+        });
+      }catch(_) {}
+    }
+    var urlErrorMsg = 'Web scans only support URLs (e.g., https://example.com).';
+    function parseUrlInput(raw){
+      var tokens = String(raw || '').split(/[\s,]+/);
+      var valid = [], invalid = [], seen = {};
+      for (var i = 0; i < tokens.length; i++){
+        var t = String(tokens[i] || '').trim();
+        if (!t || seen[t]){ continue; }
+        seen[t] = true;
+        try{
+          var u = new URL(t);
+          if (u.protocol === 'http:' || u.protocol === 'https:'){
+            valid.push(t);
+            continue;
+          }
+        }catch(err){}
+        invalid.push(t);
+      }
+      return { valid: valid, invalid: invalid };
+    }
+    var urlCheck = parseUrlInput($('#url').val());
+    if (!urlCheck.valid.length || urlCheck.invalid.length){
+      var errMsg = urlErrorMsg;
+      if (urlCheck.invalid.length){
+        var preview = urlCheck.invalid.slice(0,3).join(', ');
+        if (urlCheck.invalid.length > 3){ preview += ' (+' + (urlCheck.invalid.length - 3) + ' more)'; }
+        errMsg += ' Invalid: ' + preview;
+      }
+      if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); toastr.error(errMsg); }catch(ex){} }
+      return;
+    }
+    var urlValue = urlCheck.valid.join(',');
+    var firstTarget = urlCheck.valid[0] || '/';
+    var zapSteps = $('#zap_spider').is(':checked') || $('#zap_ajax_spider').is(':checked') || $('#zap_pscan_wait').is(':checked') || $('#zap_active_scan').is(':checked') || $('#zap_forced_browse').is(':checked');
+    var runZap = ($('#run_zap').length ? ($('#run_zap').is(':checked') || zapSteps) : zapSteps) && zapSteps;
+    // Run Nikto when explicitly selected:
+    // - Admin: via master toggle
+    // - Non-admin: when any Nikto profile option is selected
+    var niktoOptionsSelected = $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked');
+    var runNikto = ($('#run_nikto').length ? ($('#run_nikto').is(':checked') || niktoOptionsSelected) : niktoOptionsSelected);
+
+    function launchNikto() {
+      if (!runNikto) return $.Deferred().resolve().promise();
+      var comprehensive = $('#nikto_comprehensive').is(':checked');
+      var baseline = $('#nikto_baseline').is(':checked');
+      var injection = $('#nikto_injection').is(':checked');
+      var broad = $('#nikto_broad').is(':checked');
+      var tuning = '';
+      return $.ajax({
+        type: 'POST',
+        url: '{% url 'tools:niktolaunch' %}',
+        data: {
+          url: urlValue,
+          project_id: $('#project_id').val(),
+          nikto_comprehensive: comprehensive,
+          nikto_baseline: baseline,
+          nikto_injection: injection,
+          nikto_broad: broad,
+          nikto_maxtime_min: ($('#nikto_maxtime_min').val() || '').trim(),
+          nikto_failures: ($('#nikto_failures').val() || '').trim(),
+          // advanced flags temporarily hidden per request
+          nikto_tuning: tuning,
+          csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+        }
+      }).done(function () { /* no text status */ }).fail(function (jqXHR) { 
+        stopAllWebLaunches();
+        if (window.toastr){ 
+          try{ 
+            var resp = (jqXHR && (jqXHR.responseJSON||{})) || {}; 
+            var raw = (jqXHR && jqXHR.responseText) || '';
+            var msg = resp.error || resp.message || raw || 'Launch failed'; 
+            try{
+              var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+              if (/ZAP settings are missing|ZAP Connection Not Found|ZAP Connection Disabled/i.test(msg)){
+                msg = isAdmin ? 'ZAP connector is missing or disabled. Configure it under Settings + Add Connector + OWASP ZAP.' : 'ZAP connector is not configured. Please contact your Admin.';
+              }
+            }catch(x){}
+            toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); 
+            toastr.error(msg); 
+          }catch(ex){}
+        }
+      });
+    }
+
+    function doLaunch(){
+      var requests = [];
+      var anySelected = false;
+      if (runZap) {
+        anySelected = true;
+        var reqZap = $.ajax({
+          type: 'POST',
+          url: '{% url 'zapscanner:zap_scan' %}',
+          data: {
+            url: urlValue,
+            project_id: $('#project_id').val(),
+            zap_spider: $('#zap_spider').is(':checked'),
+            zap_ajax_spider: $('#zap_ajax_spider').is(':checked'),
+            zap_pscan_wait: $('#zap_pscan_wait').is(':checked'),
+            zap_active_scan: $('#zap_active_scan').is(':checked'),
+            zap_forced_browse: $('#zap_forced_browse').is(':checked'),
+            zap_spider_threads: ($('#zap_spider_threads').val() || '').trim(),
+            zap_spider_max_depth: ($('#zap_spider_max_depth').val() || '').trim(),
+            zap_spider_max_children: ($('#zap_spider_max_children').val() || '').trim(),
+            zap_spider_handle_parameters: ($('#zap_spider_handle_parameters').val() || '').trim(),
+            zap_spider_parse_robots: $('#zap_spider_parse_robots').is(':checked'),
+            zap_spider_parse_sitemap: $('#zap_spider_parse_sitemap').is(':checked'),
+            zap_spider_process_forms: $('#zap_spider_process_forms').is(':checked'),
+            zap_spider_submit_forms: $('#zap_spider_submit_forms').is(':checked'),
+            zap_spider_send_referer: $('#zap_spider_send_referer').is(':checked'),
+            zap_spider_accept_cookies: $('#zap_spider_accept_cookies').is(':checked'),
+            zap_spider_include_regex: ($('#zap_spider_include_regex').val() || ''),
+            zap_spider_skip_token: ($('#zap_spider_skip_token').val() || '').trim(),
+            ajax_max_depth: ($('#ajax_max_depth').val() || '').trim(),
+            ajax_max_states: ($('#ajax_max_states').val() || '').trim(),
+            ajax_max_duration: ($('#ajax_max_duration').val() || '').trim(),
+            ajax_num_browsers: ($('#ajax_num_browsers').val() || '').trim(),
+            ajax_in_scope_only: $('#ajax_in_scope_only').is(':checked'),
+            ajax_subtree_only: $('#ajax_subtree_only').is(':checked'),
+            ajax_logout_avoid: $('#ajax_logout_avoid').is(':checked'),
+            ajax_click_once: $('#ajax_click_once').is(':checked'),
+            ajax_click_default: $('#ajax_click_default').is(':checked'),
+            ajax_random_inputs: $('#ajax_random_inputs').is(':checked'),
+            ajax_event_wait: ($('#ajax_event_wait').val() || '').trim(),
+            ajax_reload_wait: ($('#ajax_reload_wait').val() || '').trim(),
+            ajax_allowed_regex: ($('#ajax_allowed_regex').val() || ''),
+            ajax_excluded_elems: ($('#ajax_excluded_elems').val() || ''),
+            pscan_scope_only: $('#pscan_scope_only').is(':checked'),
+            pscan_clear_queue: $('#pscan_clear_queue').is(':checked'),
+            pscan_max_alerts: ($('#pscan_max_alerts').val() || '').trim(),
+            pscan_enable_ids: (function(){ var sel=$('#pscan_enable_ids_select').val()||[]; var txt=$('#pscan_enable_ids').val()||''; var parts=txt.split(/[\\n,]+/).map(function(x){return x.trim();}).filter(Boolean); return sel.concat(parts).join(','); })(),
+            pscan_disable_ids: (function(){ var sel=$('#pscan_disable_ids_select').val()||[]; var txt=$('#pscan_disable_ids').val()||''; var parts=txt.split(/[\\n,]+/).map(function(x){return x.trim();}).filter(Boolean); return sel.concat(parts).join(','); })(),
+            active_threads_per_host: ($('#active_threads_per_host').val() || '').trim(),
+            active_hosts_per_scan: ($('#active_hosts_per_scan').val() || '').trim(),
+            active_delay_ms: ($('#active_delay_ms').val() || '').trim(),
+            active_max_scan_mins: ($('#active_max_scan_mins').val() || '').trim(),
+            active_max_rule_mins: ($('#active_max_rule_mins').val() || '').trim(),
+            active_policy: ($('#active_policy').val() || '').trim(),
+            active_recurse: $('#active_recurse').is(':checked'),
+            active_in_scope_only: $('#active_in_scope_only').is(':checked'),
+            active_enable_ids: (function(){ var sel=$('#active_enable_ids_select').val()||[]; var txt=$('#active_enable_ids').val()||''; var parts=txt.split(/[\\n,]+/).map(function(x){return x.trim();}).filter(Boolean); return sel.concat(parts).join(','); })(),
+            active_disable_ids: (function(){ var sel=$('#active_disable_ids_select').val()||[]; var txt=$('#active_disable_ids').val()||''; var parts=txt.split(/[\\n,]+/).map(function(x){return x.trim();}).filter(Boolean); return sel.concat(parts).join(','); })(),
+            fb_threads: ($('#fb_threads').val() || '').trim(),
+            fb_extensions: ($('#fb_extensions').val() || '').trim(),
+            fb_recursive: $('#fb_recursive').is(':checked'),
+            fb_in_scope_only: $('#fb_in_scope_only').is(':checked'),
+            fb_max_dirs: ($('#fb_max_dirs').val() || '').trim(),
+            fb_max_files: ($('#fb_max_files').val() || '').trim(),
+            fb_wordlist: ($('#fb_wordlist').val() || '').trim(),
+            csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+          }
+        }).done(function () { /* no text status */ })
+          .fail(function (jqXHR) { 
+            stopAllWebLaunches();
+            if (window.toastr){ 
+              try{ 
+                var resp = (jqXHR && (jqXHR.responseJSON||{})) || {}; 
+                var raw = (jqXHR && jqXHR.responseText) || '';
+                var msg = resp.error || resp.message || raw || 'Launch failed'; 
+                try{
+                  var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+                  if (/ZAP settings are missing|ZAP Connection Not Found|ZAP Connection Disabled/i.test(msg)){
+                    msg = isAdmin ? 'ZAP connector is missing or disabled. Configure it under Settings + Add Connector + OWASP ZAP.' : 'ZAP connector is not configured. Please contact your Admin.';
+                  }
+                }catch(x){}
+                toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); 
+                toastr.error(msg); 
+              }catch(ex){}
+            }
+          });
+        requests.push(reqZap);
+        pending.push(reqZap);
+      }
+      if (runNikto) { anySelected = true; var reqNik = launchNikto(); requests.push(reqNik); pending.push(reqNik); }
+      if (!anySelected) {
+        if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.info('Select at least one scan step'); }catch(ex){} }
+        return;
+      }
+      // Show spinner and poll the list until the new scan appears, then redirect
+      var listUrl = '{% url 'webscanners:list_scans' %}';
+      showSpinnerStatus();
+      startRedirectWhenVisible(listUrl, firstTarget || '/', 90000, 1500);
+      // Fire-and-forget launch requests; we don't block on these
+      $.when.apply($, requests).always(function(){ /* no-op */ });
+    }
+    // Disable Launch until a project is selected
+    function syncLaunchEnabled(){
+      try{
+        var hasProj = String($('#project_id').val()||'').trim().length > 0;
+        $('#launch_btn').prop('disabled', !hasProj);
+      }catch(e){}
+    }
+    $(document).on('change input', '#project_id', syncLaunchEnabled);
+    syncLaunchEnabled();
+    // Launch now; show spinner + redirect-on-appear
+    doLaunch();
+  });
+</script>
+
+<script>
+  function myFunction() {
+    document.getElementById("start_scan").reset();
+  }
+  // Enable/disable Nikto controls and show custom tuning when selected
+  $(function () {
+    // Simple class to visually gray-out disabled groups
+    var styleTag = document.createElement('style');
+    // NOTE:
+    // The mutual-exclusion logic adds `group-disabled` to the closest `.card` for
+    // Nikto fields. That card also contains the Launch button. Using pointer-events:none
+    // on the whole card blocks click handling for all descendants in many browsers.
+    // To avoid disabling Launch (for Org Admin, Admin, and User), do NOT set
+    // pointer-events on the container; rely on the actual disabled attribute we set
+    // on the individual form controls instead, and keep a light visual gray-out.
+    styleTag.innerHTML = '.group-disabled{opacity:.45;filter:grayscale(15%);}';
+    try { document.head.appendChild(styleTag); } catch(e) {}
+
+    function setGroupDisabledByInputs(ids, disabled){
+      try{
+        ids.forEach(function(id){
+          var $el = $('#'+id);
+          if (!$el.length) return;
+          if ($el.is('input,select,textarea,button')){ $el.prop('disabled', disabled); }
+          // Apply visual gray-out to the appropriate UI group without touching
+          // the top form card that contains the Project dropdown and Launch button.
+          if (id === 'nikto_maxtime_min' || id === 'nikto_failures'){
+            var $grp = $('#nikto_limits_group');
+            if ($grp && $grp.length){ $grp.toggleClass('group-disabled', !!disabled); }
+          } else {
+            var $card = $el.closest('.card');
+            if ($card && $card.length){ $card.toggleClass('group-disabled', !!disabled); }
+          }
+        });
+      }catch(e){}
+    }
+
+    function zapAnySelected(){
+      return $('#zap_spider').is(':checked') || $('#zap_ajax_spider').is(':checked') || $('#zap_pscan_wait').is(':checked') || $('#zap_active_scan').is(':checked') || $('#zap_forced_browse').is(':checked') || ($('#run_zap').length && $('#run_zap').is(':checked'));
+    }
+    function niktoAnySelected(){
+      return $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked') || ($('#run_nikto').length && $('#run_nikto').is(':checked'));
+    }
+    function syncMutualGroups(){
+      var zapOn = zapAnySelected();
+      var niktoOn = niktoAnySelected();
+      // If one tool is selected, disable the other
+      setGroupDisabledByInputs(['nikto_baseline','nikto_injection','nikto_comprehensive','nikto_broad','nikto_maxtime_min','nikto_failures','run_nikto'], zapOn && !niktoOn);
+      setGroupDisabledByInputs(['zap_spider','zap_ajax_spider','zap_pscan_wait','zap_active_scan','zap_forced_browse','run_zap','zap_spider_threads','zap_spider_max_depth','zap_spider_max_children','zap_spider_handle_parameters','zap_spider_parse_robots','zap_spider_parse_sitemap','zap_spider_process_forms','zap_spider_submit_forms','zap_spider_send_referer','zap_spider_accept_cookies','zap_spider_include_regex','zap_spider_skip_token'], niktoOn && !zapOn);
+      // Never disable the Launch button; keep it interactive for all roles
+      try {
+        $('#project_id').prop('disabled', false);
+        $('#url').prop('disabled', false);
+        $('#launch_btn').prop('disabled', false).removeClass('disabled').css('opacity', 1);
+      } catch(e) {}
+    }
+    // bind changes
+    $('#zap_spider,#zap_ajax_spider,#zap_pscan_wait,#zap_active_scan,#zap_forced_browse,#run_zap,#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad,#run_nikto').on('change', function(){ syncMutualGroups(); });
+    // initial
+    setTimeout(syncMutualGroups, 0);
+    var isAdmin = {% if user.is_superuser or user.role == 'Admin' %} true {% else %} false {% endif %};
+    function syncZapControls() {
+      // Keep ZAP step controls enabled regardless of master toggle so behavior matches for all roles
+      $('#zap_spider,#zap_ajax_spider,#zap_pscan_wait,#zap_active_scan,#zap_forced_browse,#zap_spider_threads,#zap_spider_max_depth,#zap_spider_max_children,#zap_spider_handle_parameters,#zap_spider_parse_robots,#zap_spider_parse_sitemap,#zap_spider_process_forms,#zap_spider_submit_forms,#zap_spider_send_referer,#zap_spider_accept_cookies,#zap_spider_include_regex,#zap_spider_skip_token').prop('disabled', false);
+    }
+    $('#run_zap').on('change', syncZapControls);
+    syncZapControls();
+    function syncNiktoControls() {
+      // Always leave Nikto profile checkboxes enabled for all roles
+      $('#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad,#nikto_maxtime_min,#nikto_failures').prop('disabled', false);
+      var compOn = $('#nikto_comprehensive').is(':checked');
+      if (compOn) {
+        // When Comprehensive is ON, switch the other two OFF (mutually exclusive profiles)
+        $('#nikto_baseline,#nikto_injection').prop('checked', false);
+      }
+    }
+    // Keep the set mutually consistent
+    $('#run_nikto').on('change', function () { syncNiktoControls(); });
+    // Keep the four options mutually exclusive
+    function _onlyOneChanged(changedId) {
+      var ids = ['#nikto_baseline', '#nikto_injection', '#nikto_comprehensive', '#nikto_broad'];
+      ids.forEach(function (id) { if (id !== changedId) $(id).prop('checked', false); });
+      syncNiktoControls();
+    }
+    $('#nikto_baseline').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_baseline'); });
+    $('#nikto_injection').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_injection'); });
+    $('#nikto_comprehensive').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_comprehensive'); });
+    $('#nikto_broad').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_broad'); });
+    // Initial state
+    syncNiktoControls();
+    // Keep runNikto in sync for non-admins when options change
+    $('#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad').on('change', function(){
+      niktoOptionsSelected = $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked');
+    });
+
+    // Spider advanced toggle (shows only when spider is selected)
+    var $spiderToggle = $('#spider_adv_toggle');
+    var $spiderPanel = $('#spider_advanced_panel');
+    function setSpiderPanelVisible(show){
+      $('#spider_advanced_modal').css('display', show ? 'flex' : 'none');
+      $spiderToggle.attr('aria-expanded', !!show);
+      $spiderToggle.text(show ? '\u25B2' : '\u25BC'); // up/down arrows
+    }
+    function syncSpiderToggle(){
+      var spiderOn = $('#zap_spider').is(':checked');
+      $spiderToggle.prop('disabled', !spiderOn);
+      if (!spiderOn){
+        setSpiderPanelVisible(false);
+      }
+    }
+    $spiderToggle.on('click', function(e){
+      e.preventDefault();
+      if ($spiderToggle.prop('disabled')){ return; }
+      var expanded = $spiderToggle.attr('aria-expanded') === 'true';
+      setSpiderPanelVisible(!expanded);
+    });
+    $('#spider_modal_close,#spider_modal_cancel,#spider_modal_ok').on('click', function(e){
+      e.preventDefault();
+      setSpiderPanelVisible(false);
+    });
+    $('#spider_advanced_modal').on('click', function(e){
+      if (e.target === this){ setSpiderPanelVisible(false); }
+    });
+    $('#zap_spider').on('change', syncSpiderToggle);
+    syncSpiderToggle();
+
+    // AJAX advanced toggle
+    var $ajaxToggle = $('#ajax_adv_toggle');
+    var $ajaxPanel = $('#ajax_advanced_panel');
+    function setAjaxPanelVisible(show){
+      $('#ajax_advanced_modal').css('display', show ? 'flex' : 'none');
+      $ajaxToggle.attr('aria-expanded', !!show);
+      $ajaxToggle.text(show ? '\u25B2' : '\u25BC');
+    }
+    function syncAjaxToggle(){
+      var ajaxOn = $('#zap_ajax_spider').is(':checked');
+      $ajaxToggle.prop('disabled', !ajaxOn);
+      if (!ajaxOn){ setAjaxPanelVisible(false); }
+    }
+    $ajaxToggle.on('click', function(e){
+      e.preventDefault();
+      if ($ajaxToggle.prop('disabled')){ return; }
+      var expanded = $ajaxToggle.attr('aria-expanded') === 'true';
+      setAjaxPanelVisible(!expanded);
+    });
+    $('#ajax_modal_close,#ajax_modal_cancel,#ajax_modal_ok').on('click', function(e){
+      e.preventDefault();
+      setAjaxPanelVisible(false);
+    });
+    $('#ajax_advanced_modal').on('click', function(e){
+      if (e.target === this){ setAjaxPanelVisible(false); }
+    });
+    $('#zap_ajax_spider').on('change', syncAjaxToggle);
+    syncAjaxToggle();
+
+    // Passive advanced toggle
+    var $pscanToggle = $('#pscan_adv_toggle');
+    function setPscanPanelVisible(show){
+      $('#pscan_advanced_modal').css('display', show ? 'flex' : 'none');
+      $pscanToggle.attr('aria-expanded', !!show);
+      $pscanToggle.text(show ? '\u25B2' : '\u25BC');
+    }
+    function syncPscanToggle(){
+      var pscanOn = $('#zap_pscan_wait').is(':checked');
+      $pscanToggle.prop('disabled', !pscanOn);
+      if (!pscanOn){ setPscanPanelVisible(false); }
+    }
+    $pscanToggle.on('click', function(e){
+      e.preventDefault();
+      if ($pscanToggle.prop('disabled')){ return; }
+      var expanded = $pscanToggle.attr('aria-expanded') === 'true';
+      setPscanPanelVisible(!expanded);
+    });
+    function syncPscanTextareasFromSelects(){
+      try{
+        var enSel = $('#pscan_enable_ids_select').val() || [];
+        var enTxt = $('#pscan_enable_ids').val() || '';
+        var enParts = enTxt.split(/[\n,]+/).map(function(x){return x.trim();}).filter(Boolean);
+        var optionVals = $('#pscan_enable_ids_select option').map(function(){return this.value;}).get();
+        // keep manual IDs that are not part of dropdown options, plus selected IDs
+        var manualKeep = enParts.filter(function(x){ return optionVals.indexOf(x) === -1; });
+        var enAll = enSel.concat(manualKeep).filter(function(x, i, arr){ return x && arr.indexOf(x) === i; });
+        $('#pscan_enable_ids').val(enAll.join(','));
+      }catch(e){}
+      try{
+        var disSel = $('#pscan_disable_ids_select').val() || [];
+        var disTxt = $('#pscan_disable_ids').val() || '';
+        var disParts = disTxt.split(/[\n,]+/).map(function(x){return x.trim();}).filter(Boolean);
+        var disOptionVals = $('#pscan_disable_ids_select option').map(function(){return this.value;}).get();
+        var manualKeepDis = disParts.filter(function(x){ return disOptionVals.indexOf(x) === -1; });
+        var disAll = disSel.concat(manualKeepDis).filter(function(x, i, arr){ return x && arr.indexOf(x) === i; });
+        $('#pscan_disable_ids').val(disAll.join(','));
+      }catch(e){}
+    }
+    $('#pscan_enable_ids_select,#pscan_disable_ids_select').on('change', syncPscanTextareasFromSelects);
+    syncPscanTextareasFromSelects();
+    $('#pscan_modal_close,#pscan_modal_cancel,#pscan_modal_ok').on('click', function(e){
+      e.preventDefault();
+      setPscanPanelVisible(false);
+    });
+    $('#pscan_advanced_modal').on('click', function(e){
+      if (e.target === this){ setPscanPanelVisible(false); }
+    });
+    $('#zap_pscan_wait').on('change', syncPscanToggle);
+    syncPscanToggle();
+
+    // Active IDs sync
+    function syncActiveTextareasFromSelects(){
+      try{
+        var enSel = $('#active_enable_ids_select').val() || [];
+        var enSelOpts = $('#active_enable_ids_select option:selected').map(function(){return this.value;}).get();
+        var enAll = (enSelOpts.length ? enSelOpts : enSel);
+        $('#active_enable_ids').val((enAll || []).join(','));
+      }catch(e){}
+      try{
+        var disSel = $('#active_disable_ids_select').val() || [];
+        var disSelOpts = $('#active_disable_ids_select option:selected').map(function(){return this.value;}).get();
+        var disAll = (disSelOpts.length ? disSelOpts : disSel);
+        $('#active_disable_ids').val((disAll || []).join(','));
+      }catch(e){}
+    }
+    $('#active_enable_ids_select,#active_disable_ids_select').on('change input', syncActiveTextareasFromSelects);
+    syncActiveTextareasFromSelects();
+
+    // Active advanced toggle
+    var $activeToggle = $('#active_adv_toggle');
+    function setActivePanelVisible(show){
+      $('#active_advanced_modal').css('display', show ? 'flex' : 'none');
+      $activeToggle.attr('aria-expanded', !!show);
+      $activeToggle.text(show ? '\u25B2' : '\u25BC');
+      if (show){ syncActiveTextareasFromSelects(); }
+    }
+    function syncActiveToggle(){
+      var activeOn = $('#zap_active_scan').is(':checked');
+      $activeToggle.prop('disabled', !activeOn);
+      if (!activeOn){ setActivePanelVisible(false); }
+    }
+    $activeToggle.on('click', function(e){
+      e.preventDefault();
+      if ($activeToggle.prop('disabled')){ return; }
+      var expanded = $activeToggle.attr('aria-expanded') === 'true';
+      setActivePanelVisible(!expanded);
+    });
+    $('#active_modal_close,#active_modal_cancel,#active_modal_ok').on('click', function(e){
+      e.preventDefault();
+      setActivePanelVisible(false);
+    });
+    $('#active_advanced_modal').on('click', function(e){
+      if (e.target === this){ setActivePanelVisible(false); }
+    });
+    $('#zap_active_scan').on('change', syncActiveToggle);
+    syncActiveToggle();
+
+    // Forced browse toggle
+    var $fbToggle = $('#fb_adv_toggle');
+    function setFbPanelVisible(show){
+      $('#fb_advanced_modal').css('display', show ? 'flex' : 'none');
+      $fbToggle.attr('aria-expanded', !!show);
+      $fbToggle.text(show ? '\u25B2' : '\u25BC');
+    }
+    function syncFbToggle(){
+      var fbOn = $('#zap_forced_browse').is(':checked');
+      $fbToggle.prop('disabled', !fbOn);
+      if (!fbOn){ setFbPanelVisible(false); }
+    }
+    $fbToggle.on('click', function(e){
+      e.preventDefault();
+      if ($fbToggle.prop('disabled')){ return; }
+      var expanded = $fbToggle.attr('aria-expanded') === 'true';
+      setFbPanelVisible(!expanded);
+    });
+    $('#fb_modal_close,#fb_modal_cancel,#fb_modal_ok').on('click', function(e){
+      e.preventDefault();
+      setFbPanelVisible(false);
+    });
+    $('#fb_advanced_modal').on('click', function(e){
+      if (e.target === this){ setFbPanelVisible(false); }
+    });
+    $('#zap_forced_browse').on('change', syncFbToggle);
+    syncFbToggle();
+  });
+</script>
+
+{% endblock %}

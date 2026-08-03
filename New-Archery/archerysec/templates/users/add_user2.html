@@ -1,0 +1,199 @@
+﻿{% extends 'base/site_base.html' %}
+{% load custom_tags %}
+
+{% block body %}
+
+    <div class="row justify-content-md-center">
+        <div class="col-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Add User</h1>
+                    </div>
+                    <br>
+                    <div class="card">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="widget-box">
+                                        <form class="form-horizontal" action="{% url 'users:add_user' %}"
+                                              method="POST">{% csrf_token %}
+
+                                            <!-- Organization -->
+                                            <div class="form-group ">
+                                                <label>Organization</label>
+                                                <div class="dtsb-criteria">
+                                                    {% if user.is_superuser or user.role.role == 'Admin' %}
+                                                        <select class="form-control dtsb-data dtsb-dropDown" name="organization" style="width: 100%; height:36px;">
+                                                            <option value="" selected>---------</option>
+                                                            {% for data in org %}
+                                                                <option value="{{ data.pk }}" {% if posted_org|stringformat:'s' == data.pk|stringformat:'s' %}selected{% endif %}>{{ data.name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    {% else %}
+                                                        <input type="hidden" name="organization" value="{{ user.organization.pk }}" />
+                                                        <input class="form-control" value="{{ user.organization }}" disabled />
+                                                    {% endif %}
+                                                </div>
+                                                {% if error_org %}
+                                                    <small class="form-text text-danger">{{ error_org }}</small>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="form-group ">
+                                                <label>Name</label>
+                                                <input name="name" class="form-control" type="text" placeholder="Name" value="{{ posted_name|default:'' }}">
+                                            </div>
+
+                                            <div class="form-group ">
+                                                <label>Email</label>
+                                                <small class="form-text text-muted">Email must be unique within your organization. If it already exists, please choose another.</small>
+                                                <input name="email" class="form-control" type="text" placeholder="Email" value="{{ posted_email|default:'' }}">
+                                                {% if error_email %}
+                                                    <small class="form-text text-danger">{{ error_email }}</small>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="form-group ">
+                                                <label>Password</label>
+                                                <small class="form-text text-muted">Minimum 8 characters and must include a letter, a number, and a symbol.</small>
+                                                <style>
+                                                    .pw-wrapper { position: relative; }
+                                                    .pw-wrapper input { padding-right: 3rem; }
+                                                    /* Hide legacy below-input toggle buttons */
+                                                    #toggle-password, #toggle-password2 { display: none !important; }
+                                                    .pw-toggle-btn {
+                                                        position: absolute;
+                                                        right: 10px;
+                                                        top: 50%;
+                                                        transform: translateY(-50%);
+                                                        margin: 0 !important;
+                                                        border: 0 !important;
+                                                        background: transparent !important;
+                                                        color: #6b7280;
+                                                        font-family: 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Segoe UI Symbol','Noto Emoji', sans-serif;
+                                                        font-size: 16px;
+                                                    }
+                                                </style>
+                                                <div class="pw-wrapper">
+                                                 <input id="password" name="password" class="form-control" type="password" placeholder="Password">
+                                                  <button type="button" id="pw-eye-1" class="btn btn-link pw-toggle-btn" tabindex="-1" aria-label="Toggle password visibility">&#128065;</button>
+                                                </div>
+                                                <!-- removed legacy below-input toggle button -->
+                                                <div id="pw-meter" style="height:6px;background:#e5e7eb;border-radius:4px;margin-top:6px;">
+                                                    <div id="pw-meter-bar" style="height:6px;width:0%;background:#ef4444;border-radius:4px;transition:width .2s ease, background-color .2s ease;"></div>
+                                                </div>
+                                                <small id="pw-label" class="form-text" style="color:#6b7280;">Strength: -</small>
+                                            </div>
+                                            <script>
+                                                (function () {
+                                                    const input = document.getElementById('password');
+                                                    if (!input) return;
+                                                    const bar = document.getElementById('pw-meter-bar');
+                                                    const label = document.getElementById('pw-label');
+                                                    if (label) { label.textContent = 'Strength: -'; }
+                                                    function score(pw){
+                                                        if(!pw) return 0;
+                                                        let s = 0;
+                                                        if (pw.length >= 8) s += 1; if (pw.length >= 12) s += 1;
+                                                        if (/[A-Za-z]/.test(pw)) s += 1;
+                                                        if (/\d/.test(pw)) s += 1;
+                                                        if (/[^A-Za-z0-9]/.test(pw)) s += 1;
+                                                        return Math.min(s,5);
+                                                    }
+                                                    function color(sc){
+                                                        return ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e'][Math.max(sc-1,0)] || '#ef4444';
+                                                    }
+                                                    function text(sc){
+                                                        return ['Very Weak','Weak','Medium','Strong','Very Strong'][Math.max(sc-1,0)] || 'Very Weak';
+                                                    }
+                                                    input.addEventListener('input', function(){
+                                                        const sc = score(input.value);
+                                                        const pct = (sc/5)*100;
+                                                        bar.style.width = pct + '%';
+                                                        bar.style.backgroundColor = color(sc);
+                                                        label.textContent = 'Strength: ' + (sc ? text(sc) : '-');
+                                                    });
+                                                })();
+                                            </script>
+                                            <div class="form-group ">
+                                                <div class="pw-wrapper">
+                                                 <input id="password2" name="password2" class="form-control" type="password" placeholder="Re-enter password">
+                                                  <button type="button" id="pw-eye-2" class="btn btn-link pw-toggle-btn" tabindex="-1" aria-label="Toggle confirm password visibility">&#128065;</button>
+                                                </div>
+                                                {% if error_password2 %}
+                                                    <small class="form-text text-danger">{{ error_password2 }}</small>
+                                                {% endif %}
+                                            </div>
+                                            <script>
+                                                    (function(){
+                                                        function bindToggle(btnId, inputId){
+                                                            var btn = document.getElementById(btnId);
+                                                            var inp = document.getElementById(inputId);
+                                                            if(!btn || !inp) return;
+                                                            // Ensure starting icon is an eye
+                                                            btn.innerHTML = '&#128065;';
+                                                            btn.addEventListener('click', function(){
+                                                                if(inp.type === 'password'){
+                                                                    inp.type = 'text';
+                                                                    // show monkey (🙈)
+                                                                    btn.innerHTML = '&#128584;';
+                                                                } else {
+                                                                    inp.type = 'password';
+                                                                    // show eye (👁)
+                                                                    btn.innerHTML = '&#128065;';
+                                                                }
+                                                            });
+                                                        }
+                                                    bindToggle('toggle-password', 'password');
+                                                    bindToggle('toggle-password2', 'password2');
+                                                     bindToggle('pw-eye-1', 'password');
+                                                     bindToggle('pw-eye-2', 'password2');
+                                                })();
+                                            </script>
+
+                                            <div class="form-group ">
+                                                <label>Role</label>
+                                                <div class="dtsb-criteria">
+                                                    <select class="form-control dtsb-data dtsb-dropDown" name="role" style="width: 100%; height:36px;">
+                                                        <option value="" {% if not posted_role %}selected{% endif %}>---------</option>
+                                                        {% for r in roles %}
+                                                            <option value="{{ r.pk }}" {% if posted_role|stringformat:'s' == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.role|role_display }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                {% if error_role %}
+                                                    <small class="form-text text-danger">{{ error_role }}</small>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="border-top">
+                                                <div class="card-body">
+                                                    <button type="submit" class="btn btn-default">Save
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+

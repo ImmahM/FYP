@@ -1,0 +1,4 @@
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ ERROR: -skiplookup set, but given name
+$ nikto -o /home/archerysec/app/nikto_result/2d4d78fa-7966-46bf-aa7d-57a544ec08d0.html -Format htm -maxtime 1h -timeout 15 -nolookup -host https://juice-shop.herokuapp.com/

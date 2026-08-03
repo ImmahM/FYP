@@ -1,0 +1,133 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+    </style>
+</head>
+<body>
+
+<h1>📊 Security Report</h1>
+
+{% if dynamic_results %}
+<h2>🌐 Dynamic Scan Results</h2>
+<table>
+    <thead>
+        <tr>
+            <th>URL</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in dynamic_results %}
+        <tr>
+            <td>{{ r.url }}</td>
+            <td>{{ r.total }}</td>
+            <td>{{ r.critical }}</td>
+            <td>{{ r.high }}</td>
+            <td>{{ r.medium }}</td>
+            <td>{{ r.low }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if infrastructure_results %}
+<h2>🏗 Infrastructure Scan Results</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Target IP</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in infrastructure_results %}
+        <tr>
+            <td>{{ r.target_ip }}</td>
+            <td>{{ r.total }}</td>
+            <td>{{ r.critical }}</td>
+            <td>{{ r.high }}</td>
+            <td>{{ r.medium }}</td>
+            <td>{{ r.low }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if static_results %}
+<h2>🧑‍💻 Static Scan Results</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Project / Target</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in static_results %}
+        <tr>
+            <td>{{ r.project }}</td>
+            <td>{{ r.total }}</td>
+            <td>{{ r.critical }}</td>
+            <td>{{ r.high }}</td>
+            <td>{{ r.medium }}</td>
+            <td>{{ r.low }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if cloud_results %}
+<h2>☁️ Cloud Scan Results</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Resource</th>
+            <th>Total</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in cloud_results %}
+        <tr>
+            <td>{{ r.resource }}</td>
+            <td>{{ r.total }}</td>
+            <td>{{ r.critical }}</td>
+            <td>{{ r.high }}</td>
+            <td>{{ r.medium }}</td>
+            <td>{{ r.low }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+</body>
+</html>

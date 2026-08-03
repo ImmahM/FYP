@@ -1,0 +1,227 @@
+services:
+  customarcherysecdb:
+    image: postgres:12-alpine
+    volumes:
+      - /data/customarcherysec/dbdata:/var/lib/postgresql/data
+    # ports:
+    #   - "5432"
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+    container_name: customarcherysecdb
+    networks:
+      - net_customarcherysec
+
+  customarcherysec:
+    build: .
+    volumes:
+      - nikto_results:/home/archerysec/app/nikto_result
+      - nikto_logs:/home/archerysec/app/logs/nikto
+      - zaplogs:/shared
+      - ovlogs:/shared-ov
+    ports:
+      - "8991:8000"
+    expose:
+      - "8000"
+    # Allow nmap to run SYN/OS scans without running the whole container as root
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    depends_on:
+      - customarcherysecdb
+    environment:
+      - TIME_ZONE=Asia/Kuala_Lumpur
+      - TZ=Asia/Kuala_Lumpur
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${DB_USER}
+      - NAME=${NAME}
+      - EMAIL=${EMAIL}
+      - PASSWORD=${PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
+      # Ensure paths are explicit and consistent across services
+      - NIKTO_RESULT_DIR=/home/archerysec/app/nikto_result
+      - NIKTO_LOG_DIR=/home/archerysec/app/logs/nikto
+      - ZAP_SECONDARY_LOG=/shared/zapscanner.log
+      - OPENVAS_SECONDARY_LOG=/shared-ov/openvasmd.log
+    container_name: customarcherysec
+    networks:
+      - net_customarcherysec
+      # - external_net
+
+  customarcherysec-worker:
+    build: .
+    depends_on:
+      - customarcherysecdb
+      - customarcherysec
+    # Match capabilities with the web app container so scans behave the same
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - nikto_results:/home/archerysec/app/nikto_result
+      - nikto_logs:/home/archerysec/app/logs/nikto
+    environment:
+      - TIME_ZONE=Asia/Kuala_Lumpur
+      - TZ=Asia/Kuala_Lumpur
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${DB_USER}
+      - NAME=${NAME}
+      - EMAIL=${EMAIL}
+      - PASSWORD=${PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - ARCHERY_WORKER=${ARCHERY_WORKER}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
+      # Match the app service so both share the same FS for logs/results
+      - NIKTO_RESULT_DIR=/home/archerysec/app/nikto_result
+      - NIKTO_LOG_DIR=/home/archerysec/app/logs/nikto
+    container_name: customarcherysec-worker
+    networks:
+      - net_customarcherysec
+
+  zaproxy:
+    image: zaproxy/zap-stable
+    # Run as root so we can create and write the shared log file safely
+    user: "0:0"
+    command: [
+      "/bin/sh","-lc",
+      "mkdir -p /shared && touch /shared/zapscanner.log && chmod 666 /shared/zapscanner.log && \
+       /zap/zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true \
+       2>&1 | tee -a /shared/zapscanner.log"
+    ]
+    # ports:
+    #   - "8090"
+    expose:
+      - "8090"
+    environment:
+      - ZAP_PORT=8090
+    container_name: zapscanner
+    volumes:
+      - zaplogs:/shared
+    networks:
+      - net_customarcherysec
+
+  # Optional utility container so Nikto appears as a service in Docker Desktop
+  # Note: The web app already runs Nikto locally. This container is just for visibility
+  # and for manual exec if you want to run nikto by hand.
+  
+  # Optional utility container so Nmap appears as a service in Docker Desktop
+  # The web app runs nmap locally; this is for visibility/manual use only
+  nmapscanner:
+    image: instrumentisto/nmap
+    entrypoint: ['/bin/sh', '-c']
+    command: ['tail', '-f', '/dev/null']
+    depends_on:
+      - customarcherysec
+    container_name: nmapscanner
+    networks:
+      - net_customarcherysec
+  arachni:
+    image: arachni/arachni
+    # ports:
+    #   - "9292"
+    #   - "7331"
+    expose:
+      - "9292"
+      - "7331"
+    environment:
+      - ARACHNI_PARAMS=${ARACHNI_PARAMS}
+    container_name: arachniscanner
+    networks:
+      - net_customarcherysec
+
+  mailhog:
+    image: mailhog/mailhog
+    # ports:
+    #   - "1025"
+    #   - "8025"
+    expose:
+      - "1025"
+      - "8025"
+    container_name: mailhog
+    networks:
+      - net_customarcherysec
+
+  # Optional utility container so Nikto appears as a service in Docker Desktop
+  # It tails the app-written Nikto logs so you can watch them via `docker logs`.
+  nikto:
+    # Tailing sidecar: use a lightweight, widely available base image
+    image: alpine:3
+    entrypoint: ["/bin/sh","-c"]
+    # Follow any Nikto log files produced by the web app
+    command: ["mkdir -p /home/archerysec/app/logs/nikto; while true; do if ls /home/archerysec/app/logs/nikto/*.log >/dev/null 2>&1; then tail -F -n +1 /home/archerysec/app/logs/nikto/*.log; else echo 'Waiting for Nikto logs...'; sleep 5; fi; done"]
+    depends_on:
+      - customarcherysec
+    volumes:
+      - nikto_results:/home/archerysec/app/nikto_result
+      - nikto_logs:/home/archerysec/app/logs/nikto
+    container_name: nikto
+    networks:
+      - net_customarcherysec
+
+  openvas-init:
+    image: busybox
+    command: sh -c "mkdir -p /var/log/openvas && touch /var/log/openvas/openvasmd.log && chmod 666 /var/log/openvas/openvasmd.log"
+    volumes:
+      - ovlogs:/var/log/openvas
+    container_name: openvas_init
+    restart: "no"
+    networks:
+      - net_customarcherysec
+
+  openvas:
+    image: mikesplain/openvas
+    # ports:
+    #   - "443:443"
+    #   - "9390:9390"
+    #   - "9392:9392"
+    expose:
+      - "9390"
+      - "9392"
+      - "443"
+    depends_on:
+      - customarcherysec
+      - openvas-init
+    container_name: customarcherysecopenvas
+    volumes:
+      - ovlogs:/var/log/openvas
+    networks:
+      - net_customarcherysec
+
+networks:
+  net_customarcherysec:
+    name: net_customarcherysec
+    driver: bridge
+    # internal: true
+  # external_net:
+  #   name: external_net
+  #   driver: bridge
+
+volumes:
+  zaplogs:
+  ovlogs:
+  nikto_results:
+  nikto_logs:
+
+
+
+
+
+

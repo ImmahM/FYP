@@ -1,0 +1,481 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block body %}
+
+{#<script src="{% static 'matrix-admin-bt4/dist/js/jquery-1.9.1.min.js' %}"></script>#}
+
+
+<div class="neo-hero mb-3">
+    <span class="pill"><i class="fas fa-satellite-dish mr-2"></i>Launch Network Scans</span>
+</div>
+
+<style>
+    .scan-grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(380px, 1fr));
+        gap:18px;
+        width:100%;
+    }
+    .option-tile{
+        padding:12px 14px;
+        border-radius:14px;
+        border:1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(127, 90, 240, 0.08));
+    }
+    .option-tile .checkbox label{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        margin:0;
+    }
+    .tile-head{
+        font-weight:700;
+        color:var(--text-1);
+    }
+    .tile-sub{
+        color:var(--muted);
+        font-size:0.9rem;
+    }
+    .helper{
+        font-size:0.9rem;
+        color:var(--muted);
+    }
+    .group-disabled{opacity:.45;pointer-events:none;filter:grayscale(20%);}
+    .ov-type-list { display: flex; flex-direction: column; gap: 8px; }
+    .ov-type-list .checkbox label { display: inline-flex; align-items: center; gap: 10px; margin: 0; }
+    .ov-type-list .checkbox.inline { width: 100%; max-width: 560px; }
+    .ov-type-list .checkbox input[type="checkbox"] + span { margin-left: 6px; }
+    .ov-help { color: #94a3b8; font-size: 13px; line-height: 1; display: inline-flex; align-items: center; cursor: help; }
+    .ov-help:hover { color: #e2e8f0; }
+    .ov-type-list .checkbox-slider--b input + span { line-height: 20px; }
+    .ov-type-list .checkbox-slider--b input + span:before { top: 0; }
+    .ov-type-list .checkbox-slider--b input + span:after { top: -1px; }
+</style>
+
+<div class="scan-grid" id="form_group">
+    <div class="card neo-panel">
+        <form id="start_scan" class="form-horizontal mb-0">{% csrf_token %}
+            <div class="card-body">
+                <div class="section-heading">
+                    <span class="dot"></span>
+                    <div>
+                        <div class="tile-head">Targets &amp; project</div>
+                        <div class="tile-sub">Enter IPs/subnets and map them to a project before launch.</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="control-label">IP(s)</label>
+                    <textarea class="form-control" name="ip" id="ip" value="{{ ip }}"
+                              placeholder="192.168.1.1, 192.168.1.2"></textarea>
+                    <small class="helper">Comma or space separated. Only valid IPs/CIDR are used.</small>
+                </div>
+                <div class="form-group">
+                    <label class="control-label">Projects</label>
+                    <select id="project_id" name="project_id"
+                            class="select2 form-control custom-select"
+                            style="width: 100%; height:46px;">
+                        {% for data in all_proj %}
+                        <option value="{{data.uu_id}}">{{data.project_name}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
+                    <div class="d-flex align-items-center" style="gap:10px;">
+                        <input id="launch_btn" type="submit" class="btn btn-primary" value="Launch">
+                        <span id="launch_spinner" class="loading-ring ml-1" aria-hidden="true" style="display:none;"></span>
+                    </div>
+                    <a href="{% url 'networkscanners:net_scan_schedule' %}"
+                       class="btn btn-outline-primary"
+                       title="Plan an OpenVAS/Nmap launch for later">
+                        <i class="fas fa-calendar-alt mr-1"></i>Schedule scan
+                    </a>
+                </div>
+                <div id='status' class="mt-2"></div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card neo-panel">
+        <div class="card-body">
+            <div class="section-heading">
+                <span class="dot"></span>
+                <div>
+                    <div class="tile-head">{% if user.is_superuser or user.role == 'Admin' %}OpenVAS / Nmap Scan Types{% else %}Network Scan Types{% endif %}</div>
+                </div>
+            </div>
+
+            <div id="openvas_group">
+            {% if user.is_superuser or user.role == 'Admin' %}
+            <div class="option-tile mb-3">
+                <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-0">
+                    <label class="d-flex align-items-center mb-0">
+                        <input name="openvas_enable" id="openvas_enable" type="checkbox">
+                        <span>Enable OpenVAS</span>
+                    </label>
+                </div>
+            </div>
+            {% else %}
+            <input type="hidden" name="openvas_enable" id="openvas_enable" value="on">
+            {% endif %}
+
+            <p class="mb-2">{% if user.is_superuser or user.role == 'Admin' %}Select which OpenVAS profile to run:{% else %}Select which network scan options to run:{% endif %}</p>
+            <div id="ov_group">
+                <div class="ov-type-list">
+                    <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <input type="checkbox" name="ov_profile" value="full_fast">
+                        <span>Full and fast</span>
+                        <span class="ov-help" title="Optimized full scan with broad coverage at faster runtime." data-toggle="tooltip" aria-label="Info about Full and fast">&#x2754;</span>
+                    </label>
+                    <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <input type="checkbox" name="ov_profile" value="full_deep">
+                        <span>Full and very deep</span>
+                        <span class="ov-help" title="Extensive, thorough scan with more checks; significantly slower/heavier." data-toggle="tooltip" aria-label="Info about Full and very deep">&#x2754;</span>
+                    </label>
+                    <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <input type="checkbox" name="ov_profile" value="full_fast_ultimate">
+                        <span>Full and fast ultimate</span>
+                        <span class="ov-help" title="Aggressive variant enabling many plugins; heaviest load/longest runtime." data-toggle="tooltip" aria-label="Info about Full and fast ultimate">&#x2754;</span>
+                    </label>
+                    <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <input type="checkbox" name="ov_profile" value="host_disc">
+                        <span>Host Discovery</span>
+                        <span class="ov-help" title="Identifies live hosts only (discovery). No vulnerability testing." data-toggle="tooltip" aria-label="Info about Host Discovery">&#x2754;</span>
+                    </label>
+                    <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <input type="checkbox" name="ov_profile" value="system_disc">
+                        <span>System Discovery</span>
+                        <span class="ov-help" title="Identifies live hosts and services with minimal intrusion; no deep vuln audit." data-toggle="tooltip" aria-label="Info about System Discovery">&#x2754;</span>
+                    </label>
+                </div>
+                <small class="text-muted d-block mt-2">Only one type can be active; toggling one will disable the others.</small>
+            </div>
+            </div>
+
+            {% if user.is_superuser or user.role == 'Admin' %}
+            <hr class="my-3" style="border-color: var(--border);">
+            <div class="section-heading mb-2">
+                <span class="dot"></span>
+                <div>
+                    <div class="tile-head">Nmap Scan Types</div>
+                    <div class="tile-sub">Admin-only Nmap profiles and OS guess.</div>
+                </div>
+            </div>
+            <div id="nmap_group">
+                <div class="form-group">
+                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                        <label>
+                            <input name="nmap_enable" id="nmap_enable" type="checkbox">
+                            <span>Enable Nmap</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="nmap_opts" class="form-group">
+                    <div class="form-group">
+                        <label class="d-block">Profile</label>
+                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                            <label>
+                                <input type="checkbox" id="nmap_profile_quick">
+                                <span>Quick <span class="ov-help" title="Fast discovery of common ports with service/version detection. Good first pass." data-toggle="tooltip" aria-label="Info about quick profile" style="margin-left:6px;cursor:help;">&#x2754;</span></span>
+                            </label>
+                        </div>
+                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-1">
+                            <label>
+                                <input type="checkbox" id="nmap_profile_full">
+                                <span>Full <span class="ov-help" title="Scans all 65535 TCP ports with service/version detection. Slower but thorough." data-toggle="tooltip" aria-label="Info about full profile" style="margin-left:6px;cursor:help;">&#x2754;</span></span>
+                            </label>
+                        </div>
+                        <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mt-2">
+                            <label>
+                                <input name="nmap_os_guess" id="nmap_os_guess" type="checkbox">
+                                <span>OS guess <span class="ov-help" title="Attempts to fingerprint the target OS; requires responsive hosts and can be noisy." data-toggle="tooltip" aria-label="Info about OS guess" style="margin-left:6px;cursor:help;">&#x2754;</span></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+// Avoid console spam: only set interval if function exists
+(function(){
+    try {
+        if (typeof window.autoRefresh_div === 'function') {
+            setInterval(window.autoRefresh_div, {{ settings.REFRESH_TIMER }}000);
+        }
+    } catch(e) { /* ignore */ }
+})();
+
+$(document).on('submit', '#start_scan', function(e){
+    e.preventDefault();
+    $('#launch_spinner').hide();
+    $('#launch_btn').prop('disabled', true);
+    // Require a project selection; show a small top-right toast if missing
+    try{
+        var pid = String($('#project_id').val()||'').trim();
+        if (!pid){ if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.warning('Please select a Project'); }catch(ex){} } $('#launch_btn').prop('disabled', false); return; }
+    }catch(err){}
+    var launchDelaySec = 0; // launch immediately; use a single redirect countdown only
+    var redirectDelaySec = 35; // legacy (unused)
+    var statusEl = $('#status');
+    function showSpinnerStatus(){ try{ $('#launch_spinner').css('display','inline-block'); }catch(e){} }
+    function startRedirectWhenVisible(listUrl, matchText, timeoutMs, intervalMs){
+        var start = Date.now();
+        var pollMs = Math.max(800, intervalMs || 1500);
+        var limit = Math.max(10000, timeoutMs || 90000);
+        var timer = null;
+        function poll(){
+            if ((Date.now() - start) > limit){
+                window.location = listUrl; // safety fallback
+                return;
+            }
+            $.get(listUrl).done(function(html){
+                try{
+                    if (html && typeof html === 'string' && html.indexOf(matchText) !== -1){
+                        window.location = listUrl;
+                        return;
+                    }
+                }catch(e){}
+                timer = setTimeout(poll, pollMs);
+            }).fail(function(){ timer = setTimeout(poll, pollMs); });
+        }
+        poll();
+        return function cancel(){ try{ if (timer) clearTimeout(timer); }catch(e){} };
+    }
+    function countdown(label, seconds, done){
+        var s = seconds;
+        function tick(){
+            try{ statusEl.text(label.replace('%s', s)); }catch(e){}
+            if (s <= 0){ if (typeof done==='function') done(); return; }
+            s -= 1; setTimeout(tick, 1000);
+        }
+        tick();
+    }
+    var pendingRequests = [];
+    function stopAllLaunches(){
+        try{ $('#launch_spinner').hide(); }catch(e){}
+        $('#launch_btn').prop('disabled', false);
+        try{
+            pendingRequests.forEach(function(r){
+                try{ if (r && r.abort) r.abort(); }catch(e){}
+            });
+        }catch(_) {}
+    }
+    var ipErrorMsg = 'Network scans only support IP addresses (e.g., 192.168.1.1).';
+    function isValidIpToken(tok){
+        var v = String(tok || '').trim();
+        if (!v) return false;
+        var lower = v.toLowerCase();
+        if (lower === 'localhost' || lower === '127.0.0.1' || lower === '::1'){ return false; }
+        var v4 = /^(\d{1,3}\.){3}\d{1,3}(?:\/\d{1,2})?$/;
+        if (v4.test(v)){
+            try{
+                var parts = v.replace(/\/.*$/, '').split('.');
+                return parts.every(function(oct){ var n = Number(oct); return n >= 0 && n <= 255; });
+            }catch(e){}
+        }
+        var v6 = /^[0-9a-fA-F:]+(?:\/\d{1,3})?$/;
+        return v6.test(v);
+    }
+    function parseIpInput(raw){
+        var tokens = String(raw || '').split(/[\s,]+/);
+        var valid = [], invalid = [], seen = {};
+        for (var i = 0; i < tokens.length; i++){
+            var t = String(tokens[i] || '').trim();
+            if (!t || seen[t]){ continue; }
+            seen[t] = true;
+            (isValidIpToken(t) ? valid : invalid).push(t);
+        }
+        return { valid: valid, invalid: invalid };
+    }
+    function doLaunch(){
+        var requests = [];
+        var anySelected = false;
+        var ipCheck = parseIpInput($('#ip').val());
+        if (!ipCheck.valid.length || ipCheck.invalid.length){
+            var errMsg = ipErrorMsg;
+            if (ipCheck.invalid.length){
+                var preview = ipCheck.invalid.slice(0,3).join(', ');
+                if (ipCheck.invalid.length > 3){ preview += ' (+' + (ipCheck.invalid.length - 3) + ' more)'; }
+                errMsg += ' Invalid: ' + preview;
+            }
+            if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); toastr.error(errMsg); }catch(ex){} }
+            $('#launch_btn').prop('disabled', false);
+            return;
+        }
+        var ipValue = ipCheck.valid.join(',');
+        var firstTarget = ipCheck.valid[0];
+        // mark a timestamp so we only watch for rows created after launch
+        var sinceTs = (new Date()).toISOString();
+        function waitForScanAndRedirect(targetIp, timeoutMs){
+            try{
+                var listUrl = '{% url 'networkscanners:list_scans' %}';
+                var start = Date.now();
+                var limit = Math.max(30000, timeoutMs || 120000); // 30–120s window
+                (function poll(){
+                    if ((Date.now() - start) > limit){ window.location = listUrl; return; }
+                    $.getJSON('{% url "networkscanners:recent_scans" %}', { since: sinceTs })
+                        .done(function(payload){
+                            try{
+                                var items = (payload && payload.items) || [];
+                                var found = items.some(function(it){ return String(it.ip||'').trim() === String(targetIp||'').trim(); });
+                                if (found){ window.location = listUrl; return; }
+                            }catch(e){}
+                            setTimeout(poll, 1200);
+                        })
+                        .fail(function(){ setTimeout(poll, 1500); });
+                })();
+            }catch(e){ try{ window.location = '{% url 'networkscanners:list_scans' %}'; }catch(x){} }
+        }
+        function flagEnabled(id){
+            var el = document.getElementById(id);
+            if (!el) return false;
+            var t = (el.getAttribute('type')||'').toLowerCase();
+            if (t === 'checkbox') return $('#'+id).is(':checked');
+            var v = (el.value||'').toString().trim().toLowerCase();
+            return v !== '' && v !== 'off' && v !== '0' && v !== 'false';
+        }
+        var ovSelected = $('input[name="ov_profile"]:checked').length > 0;
+        var ovOn = flagEnabled('openvas_enable') || ovSelected;
+        if (ovOn) {
+            anySelected = true;
+            // show spinner as soon as we know we will launch
+            showSpinnerStatus();
+            var reqOv = $.ajax({
+                type:'POST',
+                url:'{% url 'networkscanners:launch_scan' %}',
+                data:{
+                    ip:ipValue,
+                    project_id:$('#project_id').val(),
+                    scan_profile: $('input[name="ov_profile"]').filter(':checked').val(),
+                    csrfmiddlewaretoken:$('input[name=csrfmiddlewaretoken]').val()
+                },
+            }).done(function(data, textStatus, jqXHR){
+                try {
+                    waitForScanAndRedirect(firstTarget, 120000);
+                } catch(e) {}
+            }).fail(function(jqXHR){
+                stopAllLaunches();
+                try{
+                    var resp = (jqXHR && (jqXHR.responseJSON||{})) || {};
+                    var raw = (jqXHR && jqXHR.responseText) || '';
+                    var msg = resp.error || resp.message || raw || 'Launch failed';
+                    try{
+                        var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+                        if (/OpenVAS settings are missing|OpenVAS Setting not configured/i.test(msg)){
+                            msg = isAdmin ? 'OpenVAS connector is missing or disabled. Configure it under Settings → Add Connector → OpenVAS.' : 'OpenVAS connector is not configured. Please contact your Admin.';
+                        }
+                    }catch(x){}
+                    if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); toastr.error(msg); }catch(ex){} }
+                }catch(e){ if (window.toastr){ try{ toastr.error('Launch failed'); }catch(ex){} } }
+            });
+            requests.push(reqOv);
+            pendingRequests.push(reqOv);
+        }
+        var nmOn = flagEnabled('nmap_enable') || $('#nmap_profile_quick').is(':checked') || $('#nmap_profile_full').is(':checked') || $('#nmap_os_guess').is(':checked');
+        if (nmOn){
+            anySelected = true;
+            showSpinnerStatus();
+            var reqNm = $.ajax({
+                type:'POST',
+                url:'{% url 'networkscanners:nmap_launch' %}',
+                data:{
+                    ip:ipValue,
+                    project_id:$('#project_id').val(),
+                    nmap_profile:(function(){ var q=$('#nmap_profile_quick').is(':checked'); var f=$('#nmap_profile_full').is(':checked'); return q? 'quick' : (f? 'full' : 'quick'); })(),
+                    nmap_os_guess: $('#nmap_os_guess').is(':checked'),
+                    csrfmiddlewaretoken:$('input[name=csrfmiddlewaretoken]').val()
+                }
+            }).done(function(){ try { waitForScanAndRedirect(firstTarget, 90000); } catch(e){} }).fail(function(jqXHR){
+                stopAllLaunches();
+                try{
+                    var resp = (jqXHR && (jqXHR.responseJSON||{})) || {};
+                    var raw = (jqXHR && jqXHR.responseText) || '';
+                    var msg = resp.error || resp.message || raw || 'Launch failed';
+                    if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); toastr.error(msg); }catch(ex){} }
+                }catch(e){ if (window.toastr){ try{ toastr.error('Launch failed'); }catch(ex){} } }
+            }).always(function(){ $('#launch_btn').prop('disabled', false); });
+            requests.push(reqNm);
+            pendingRequests.push(reqNm);
+        }
+        if (!anySelected){ if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.info('Select at least one scan step'); }catch(ex){} } $('#launch_btn').prop('disabled', false); return; }
+        // Keep spinner visible while we wait; redirect handled per‑request above
+        $.when.apply($, requests).always(function(){ /* no-op */ });
+    }
+    // Disable Launch until a project is selected
+    function syncLaunchEnabled(){
+        try{
+            var hasProj = String($('#project_id').val()||'').trim().length > 0;
+            $('#launch_btn').prop('disabled', !hasProj);
+        }catch(e){}
+    }
+    $(document).on('change input', '#project_id', syncLaunchEnabled);
+    syncLaunchEnabled();
+    // Launch now; show spinner + redirect-on-appear
+    doLaunch();
+});
+
+// Always keep profile controls enabled for all roles (Admin/Org Admin/User)
+(function(){
+    function setGroupDisabled(groupSel, disabled){
+        var el = document.querySelector(groupSel);
+        if (!el) return;
+        if (disabled){ el.classList.add('group-disabled'); } else { el.classList.remove('group-disabled'); }
+        [].forEach.call(el.querySelectorAll('input[type="checkbox"]'), function(cb){ cb.disabled = !!disabled; });
+    }
+    function anyOVSelected(){ return $('input[name="ov_profile"]:checked').length > 0 || ($('#openvas_enable').length && $('#openvas_enable').is(':checked')); }
+    function anyNmapSelected(){ return $('#nmap_profile_quick').is(':checked') || $('#nmap_profile_full').is(':checked') || $('#nmap_os_guess').is(':checked') || ($('#nmap_enable').length && $('#nmap_enable').is(':checked')); }
+    function syncMutual(){
+        var ov = anyOVSelected();
+        var nm = anyNmapSelected();
+        setGroupDisabled('#nmap_group', ov && !nm);
+        setGroupDisabled('#openvas_group', nm && !ov);
+    }
+    document.addEventListener('DOMContentLoaded', syncMutual);
+    document.addEventListener('change', function(e){
+        if (!e.target) return;
+        var id = e.target.id || '';
+        if (id.indexOf('nmap_')===0 || id==='openvas_enable' || id==='nmap_enable' || e.target.name==='ov_profile'){
+            syncMutual();
+        }
+    });
+})();
+
+// Ensure only one OpenVAS profile switch is active at a time
+$(document).on('change', 'input[name="ov_profile"]', function(){
+    if (this.checked) {
+        $('input[name="ov_profile"]').not(this).prop('checked', false);
+    }
+});
+
+// Ensure only one Nmap profile switch (Quick/Full) is active at a time
+$(document).on('change', '#nmap_profile_quick', function(){
+    if (this.checked) { $('#nmap_profile_full').prop('checked', false); }
+});
+$(document).on('change', '#nmap_profile_full', function(){
+    if (this.checked) { $('#nmap_profile_quick').prop('checked', false); }
+});
+
+// Enable Bootstrap tooltips for the help icons
+$(function(){
+    if ($.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip({container: 'body'});
+    }
+});
+
+
+
+</script>
+
+{% endblock %}
+
+
+
+
+
+
+

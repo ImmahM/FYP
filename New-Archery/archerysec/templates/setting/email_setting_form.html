@@ -1,0 +1,228 @@
+{% extends 'dashboard/base.html' %}
+
+{% block body %}
+
+<div class="row justify-content-md-center">
+  <div class="col-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-md-flex align-items-center">
+          <h1 class="card-title">Email Setting Form</h1>
+        </div>
+        <br>
+        <div class="card">
+          <div class="row">
+            <div class="col-md-12">
+              <div class="card">
+
+                <!-- IMPORTANT: enctype for optional attachment -->
+                <form method="POST" enctype="multipart/form-data" action="{% url 'archerysettings:email_setting' %}">
+                  {% csrf_token %}
+
+                  <!-- Message fields -->
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Email Message :</label>
+                    <div class="col-sm-6">
+                      <textarea name="email_message" class="form-control" rows="4">{{ data.message|default_if_none:'' }}</textarea>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Email Subject:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="email_subject" class="form-control" value="{{ data.subject|default_if_none:'' }}"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">To Email:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="to_email" class="form-control"
+                             placeholder="alice@example.com, bob@example.com"
+                             value="{{ data.recipient_list|default_if_none:'' }}"/>
+                      <small class="form-text text-muted">Comma/space/newline separated.</small>
+                    </div>
+                  </div>
+
+                  <!-- Optional extras supported by the view -->
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">CC:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="cc_email" class="form-control" placeholder="optional"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">BCC:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="bcc_email" class="form-control" placeholder="optional"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Reply-To:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="reply_to" class="form-control" placeholder="optional"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Attachment:</label>
+                    <div class="col-sm-6">
+                      <input type="file" name="attachment" class="form-control-file"/>
+                    </div>
+                  </div>
+
+                  <!-- Admin-only: SMTP configuration -->
+                  {% if user.is_superuser or user.role == 'Admin' %}
+                  <hr>
+                  <h5 class="px-3 pt-3">SMTP Configuration (Admin only)</h5>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">SMTP Host:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="smtp_host" class="form-control"
+                             placeholder="smtp.gmail.com"
+                             value="{{ data.smtp_host|default_if_none:'' }}"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">SMTP Port:</label>
+                    <div class="col-sm-6">
+                      <input type="number" name="smtp_port" class="form-control"
+                             value="{{ data.smtp_port|default:587 }}"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Use TLS:</label>
+                    <div class="col-sm-6 d-flex align-items-center">
+                      <input type="checkbox" name="smtp_use_tls" value="1"
+                        {% if data and data.smtp_use_tls %}checked{% elif not data %}checked{% endif %}/>
+                      <small class="form-text text-muted ml-2">Checked for STARTTLS (port 587).</small>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">SMTP Username / Login:</label>
+                    <div class="col-sm-6">
+                      <input type="text" name="smtp_user" class="form-control"
+                             value="{{ data.smtp_user|default_if_none:'' }}"/>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">Sender Email (From):</label>
+                    <div class="col-sm-6">
+                      <input type="email" name="sender_email" class="form-control"
+                             placeholder="noreply@yourdomain.com"
+                             value="{{ data.sender_email|default_if_none:'' }}"/>
+                      <small class="form-text text-muted">Shown to recipients as the From address.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-group row">
+                    <label class="col-sm-4 col-form-label">SMTP Password (App Password):</label>
+                    <div class="col-sm-6">
+                      <input type="password" name="smtp_password" class="form-control" placeholder="Leave blank to keep existing"/>
+                      <small class="form-text text-muted">Stored encrypted. Use provider app passwords where applicable.</small>
+                    </div>
+                  </div>
+                  {% endif %}
+
+                  <!-- Actions (wired to view: action=save | send_test | send) -->
+                  <div class="form-actions">
+                    {% if user.is_superuser or user.role == 'Admin' %}
+                      <button type="submit" name="action" value="save" class="btn btn-success mr-2">Save</button>
+                      <button type="submit" name="action" value="send_test" class="btn btn-info mr-2">Send Test</button>
+                    {% endif %}
+                    <button type="submit" name="action" value="send" class="btn btn-primary">Send</button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          </div>
+        </div> <!-- /card -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row justify-content-md-center mt-4">
+  <div class="col-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-md-flex align-items-center">
+          <h3 class="card-title">Inbox</h3>
+        </div>
+        <div class="table-responsive">
+          <div class="d-flex justify-content-end mb-2">
+            <form id="clear-selected-form" method="POST" action="{% url 'archerysettings:notifications_clear' %}" class="mr-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="selected">
+              <input type="hidden" name="ids" id="selected-ids" value="">
+              <button type="submit" class="btn btn-warning btn-sm">Clear Selected</button>
+            </form>
+            <form method="POST" action="{% url 'archerysettings:notifications_clear' %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="all">
+              <button type="submit" class="btn btn-danger btn-sm">Clear All</button>
+            </form>
+          </div>
+          <table class="table table-bordered">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="chk-all"></th>
+                <th>From</th>
+                <th>Subject</th>
+                <th>Message</th>
+                <th>Received</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if inbox %}
+                {% for n in inbox %}
+                  <tr>
+                    <td><input type="checkbox" class="chk-item" value="{{ n.id }}"></td>
+                    <td>{{ n.actor }}</td>
+                    <td>{{ n.verb }}</td>
+                    <td>{{ n.description }}</td>
+                    <td>{{ n.timestamp }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="5">No messages yet.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+<script>
+(function(){
+  const chkAll = document.getElementById('chk-all');
+  if (!chkAll) return;
+  const items = document.querySelectorAll('.chk-item');
+  chkAll.addEventListener('change', function(){
+    items.forEach(i => { i.checked = chkAll.checked; });
+  });
+  const clearForm = document.getElementById('clear-selected-form');
+  if (clearForm){
+    clearForm.addEventListener('submit', function(e){
+      const selected = Array.from(document.querySelectorAll('.chk-item:checked')).map(i => i.value);
+      document.getElementById('selected-ids').value = selected.join(',');
+      if (selected.length === 0){
+        e.preventDefault();
+        alert('Please select at least one message to clear.');
+      }
+    });
+  }
+})();
+</script>

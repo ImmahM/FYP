@@ -1,0 +1,278 @@
+<style>
+    /* -----------------------------------------
+   Timeline
+----------------------------------------- */
+.timeline {
+  list-style: none;
+  padding-left: 0;
+  position: relative;
+}
+.timeline:after {
+  content: "";
+  height: auto;
+  width: 1px;
+  background: #e3e3e3;
+  position: absolute;
+  top: 5px;
+  left: 30px;
+  bottom: 25px;
+}
+.timeline.timeline-sm:after {
+  left: 12px;
+}
+.timeline-load-more-btn {
+  margin-left: 70px;
+}
+.timeline-load-more-btn i {
+  margin-right: 5px;
+}
+
+
+/* -----------------------------------------
+   Dropdown
+------------------------------------------ */
+.dropdown-menu{
+    padding:0 0 0 0;
+}
+a.dropdown-menu-header {
+    background: #f7f9fe;
+    font-weight: bold;
+    border-bottom: 1px solid #e3e3e3;
+}
+.dropdown-menu > li a {
+    padding: 10px 20px;
+}
+
+/* Notification panel scroll */
+#notification-items{
+    margin:20px;
+    width:410px;
+    max-height:60vh;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding-right:6px;
+}
+#notification-items li{
+    width:100%;
+}
+#notification-items::-webkit-scrollbar{
+    width:8px;
+}
+#notification-items::-webkit-scrollbar-thumb{
+    background: linear-gradient(180deg, rgba(127,90,240,0.6), rgba(124,243,255,0.6));
+    border-radius:8px;
+}
+#notification-items::-webkit-scrollbar-track{
+    background: rgba(255,255,255,0.06);
+    border-radius:8px;
+}
+
+/* -----------------------------------------
+   Badge
+----------------------------------------- */
+
+.notify-badge{
+    padding: 3px 5px 2px;
+    position: absolute;
+    top: 8px;
+    right: 13px;
+    display: inline-block;
+    min-width: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1;
+    vertical-align: baseline;
+    white-space: nowrap;
+    text-align: center;
+    border-radius: 10px;
+}
+.badge-danger {
+    background-color: #db5565;
+}
+
+.notify-toast-container{
+    position:fixed;
+    top:80px;
+    right:24px;
+    z-index:1060;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    max-width:360px;
+}
+.notify-toast{
+    min-width:240px;
+    box-shadow:0 10px 30px rgba(15,23,42,0.2);
+    position: relative;
+    padding-right: 28px;
+}
+.notify-toast .close-toast{
+    position:absolute;
+    right:6px;
+    top:6px;
+    color:#b12c2c;
+    cursor:pointer;
+}
+
+
+
+
+
+</style>
+
+{% load notifications_tags %}
+<li class="nav-item dropdown" id="menu-messages"><a href="#" data-toggle="dropdown" data-target="#menu-messages"
+                                                    aria-haspopup="true" aria-expanded="false"
+                                                    class="nav-link dropdown-toggle waves-effect waves-dark">
+    <i class="mdi mdi-bell font-24"></i><span
+        class="notify-badge badge-pill badge-danger"
+        id="notification-badge"
+        data-feed-url="{% url 'webscanners:notification_feed' %}">{% live_notify_badge %}</span> <span
+        class="text"></span> <b class="caret"></b></a>
+    <ul class="dropdown-menu dropdown-menu-right mailbox animated bounceInDown" aria-labelledby="2">
+        <ul class="list-style-none" style="margin:20px;width:410px" id="notification-items">
+            <li role="presentation">
+            <a href="{% url 'webscanners:del_all_notify' %}" class="dropdown-menu-header">Clear All</a>
+        </li>
+            {% with notifications=message|default:None %}
+                {% if notifications %}
+                    {% for data in notifications %}
+                        <li>
+                            <div class="alert alert-info alert-block">
+                                <a class="close" data-dismiss="alert" href="/webscanners/del_notify?notify_id={{data.id}}"><i class="mdi mdi-close"></i></a>
+                                <br>
+                                {{data.verb}}
+                                {% if data.timestamp %}
+                                <div class="small text-muted mt-1">{{ data.timestamp }}</div>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="text-center text-muted py-3">No notifications</li>
+                    {% endfor %}
+                {% else %}
+                    <li class="text-center text-muted py-3">No notifications</li>
+                {% endif %}
+            {% endwith %}
+        </ul>
+    </ul>
+</li>
+
+<script>
+    (function(){
+        var badge = document.getElementById('notification-badge');
+        var listEl = document.getElementById('notification-items');
+        if(!badge || !listEl || !window.fetch){ return; }
+        var feedUrl = badge.getAttribute('data-feed-url');
+        if(!feedUrl){ return; }
+        var toastBox = document.createElement('div');
+        toastBox.className = 'notify-toast-container';
+        try{ document.body.appendChild(toastBox); }catch(e){}
+
+        function showToast(text, ts){
+            try{
+                var div = document.createElement('div');
+                div.className = 'alert alert-info alert-block notify-toast';
+                var closer = document.createElement('span');
+                closer.className = 'close-toast';
+                closer.innerHTML = '&times;';
+                closer.setAttribute('aria-label', 'Close notification');
+                closer.onclick = function(){ try{ div.remove(); }catch(e){} };
+                div.appendChild(closer);
+                if(ts){
+                    var tsEl = document.createElement('div');
+                    tsEl.className = 'small text-muted mb-1';
+                    tsEl.textContent = ts;
+                    div.appendChild(tsEl);
+                }
+                var msg = document.createElement('div');
+                msg.textContent = text || 'Notification';
+                div.appendChild(msg);
+                toastBox.appendChild(div);
+                setTimeout(function(){ try{ div.remove(); }catch(e){} }, 30000);
+            }catch(e){}
+        }
+
+        function buildItem(item){
+            var li = document.createElement('li');
+            li.innerHTML = '<div class="alert alert-info alert-block">' +
+                '<a class="close" href="/webscanners/del_notify?notify_id='+item.id+'"><i class="mdi mdi-close"></i></a>' +
+                '<br>' + (item.verb || '') +
+                (item.timestamp ? '<div class="small text-muted mt-1">'+item.timestamp+'</div>' : '') +
+                '</div>';
+            return li;
+        }
+
+        function render(items){
+            var frag = document.createDocumentFragment();
+            if(!items || !items.length){
+                var empty = document.createElement('li');
+                empty.className = 'text-center text-muted py-3';
+                empty.textContent = 'No notifications';
+                frag.appendChild(empty);
+            } else {
+                items.forEach(function(item){
+                    frag.appendChild(buildItem(item));
+                });
+            }
+            // Preserve header
+            var header = listEl.querySelector('li[role="presentation"]');
+            listEl.innerHTML = '';
+            if(header){
+                listEl.appendChild(header);
+            }
+            listEl.appendChild(frag);
+        }
+
+        function loadLastSeen(){
+            try{ return parseInt(sessionStorage.getItem('notify_last_seen')||'0',10) || 0; }catch(e){ return 0; }
+        }
+        function saveLastSeen(val){
+            try{ sessionStorage.setItem('notify_last_seen', String(val)); }catch(e){}
+        }
+
+        var initialized = false;
+
+        function poll(){
+            fetch(feedUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                .then(function(resp){ return resp.ok ? resp.json() : null; })
+                .then(function(data){
+                    if(!data){ return; }
+                    badge.textContent = data.unread;
+                    render(data.items);
+                    var lastSeen = loadLastSeen();
+                    var newMax = lastSeen;
+                    var fresh = [];
+                    (data.items||[]).forEach(function(it){
+                        var idNum = parseInt(it.id||'0',10);
+                        if(idNum > lastSeen){
+                            fresh.push(it);
+                            if(idNum > newMax){ newMax = idNum; }
+                        }
+                    });
+                    if(!initialized){
+                        if(newMax > lastSeen){ saveLastSeen(newMax); }
+                        initialized = true;
+                        return;
+                    }
+                    if(fresh.length){
+                        fresh.slice(0,3).forEach(function(it){
+                            showToast(it.verb||'New notification', it.timestamp||'');
+                        });
+                        if(newMax > lastSeen){ saveLastSeen(newMax); }
+                    }
+                })
+                .catch(function(){});
+        }
+
+        poll();
+        setInterval(function(){
+            if (!document.hidden){
+                poll();
+            }
+        }, 15000);
+    })();
+</script>

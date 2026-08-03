@@ -1,0 +1,544 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block body %}
+{#    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.css" rel="stylesheet">#}
+
+        {% if total_count_project.total_vuln__sum >= 0 %}
+            <div class="row">
+                <!-- Column -->
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-danger text-center">
+                            <h1 class="font-light text-white">{{ total_count_project.total_vuln__sum }}</h1>
+                            <a href="{% url 'dashboard:all_high_vuln' %}?project_id=none&severity=All"><h6
+                                    class="text-white"> Total</h6></a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Column -->
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-warning text-center">
+                            <h1 class="font-light text-white">{{ false_count_project.total_false__sum }}</h1>
+                            <a href="{% url 'dashboard:all_high_vuln' %}?project_id=none&severity=All_False_Positive">
+                                <h6 class="text-white">False Positive</h6></a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Column -->
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-cyan text-center">
+                            <h1 class="font-light text-white">{{ close_count_project.total_close__sum }}</h1>
+                            <a href="{% url 'dashboard:all_high_vuln' %}?project_id=none&severity=All_Closed"><h6
+                                    class="text-white">Total Closed</h6></a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Column -->
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-info text-center">
+                            <h1 class="font-light text-white">{{ net_count_project.total_net__sum }}</h1>
+                            <a href="{% url 'dashboard:all_high_vuln' %}?project_id=none&severity=Network"><h6
+                                    class="text-white">Network Issues</h6></a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Column -->
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-success text-center">
+                            <h1 class="font-light text-white">{{ web_count_project.total_web__sum }}</h1>
+                            <a href="{% url 'dashboard:all_high_vuln' %}?project_id=none&severity=Web"><h6
+                                    class="text-white">Web Issues</h6></a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Column -->
+                <!-- Column -->
+                {# Static and Cloud overview cards hidden intentionally #}
+            </div>
+
+            {% if scan_statuses %}
+            <div class="row">
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-success text-center">
+                            <h1 class="font-light text-white">{{ scan_statuses.completed }}</h1>
+                            <h6 class="text-white">Completed</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-primary text-center">
+                            <h1 class="font-light text-white">{{ scan_statuses.running }}</h1>
+                            <h6 class="text-white">Running</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-2 col-xlg-3">
+                    <div class="card card-hover">
+                        <div class="box bg-danger text-center">
+                            <h1 class="font-light text-white">{{ scan_statuses.failed }}</h1>
+                            <h6 class="text-white">Failed</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-12 col-lg-6">
+                    <div class="card">
+                        <div class="card-body chart-card">
+                            <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                                <div>
+                                    <h4><a href="{% url 'dashboard:trend_history' %}" class="chart-link"><span class="dot"></span>Vulnerability Trending Year {{ current_year }}</a></h4>
+                                    <h5 class="card-subtitle"></h5>
+                                </div>
+                            </div>
+                            <canvas id="myChart" class="chart-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card">
+                        <div class="card-body chart-card">
+                                <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                                    <div>
+                                        <h3>Vulnerabilities</h3>
+                                        <h5 class="card-subtitle"></h5>
+                                    </div>
+                                    <div class="chart-legend-side" style="position:static; gap:8px; flex-direction:row; align-items:center;">
+                                        <span class="item"><span class="dot" style="background:#4dd4ff"></span>Low</span>
+                                        <span class="item"><span class="dot" style="background:#facc15"></span>Medium</span>
+                                        <span class="item"><span class="dot" style="background:#ff8f3f"></span>High</span>
+                                        <span class="item"><span class="dot" style="background:#ff5d73"></span>Critical</span>
+                                    </div>
+                                </div>
+                            <canvas id="pie" class="chart-canvas" data-label="Vulnerabilities"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 col-lg-6">
+                    <div class="card">
+                        <div class="card-body chart-card">
+                                <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                                    <div>
+                                        <h6>Web Vulnerabilities</h6>
+                                        <h6 class="card-subtitle"></h6>
+                                    </div>
+                                    <div class="chart-legend-side" style="position:static; gap:8px; flex-direction:row; align-items:center;">
+                                        <span class="item"><span class="dot" style="background:#4dd4ff"></span>Low</span>
+                                        <span class="item"><span class="dot" style="background:#facc15"></span>Medium</span>
+                                        <span class="item"><span class="dot" style="background:#ff8f3f"></span>High</span>
+                                        <span class="item"><span class="dot" style="background:#ff5d73"></span>Critical</span>
+                                    </div>
+                                </div>
+                            <canvas id="webpie" class="chart-canvas" data-label="Web"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card">
+                        <div class="card-body chart-card">
+                                <div class="d-md-flex align-items-center justify-content-between flex-wrap">
+                                    <div>
+                                        <h6>Network Vulnerabilities</h6>
+                                        <h5 class="card-subtitle"></h5>
+                                    </div>
+                                    <div class="chart-legend-side" style="position:static; gap:8px; flex-direction:row; align-items:center;">
+                                        <span class="item"><span class="dot" style="background:#4dd4ff"></span>Low</span>
+                                        <span class="item"><span class="dot" style="background:#facc15"></span>Medium</span>
+                                        <span class="item"><span class="dot" style="background:#ff8f3f"></span>High</span>
+                                        <span class="item"><span class="dot" style="background:#ff5d73"></span>Critical</span>
+                                    </div>
+                                </div>
+                            <canvas id="networkpie" class="chart-canvas" data-label="Network"></canvas>
+                        </div>
+                    </div>
+                </div>
+                {# Static and Cloud charts hidden intentionally #}
+            </div>
+        {% endif %}
+            {% if recent_scans %}
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-md-flex align-items-center">
+                                <div>
+                                    <h4>Recent Scans</h4>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Scan Name</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Project</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for scan in recent_scans %}
+                                        <tr>
+                                            <td>{{ scan.scan_url|default:scan.scan_id|truncatechars:40 }}</td>
+                                            <td><span class="badge badge-info">{{ scan.scanner_type }}</span></td>
+                                            <td>
+                                                {% if scan.scan_status|lower == "completed" %}
+                                                    <span class="badge badge-success">Completed</span>
+                                                {% elif scan.scan_status|lower == "running" %}
+                                                    <span class="badge badge-primary">Running</span>
+                                                {% elif scan.scan_status|lower == "failed" %}
+                                                    <span class="badge badge-danger">Failed</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">{{ scan.scan_status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ scan.project__project_name|default:"-" }}</td>
+                                            <td>{{ scan.date_time|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recent_high %}
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-md-flex align-items-center">
+                                <div>
+                                    <h4>Recent High &amp; Critical Findings</h4>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Severity</th>
+                                            <th>Type</th>
+                                            <th>Project</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for finding in recent_high %}
+                                        <tr>
+                                            <td>{{ finding.title|truncatechars:50 }}</td>
+                                            <td>
+                                                {% if finding.severity|lower == "critical" %}
+                                                    <span class="badge badge-critical">Critical</span>
+                                                {% elif finding.severity|lower == "high" %}
+                                                    <span class="badge badge-danger">High</span>
+                                                {% else %}
+                                                    <span class="badge badge-warning">{{ finding.severity }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge badge-info">{{ finding.scanner_type }}</span></td>
+                                            <td>{{ finding.project__project_name|default:"-" }}</td>
+                                            <td>{{ finding.date_time|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+
+
+                            <div class="float-right">
+                                {% if user.is_superuser == True or user.role.role == 'Admin' or user.role.role == 'User' or user.role.role == 'Organization Admin' %}
+                            <div class="btn-group" role="group" aria-label="Basic example">
+                                <a href="{% url 'report_upload:upload' %}" class="btn btn-primary btn-mini" data-toggle="tooltip" data-placement="top" title="Upload XML Report"><i
+                                        class="fas fa-upload"></i> Upload </a>
+                            </div>
+                                {% endif %}
+                                  {% if user.is_superuser == True or user.role.role == 'Admin' or user.role.role == 'User' or user.role.role == 'Organization Admin' %}
+                                <div class="btn-group" role="group" aria-label="Basic example">
+                                    <a href="{% url 'projects:project_create' %}" class="btn btn-primary btn-mini" data-toggle="tooltip" data-placement="top" title="Create New Project"><i
+                        class="fas fa-plus-circle"></i> Add Project</a>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-md-flex align-items-center">
+                                <div>
+                                    <h1>Project List</h1>
+                                    <h5 class="card-subtitle"></h5>
+                                </div>
+                            </div>
+                            <br>
+                            <br>
+                            <div class="row">
+                                <!-- column -->
+
+                                <div class="table-responsive">
+                                    <table id="data_table" class="table table-bordered data-table">
+                                        <thead>
+                                        <tr>
+                                            <th>Project</th>
+                                            <th>Created By</th>
+                                            <th>Total</th>
+                                            <th>Critical</th>
+                                            <th>High</th>
+                                            <th>Medium</th>
+                                            <th>Low</th>
+                                            <th>Delete</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>{% for data in all_project %}
+                                            <tr data-target="#">
+
+                                                <td>
+                                                    <a href="{% url 'dashboard:proj_data' %}?uu_id={{ data.uu_id }}">{{ data.project_name }}</a>
+                                                </td>
+                                                <td>{{ data.created_by.name }}</td>
+                                                <td><span
+                                                        class="badge badge-pill badge-purple">{{ data.total_vuln }}</span>
+                                                </td>
+
+                                                <td><span
+                                                        class="badge badge-pill badge-critical">{{ data.total_critical }}</span>
+                                                </td>
+                                                <td> <span
+                                                        class="badge badge-pill badge-danger">{{ data.total_high }}</span>
+                                                </td>
+                                                <td> <span
+                                                        class="badge badge-pill badge-warning">{{ data.total_medium }}</span>
+                                                </td>
+                                                <td> <span
+                                                        class="badge badge-pill badge-info">{{ data.total_low }}</span>
+                                                </td>
+
+
+                                                <td class="confirm-delete">
+                                                    <form action="{% url 'projects:project_delete' %}" method="POST">
+                                                        <input type="hidden" name="project_id"
+                                                               value="{{ data.uu_id }}"/>
+                                                        {% csrf_token %}
+                                                        <button class="btn btn-danger" data-toggle="tooltip" data-placement="top" title="Delete Project"><i
+                                                                class="m-r-0 mdi mdi-delete"></i></button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+    <script src="{% static 'js/neo-charts.js' %}"></script>
+    <script>
+
+        var months = [
+            'January', 'February', 'March', 'April', 'May',
+            'June', 'July', 'August', 'September',
+            'October', 'November', 'December'
+        ];
+
+        function monthNumToName(monthnum) {
+            return months[monthnum - 1] || '';
+        }
+
+
+        const neonCharts = window.NEON_CHART || {};
+        const palette = neonCharts.palette || {
+            critical: '#ff5d73',
+            high: '#ff8f3f',
+            medium: '#facc15',
+            low: '#4dd4ff',
+            info: '#7f5af0'
+        };
+        const lineFill = function(ctx, color){
+            return neonCharts.makeLineGradient ? neonCharts.makeLineGradient(ctx, color) : color;
+        };
+        const trendDaily = {{ trend_daily_data|default:"null"|safe }};
+        var ctx = document.getElementById('myChart').getContext('2d');
+
+        const defaultLabels = [{% for data in all_month_data_display %}monthNumToName({{ data.month }}),{% endfor %}];
+        const defaultSeries = {
+            critical: [{% for data in all_month_data_display %}{{ data.critical }},{% endfor %}],
+            high: [{% for data in all_month_data_display %}{{ data.high }},{% endfor %}],
+            medium: [{% for data in all_month_data_display %}{{ data.medium }},{% endfor %}],
+            low: [{% for data in all_month_data_display %}{{ data.low }},{% endfor %}],
+        };
+
+        const labelsForChart = trendDaily ? trendDaily.labels.map(function(d){ return 'Day ' + d; }) : defaultLabels;
+        const dataForChart = trendDaily ? trendDaily : defaultSeries;
+
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labelsForChart,
+                datasets: [{
+                    label: 'Critical',
+                    data: dataForChart.critical,
+                    backgroundColor: palette.critical,
+                    borderColor: palette.critical,
+                    borderWidth: 1,
+                },{
+                    label: 'High',
+                    data: dataForChart.high,
+                    backgroundColor: palette.high,
+                    borderColor: palette.high,
+                    borderWidth: 1,
+                }, {
+                    label: 'Medium',
+                    data: dataForChart.medium,
+                    backgroundColor: palette.medium,
+                    borderColor: palette.medium,
+                    borderWidth: 1,
+                }, {
+                    label: 'Low',
+                    data: dataForChart.low,
+                    backgroundColor: palette.low,
+                    borderColor: palette.low,
+                    borderWidth: 1,
+                }
+                ]
+            },
+            options: {
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: { display: false }, /* Chart.js 2.x legend off */
+                plugins: { legend: { display: false } },
+                elements: {},
+                scales: {
+                    yAxes: [{
+                        ticks: { beginAtZero: true },
+                        gridLines: { color: 'rgba(255,255,255,0.06)' }
+                    }],
+                    xAxes: [{
+                        ticks: { autoSkip: true, maxTicksLimit: 12, fontColor: '#cbd5e1' },
+                        gridLines: { color: 'rgba(255,255,255,0.04)' },
+                        stacked: false
+                    }]
+                }
+            }
+        });
+        const severityColors = [
+            palette.critical,
+            palette.high,
+            palette.medium,
+            palette.low
+        ];
+
+        const severityLabels = [
+            'Critical',
+            'High',
+            'Medium',
+            'Low'
+        ];
+
+        function renderSeverityRing(canvasId, values, label) {
+            if (neonCharts.renderRingChart) {
+                neonCharts.centerLabel = label || 'total';
+                neonCharts.renderRingChart(canvasId, values, severityLabels, severityColors);
+                return;
+            }
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || typeof Chart === 'undefined') {
+                return null;
+            }
+            return new Chart(canvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: values,
+                        backgroundColor: severityColors,
+                    }],
+                    labels: severityLabels
+                },
+                options: {
+                    cutoutPercentage: 65,
+                    legend: { display: false }, /* Chart.js 2.x */
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        renderSeverityRing('pie', [
+            {{ critical_count_project.total_critical__sum }},
+            {{ high_count_project.total_high__sum }},
+            {{ medium_count_project.total_medium__sum }},
+            {{ low_count_project.total_low__sum }}
+        ], 'Vulnerabilities');
+
+        renderSeverityRing('webpie', [
+            {{critical_web_count_project.critical_web__sum}},
+            {{high_web_count_project.high_web__sum}},
+            {{medium_web_count_project.medium_web__sum}},
+            {{low_web_count_project.low_web__sum}}
+        ], 'Web');
+
+        renderSeverityRing('networkpie', [
+            {{critical_net_count_project.critical_net__sum}},
+            {{high_net_count_project.high_net__sum}},
+            {{medium_net_count_project.medium_net__sum}},
+            {{low_net_count_project.low_net__sum}}
+        ], 'Network');
+
+        renderSeverityRing('staticpie', [
+            {{critical_static_count_project.critical_static__sum}},
+            {{high_static_count_project.high_static__sum}},
+            {{medium_static_count_project.medium_static__sum}},
+            {{low_static_count_project.low_static__sum}}
+        ], 'Static');
+
+        renderSeverityRing('cloudpie', [
+            {{critical_cloud_count_project.critical_cloud__sum}},
+            {{high_cloud_count_project.high_cloud__sum}},
+            {{medium_cloud_count_project.medium_cloud__sum}},
+            {{low_cloud_count_project.low_cloud__sum}}
+        ], 'Cloud');
+    </script>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script type="text/javascript">
+
+
+        $(document).on('click', '.confirm-delete', function () {
+            return confirm('Are you sure you want to delete this?');
+        })
+
+    </script>
+
+{#    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>#}
+{#    <script src="/static/matrix-admin-bt4/assets/libs/toastr/build/toastr.min.js"></script>#}
+{#    <script src="/static/matrix-admin-bt4/dist/js/custom.min.js"></script>#}
+
+
+
+{% endblock %}
+

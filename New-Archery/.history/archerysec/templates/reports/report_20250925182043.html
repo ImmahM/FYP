@@ -1,0 +1,176 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Report</title>
+    <link rel="stylesheet" href="{% static 'css/report.css' %}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2, h3 { margin-bottom: 10px; }
+        .controls, .download-buttons { margin-bottom: 20px; }
+        .btn-html, .btn-pdf {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 8px 14px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .btn-pdf { background: #28a745; }
+        .summary { margin-top: 20px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        table th, table td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: left;
+        }
+        .footer { margin-top: 40px; font-size: 0.9em; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Security Report</h1>
+
+    <!-- ✅ NEW: Hide filter section when exporting -->
+    {% if not export_mode %}
+    <div class="controls">
+        <form method="get" action="{% url 'reports:generate_report' %}">
+            <label>Project:</label>
+            <select name="project_id">
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if project.id == selected_project.id %}selected{% endif %}>{{ project.project_name }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Scan Types:</label>
+            <label><input type="checkbox" name="scan_types" value="dynamic" {% if 'dynamic' in selected_scan_types %}checked{% endif %}> Dynamic</label>
+            <label><input type="checkbox" name="scan_types" value="infrastructure" {% if 'infrastructure' in selected_scan_types %}checked{% endif %}> Infrastructure</label>
+            <label><input type="checkbox" name="scan_types" value="static" {% if 'static' in selected_scan_types %}checked{% endif %}> Static</label>
+            <label><input type="checkbox" name="scan_types" value="cloud" {% if 'cloud' in selected_scan_types %}checked{% endif %}> Cloud</label>
+
+            <label>Severity:</label>
+            <label><input type="checkbox" name="severity" value="critical" {% if 'critical' in selected_severities %}checked{% endif %}> Critical</label>
+            <label><input type="checkbox" name="severity" value="high" {% if 'high' in selected_severities %}checked{% endif %}> High</label>
+            <label><input type="checkbox" name="severity" value="medium" {% if 'medium' in selected_severities %}checked{% endif %}> Medium</label>
+            <label><input type="checkbox" name="severity" value="low" {% if 'low' in selected_severities %}checked{% endif %}> Low</label>
+
+            <button type="submit">🔍 Preview Report</button>
+        </form>
+    </div>
+    {% endif %}
+    <!-- ✅ END filter hide -->
+
+    <!-- ✅ NEW: Hide download buttons when exporting -->
+    {% if not export_mode %}
+    <div class="download-buttons">
+        {% if query_string %}
+            <a class="btn-html" href="{% url 'reports:download_html' %}?{{ query_string }}">📥 Download HTML</a>
+            <a class="btn-pdf" href="{% url 'reports:download_pdf' %}?{{ query_string }}">📄 Download PDF</a>
+        {% else %}
+            <a class="btn-html" href="{% url 'reports:download_html' %}">📥 Download HTML</a>
+            <a class="btn-pdf" href="{% url 'reports:download_pdf' %}">📄 Download PDF</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    <!-- ✅ END button hide -->
+
+    <!-- 📊 Summary Section -->
+    <div class="summary">
+        <h2>Project: {{ selected_project.project_name }}</h2>
+        <p>Generated on: {{ now|date:"Y-m-d H:i" }}</p>
+
+        <h3>Vulnerability Overview</h3>
+        <ul>
+            <li>Critical: {{ counts.critical }}</li>
+            <li>High: {{ counts.high }}</li>
+            <li>Medium: {{ counts.medium }}</li>
+            <li>Low: {{ counts.low }}</li>
+        </ul>
+    </div>
+
+    <!-- 📋 Detailed Results Section -->
+    {% if dynamic_results %}
+    <h2>🌐 Dynamic (Web) Scan Results</h2>
+    <table>
+        <tr>
+            <th>URL</th>
+            <th>Vulnerability</th>
+            <th>Severity</th>
+        </tr>
+        {% for result in dynamic_results %}
+        <tr>
+            <td>{{ result.url }}</td>
+            <td>{{ result.vuln_name }}</td>
+            <td>{{ result.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if infrastructure_results %}
+    <h2>🏗️ Infrastructure Scan Results</h2>
+    <table>
+        <tr>
+            <th>IP</th>
+            <th>Vulnerability</th>
+            <th>Severity</th>
+        </tr>
+        {% for result in infrastructure_results %}
+        <tr>
+            <td>{{ result.ip }}</td>
+            <td>{{ result.vuln_name }}</td>
+            <td>{{ result.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if static_results %}
+    <h2>📁 Static Scan Results</h2>
+    <table>
+        <tr>
+            <th>File</th>
+            <th>Issue</th>
+            <th>Severity</th>
+        </tr>
+        {% for result in static_results %}
+        <tr>
+            <td>{{ result.file_name }}</td>
+            <td>{{ result.issue }}</td>
+            <td>{{ result.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if cloud_results %}
+    <h2>☁️ Cloud Scan Results</h2>
+    <table>
+        <tr>
+            <th>Resource</th>
+            <th>Issue</th>
+            <th>Severity</th>
+        </tr>
+        {% for result in cloud_results %}
+        <tr>
+            <td>{{ result.resource }}</td>
+            <td>{{ result.issue }}</td>
+            <td>{{ result.severity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        <p>Generated by ArcherySec - Security Report Generator</p>
+    </div>
+
+</body>
+</html>

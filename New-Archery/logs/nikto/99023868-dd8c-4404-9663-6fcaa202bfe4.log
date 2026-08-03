@@ -1,0 +1,31 @@
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ ERROR: Host maximum execution time of 3600 seconds reached
++ Target IP:          54.73.53.134
++ Target Hostname:    juice-shop.herokuapp.com
++ Target Port:        443
+---------------------------------------------------------------------------
++ SSL Info:        Subject: /CN=*.herokuapp.com
+                   Ciphers: ECDHE-RSA-AES128-GCM-SHA256
+                   Issuer:  /C=US/O=Amazon/CN=Amazon RSA 2048 M02
++ Start Time:         2025-10-24 03:13:19 (GMT0)
+---------------------------------------------------------------------------
++ Server: Heroku
++ Retrieved via header: 1.1 heroku-router
++ Server leaks inodes via ETags, header found with file /, fields: 0xW/124fa 0x19a1434c93c 
++ Uncommon header 'nel' found, with contents: {"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}
++ Uncommon header 'x-recruiting' found, with contents: /#/jobs
++ Uncommon header 'x-frame-options' found, with contents: SAMEORIGIN
++ Uncommon header 'reporting-endpoints' found, with contents: heroku-nel="https://nel.heroku.com/reports?s=EnEaRDmPuyiYjEhVMNiQAdKb%2Bx8qtFZf3uFw34u8FtY%3D&sid=812dcc77-0bd0-43b1-a5f1-b25750382959&ts=1761275599"
++ Uncommon header 'feature-policy' found, with contents: payment 'self'
++ Uncommon header 'x-content-type-options' found, with contents: nosniff
++ Uncommon header 'access-control-allow-origin' found, with contents: *
++ Uncommon header 'report-to' found, with contents: {"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=EnEaRDmPuyiYjEhVMNiQAdKb%2Bx8qtFZf3uFw34u8FtY%3D\u0026sid=812dcc77-0bd0-43b1-a5f1-b25750382959\u0026ts=1761275599"}],"max_age":3600}
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Server banner has changed from 'Heroku' to 'heroku-router' which may suggest a WAF, load balancer or proxy is in place
++ Server is using a wildcard certificate: '*.herokuapp.com'
++ 21 items checked: 1 error(s) and 11 item(s) reported on remote host
++ End Time:           2025-10-24 03:20:48 (GMT0) (449 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/99023868-dd8c-4404-9663-6fcaa202bfe4.html -Format htm -maxtime 1h -timeout 15 -Tuning 49a -ssl -host juice-shop.herokuapp.com

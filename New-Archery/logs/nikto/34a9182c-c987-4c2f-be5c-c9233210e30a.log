@@ -1,0 +1,64 @@
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ ERROR: Host maximum execution time of 1800 seconds reached
++ Target IP:          46.137.15.86
++ Target Hostname:    juice-shop.herokuapp.com
++ Target Port:        443
+---------------------------------------------------------------------------
++ SSL Info:        Subject: /CN=*.herokuapp.com
+                   Ciphers: ECDHE-RSA-AES128-GCM-SHA256
+                   Issuer:  /C=US/O=Amazon/CN=Amazon RSA 2048 M02
++ Start Time:         2025-10-24 09:24:27 (GMT0)
+---------------------------------------------------------------------------
++ Server: Heroku
++ Retrieved via header: 1.1 heroku-router
++ The anti-clickjacking X-Frame-Options header is not present.
++ Uncommon header 'reporting-endpoints' found, with contents: heroku-nel="https://nel.heroku.com/reports?s=Yit8cnUOUGkgus9ladCbBk%2F7mpwFLlW2zEEjO9xfwMQ%3D&sid=812dcc77-0bd0-43b1-a5f1-b25750382959&ts=1761297873"
++ Uncommon header 'report-to' found, with contents: {"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=Yit8cnUOUGkgus9ladCbBk%2F7mpwFLlW2zEEjO9xfwMQ%3D\u0026sid=812dcc77-0bd0-43b1-a5f1-b25750382959\u0026ts=1761297873"}],"max_age":3600}
++ Uncommon header 'nel' found, with contents: {"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ "robots.txt" retrieved but it does not contain any 'disallow' entries (which is odd).
++ Server banner has changed from 'Heroku' to 'heroku-router' which may suggest a WAF, load balancer or proxy is in place
++ Server leaks inodes via ETags, header found with file /index.php, fields: 0xW/124fa 0x19a158d0d29 
++ Uncommon header 'x-content-type-options' found, with contents: nosniff
++ Uncommon header 'feature-policy' found, with contents: payment 'self'
++ Uncommon header 'access-control-allow-origin' found, with contents: *
++ Uncommon header 'x-recruiting' found, with contents: /#/jobs
++ Uncommon header 'x-frame-options' found, with contents: SAMEORIGIN
++ Server is using a wildcard certificate: '*.herokuapp.com'
++ Uncommon header 'access-control-allow-methods' found, with contents: GET,HEAD,PUT,PATCH,POST,DELETE
++ /kboard/: KBoard Forum 0.3.0 and prior have a security problem in forum_edit_post.php, forum_post.php and forum_reply.php
++ /lists/admin/: PHPList pre 2.6.4 contains a number of vulnerabilities including remote administrative access, harvesting user info and more. Default login to admin interface is admin/phplist
++ /splashAdmin.php: Cobalt Qube 3 admin is running. This may have multiple security problems as described by www.scan-associates.net. These could not be tested remotely.
++ /ssdefs/: Siteseed pre 1.4.2 has 'major' security problems.
++ /sshome/: Siteseed pre 1.4.2 has 'major' security problems.
++ /tiki/: Tiki 1.7.2 and previous allowed restricted Wiki pages to be viewed via a 'URL trick'. Default login/pass could be admin/admin
++ /tiki/tiki-install.php: Tiki 1.7.2 and previous allowed restricted Wiki pages to be viewed via a 'URL trick'. Default login/pass could be admin/admin
++ /scripts/samples/details.idc: See RFP 9901; www.wiretrip.net
++ /nsn/..%5Cutil/attrib.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/chkvol.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/copy.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/del.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/dir.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/dsbrowse.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/glist.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/lancard.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/md.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/rd.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/ren.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server 
++ /nsn/..%5Cutil/send.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/set.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/slist.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/type.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cutil/userlist.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cweb/env.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cweb/fdir.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cwebdemo/env.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ /nsn/..%5Cwebdemo/fdir.bas: Netbase util access is possible which means that several utility scripts might be run (including directory listings, NDS tree enumeration and running .bas files on server
++ OSVDB-3233: /nps/version.jsp: Novell iManager version found.
++ OSVDB-3233: /nps/servlet/webacc?taskId=dev.Empty&merge=fw.About: Novell iManager version found.
++ 66 items checked: 1 error(s) and 44 item(s) reported on remote host
++ End Time:           2025-10-24 09:32:33 (GMT0) (486 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/34a9182c-c987-4c2f-be5c-c9233210e30a.html -Format htm -timeout 15 -ask no -maxtime 30m -Tuning 3b -ssl -host juice-shop.herokuapp.com

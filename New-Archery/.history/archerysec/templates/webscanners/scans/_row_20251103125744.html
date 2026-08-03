@@ -1,0 +1,5 @@
+{% comment %} Show action buttons to Admin, Organization Admin and User {% endcomment %}
+{% if user.is_superuser or user.role == "Admin" or user.role == "Organization Admin" or user.role == "User" %}
+  <button class="btn btn-sm btn-danger stop-scan" data-scan-id="{{ data.scan_id }}">Stop</button>
+  <button class="btn btn-sm btn-primary rescan" data-scan-id="{{ data.scan_id }}">Rescan</button>
+{% endif %}

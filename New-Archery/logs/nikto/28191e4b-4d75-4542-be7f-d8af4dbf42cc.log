@@ -1,0 +1,18 @@
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ ERROR: Host maximum execution time of 3600 seconds reached
++ Target IP:          54.73.53.134
++ Target Hostname:    juice-shop.herokuapp.com
++ Target Port:        443
+---------------------------------------------------------------------------
++ SSL Info:        Subject: /CN=*.herokuapp.com
+                   Ciphers: ECDHE-RSA-AES128-GCM-SHA256
+                   Issuer:  /C=US/O=Amazon/CN=Amazon RSA 2048 M02
++ Start Time:         2025-10-24 06:20:36 (GMT0)
+---------------------------------------------------------------------------
++ Server: Heroku
++ 6544 items checked: 1 error(s) and 0 item(s) reported on remote host
++ End Time:           2025-10-24 06:39:00 (GMT0) (1104 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/28191e4b-4d75-4542-be7f-d8af4dbf42cc.html -Format htm -timeout 15 -maxtime 60m -Plugins all -ssl -host juice-shop.herokuapp.com

@@ -1,0 +1,128 @@
+{% extends 'dashboard/base.html' %}
+
+{% block body %}
+
+
+    <div class="row justify-content-md-center">
+        <div class="col-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Email Setting Form</h1>
+                    </div>
+                    <br>
+                    <div class="card">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <form method="POST"
+                                          action="{% url 'archerysettings:email_setting' %}">{% csrf_token %}
+                                        <div class="form-group row">
+                                            <label class="col-sm-4 col-form-label">Email Message :</label>
+                                            <div class="col-sm-6">
+                                                <input type="text" name="email_message" class="span11" value="{{ data.message }}"/>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="col-sm-4 col-form-label">Email Subject:</label>
+                                            <div class="col-sm-6">
+                                                <input type="text" name="email_subject" class="span11" value="{{ data.subject }}"/>
+                                            </div>
+                                        </div>
+                                        <div class="form-group row">
+                                            <label class="col-sm-4 col-form-label">To Email:</label>
+                                            <div class="col-sm-6">
+                                                <input type="text" name="to_email" class="span11" value="{{ data.recipient_list }}"/>
+                                            </div>
+                                        </div>
+                                        <div class="form-actions">
+                                            {% if user.is_superuser or user.role == 'Admin' %}
+                                                <button type="submit" class="btn btn-success mr-2">Save</button>
+                                            {% endif %}
+                                            <button type="submit" name="send" value="1" class="btn btn-primary">Send</button>
+                                        </div>
+                                    </form>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-md-center mt-4">
+        <div class="col-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-md-flex align-items-center">
+                        <h3 class="card-title">Inbox</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <div class="d-flex justify-content-end mb-2">
+                            <form id="clear-selected-form" method="POST" action="{% url 'archerysettings:notifications_clear' %}" class="mr-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="selected">
+                                <input type="hidden" name="ids" id="selected-ids" value="">
+                                <button type="submit" class="btn btn-warning btn-sm">Clear Selected</button>
+                            </form>
+                            <form method="POST" action="{% url 'archerysettings:notifications_clear' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="all">
+                                <button type="submit" class="btn btn-danger btn-sm">Clear All</button>
+                            </form>
+                        </div>
+                        <table class="table table-bordered">
+                            <thead>
+                            <tr>
+                                <th><input type="checkbox" id="chk-all"></th>
+                                <th>From</th>
+                                <th>Subject</th>
+                                <th>Message</th>
+                                <th>Received</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% if inbox %}
+                                {% for n in inbox %}
+                                    <tr>
+                                        <td><input type="checkbox" class="chk-item" value="{{ n.id }}"></td>
+                                        <td>{{ n.actor }}</td>
+                                        <td>{{ n.verb }}</td>
+                                        <td>{{ n.description }}</td>
+                                        <td>{{ n.timestamp }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="5">No messages yet.</td></tr>
+                            {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+<script>
+    (function(){
+        const chkAll = document.getElementById('chk-all');
+        if (!chkAll) return;
+        const items = document.querySelectorAll('.chk-item');
+        chkAll.addEventListener('change', function(){
+            items.forEach(i => { i.checked = chkAll.checked; });
+        });
+        const clearForm = document.getElementById('clear-selected-form');
+        clearForm.addEventListener('submit', function(e){
+            const selected = Array.from(document.querySelectorAll('.chk-item:checked')).map(i => i.value);
+            document.getElementById('selected-ids').value = selected.join(',');
+            if (selected.length === 0){
+                e.preventDefault();
+                alert('Please select at least one message to clear.');
+            }
+        });
+    })();
+</script>

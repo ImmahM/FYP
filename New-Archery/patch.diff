@@ -1,0 +1,171 @@
+*** Begin Patch
+*** Update File: archerysec/user_management/views.py
+@@
+     def get(self, request):
+         org = Organization.objects.all()
+         if str(getattr(request.user, "role", "")) == "IT User":
+             roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+         else:
+             roles = UserRoles.objects.exclude(role__in=["Viewer"]) 
+-
+-        return Response({"org": org, "roles": roles})
++        # Support PRG: repopulate values/errors saved in session
++        form_state = request.session.pop("add_user_form", None)
++        ctx = {"org": org, "roles": roles}
++        if form_state:
++            ctx.update(form_state)
++        return Response(ctx)
+@@
+-    def post(self, request):
+-        serializer = UserCreatReqSerializers(data=request.data)
+-        serializer.is_valid()
+-
+-        email = request.data.get("email")
+-        organization = request.data.get("organization")
+-        password = request.data.get("password")
+-        role = request.data.get("role")
+-        name = request.data.get("name")
+-
+-        ok, msg = _password_strength_valid(password)
+-        if not ok:
+-            # Inline error rendering
+-            org = Organization.objects.all()
+-            if str(getattr(request.user, "role", "")) == "IT User":
+-                roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+-            else:
+-                roles = UserRoles.objects.exclude(role__in=["Viewer"]) 
+-            messages.error(request, msg)
+-            return Response({
+-                "org": org,
+-                "roles": roles,
+-                "error_password": msg,
+-                "posted_name": name,
+-                "posted_email": email,
+-            })
+-
+-        user_exist = UserProfile.objects.filter(email=email).exists()
+-        if user_exist:
+-            # Global email unique exists; show friendly message
+-            org = Organization.objects.all()
+-            if str(getattr(request.user, "role", "")) == "IT User":
+-                roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+-            else:
+-                roles = UserRoles.objects.exclude(role__in=["Viewer"]) 
+-            messages.error(request, "Email already in use. Please choose another.")
+-            return Response({
+-                "org": org,
+-                "roles": roles,
+-                "error_email": "Email already in use. Please choose another.",
+-                "posted_name": name,
+-                "posted_email": email,
+-            })
+-
+-        else:
+-            # IT User may only create users in their own organization and cannot assign Admin
+-            if str(getattr(request.user, "role", "")) == "IT User":
+-                organization = request.user.organization.id
+-                allowed_roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"]).values_list("id", flat=True)
+-                try:
+-                    role_id = int(role)
+-                except Exception:
+-                    role_id = None
+-                if role_id not in list(allowed_roles):
+-                    org = Organization.objects.all()
+-                    roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+-                    return Response({
+-                        "org": org,
+-                        "roles": roles,
+-                        "error_role": "Not authorized to assign this role.",
+-                        "posted_name": name,
+-                        "posted_email": email,
+-                    })
+-            # Enforce email uniqueness within organization (plus global unique already exists)
+-            if UserProfile.objects.filter(email=email, organization_id=organization).exists():
+-                org = Organization.objects.all()
+-                if str(getattr(request.user, "role", "")) == "IT User":
+-                    roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+-                else:
+-                    roles = UserRoles.objects.exclude(role__in=["Viewer"]) 
+-                return Response({
+-                    "org": org,
+-                    "roles": roles,
+-                    "error_email": "Email already used in this organization. Please choose another.",
+-                    "posted_name": name,
+-                    "posted_email": email,
+-                })
+-            try:
+-                UserProfile.objects.create_user(email, name, role, organization, password)
+-            except IntegrityError:
+-                org = Organization.objects.all()
+-                if str(getattr(request.user, "role", "")) == "IT User":
+-                    roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"])  # restrict
+-                else:
+-                    roles = UserRoles.objects.exclude(role__in=["Viewer"]) 
+-                return Response({
+-                    "org": org,
+-                    "roles": roles,
+-                    "error_email": "Email already in use. Please choose another.",
+-                    "posted_name": name,
+-                    "posted_email": email,
+-                })
+-            messages.success(request, "User Created")
+-            return HttpResponseRedirect("/users/list_user/")
++    def post(self, request):
++        serializer = UserCreatReqSerializers(data=request.data)
++        serializer.is_valid()
++
++        email = (request.data.get("email") or "").strip()
++        organization = request.data.get("organization")
++        password = request.data.get("password") or ""
++        role = request.data.get("role")
++        name = (request.data.get("name") or "").strip()
++
++        errors = {}
++
++        # Resolve organization for IT Users and validate org for Admins
++        if str(getattr(request.user, "role", "")) == "IT User":
++            organization = request.user.organization.id
++        else:
++            if not organization:
++                errors["error_org"] = "Please select an organization."
++
++        # Password policy
++        ok, msg = _password_strength_valid(password)
++        if not ok:
++            errors["error_password"] = msg
++
++        # Role policy for IT Users
++        if str(getattr(request.user, "role", "")) == "IT User":
++            allowed_roles = UserRoles.objects.filter(role__in=["User", "Analyst", "IT User"]).values_list("id", flat=True)
++            try:
++                role_id = int(role)
++            except Exception:
++                role_id = None
++            if role_id not in list(allowed_roles):
++                errors["error_role"] = "Not authorized to assign this role."
++
++        # Email validation
++        if not email:
++            errors["error_email"] = "Email is required."
++        else:
++            if organization and UserProfile.objects.filter(email=email, organization_id=organization).exists():
++                errors["error_email"] = "Email already used in this organization. Please choose another."
++            elif UserProfile.objects.filter(email=email).exists():
++                errors["error_email"] = "Email already in use. Please choose another."
++
++        if errors:
++            for _k, _v in errors.items():
++                messages.error(request, _v)
++            request.session["add_user_form"] = {"posted_name": name, "posted_email": email, **errors}
++            return HttpResponseRedirect(reverse("users:add_user"))
++
++        # Create user
++        try:
++            UserProfile.objects.create_user(email, name, role, organization, password)
++        except IntegrityError:
++            messages.error(request, "Email already in use. Please choose another.")
++            request.session["add_user_form"] = {"posted_name": name, "posted_email": email, "error_email": "Email already in use. Please choose another."}
++            return HttpResponseRedirect(reverse("users:add_user"))
++        messages.success(request, "User Created")
++        return HttpResponseRedirect("/users/list_user/")
+*** End Patch

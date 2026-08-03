@@ -1,0 +1,115 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="neo-hero">
+    <div class="section-heading">
+        <div class="dot"></div>
+        <div>
+            <div class="pill">UTC+8</div>
+            <h2 class="title mb-1">Vulnerability Trends {{ current_year }}</h2>
+            <p class="subtitle">Daily severities across Web + Network findings</p>
+        </div>
+    </div>
+</div>
+
+<div class="card neo-panel mb-4">
+    <div class="card-body chart-card">
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+            <div class="d-flex align-items-center gap-2">
+                <select id="monthSelect" class="form-control custom-select" style="width:auto; min-width: 160px;">
+                </select>
+            </div>
+            <div class="chart-legend-side">
+                <span class="item"><span class="dot" style="background:#4dd4ff"></span>Low</span>
+                <span class="item"><span class="dot" style="background:#facc15"></span>Medium</span>
+                <span class="item"><span class="dot" style="background:#ff8f3f"></span>High</span>
+                <span class="item"><span class="dot" style="background:#ff5d73"></span>Critical</span>
+            </div>
+        </div>
+        <canvas id="trendLine" class="chart-canvas" style="min-height:360px;max-height:520px;" aria-label="Daily vulnerability trend line chart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+<script>
+    const palette = {
+        critical: '#ff5d73',
+        high: '#ff8f3f',
+        medium: '#facc15',
+        low: '#4dd4ff'
+    };
+    const monthsPayload = {{ trend_data_json|safe }};
+    const monthSelect = document.getElementById('monthSelect');
+    const lineCtx = document.getElementById('trendLine').getContext('2d');
+
+    (monthsPayload || []).forEach((m, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = m.label || `Month ${m.month || idx + 1}`;
+        monthSelect.appendChild(opt);
+    });
+
+    const totals = (monthsPayload || []).map(m => (m.critical||[]).reduce((a,b)=>a+b,0) + (m.high||[]).reduce((a,b)=>a+b,0) + (m.medium||[]).reduce((a,b)=>a+b,0) + (m.low||[]).reduce((a,b)=>a+b,0));
+    const latestIndex = totals.length ? totals.lastIndexOf(Math.max(...totals)) : -1;
+    monthSelect.selectedIndex = latestIndex >= 0 ? latestIndex : 0;
+    if ((monthsPayload || []).length === 0) {
+        document.getElementById('trendLine').setAttribute('aria-label', 'No trend data available');
+    }
+
+    let trendChart;
+    function renderTrend(idx) {
+        const m = monthsPayload[idx] || monthsPayload[0];
+        const datasets = [
+            {label: 'Critical', data: m.critical, borderColor: palette.critical},
+            {label: 'High', data: m.high, borderColor: palette.high},
+            {label: 'Medium', data: m.medium, borderColor: palette.medium},
+            {label: 'Low', data: m.low, borderColor: palette.low},
+        ].map(ds => ({
+            ...ds,
+            backgroundColor: 'rgba(255,255,255,0.02)',
+            fill: false,
+            borderWidth: 2,
+            lineTension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        }));
+
+        if (trendChart) {
+            trendChart.destroy();
+        }
+        trendChart = new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: m.days.map(d => `Day ${d}`),
+                datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                title: { display: false },
+                legend: { display: false }, /* Chart.js 2.x */
+                plugins: { legend: { display: false } },
+                scales: {
+                    xAxes: [{
+                        gridLines: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { fontColor: '#cbd5e1' }
+                    }],
+                    yAxes: [{
+                        beginAtZero: true,
+                        gridLines: { color: 'rgba(255,255,255,0.06)' },
+                        ticks: { fontColor: '#cbd5e1' }
+                    }]
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        });
+    }
+
+    monthSelect.addEventListener('change', (e) => renderTrend(parseInt(e.target.value, 10)));
+    renderTrend(monthSelect.selectedIndex);
+</script>
+{% endblock %}

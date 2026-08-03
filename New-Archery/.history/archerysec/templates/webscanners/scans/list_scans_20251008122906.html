@@ -1,0 +1,317 @@
+﻿{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block body %}
+<script type="text/javascript">
+
+    $("#checkAll").change(function () {
+        $("input:checkbox").prop('checked', $(this).prop("checked"));
+    });
+    $(document).ready(function() {
+        $('.btn-danger').click(function(){
+            if (confirm('Are you sure you want to delete this?')) {
+                var scan_id = ['a7af5b68-b661-45ad-90fd-ffa27526cdce'];
+                $.each($("input[name='del_scan_id']:checked"), function(){
+                    scan_id.push($(this).val());
+                });
+
+                var json_scanid = scan_id.join(", ");
+                $.ajax({
+                    type:'POST',
+                    <!--contentType: 'application/json; charset=utf-8',-->
+                    url:'{% url 'webscanners:scan_delete' %}',
+                    data:{
+                       scan_id: json_scanid,
+                       csrfmiddlewaretoken:$('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    sucess:function(){
+
+                    }
+                });
+                setTimeout(function(){location.reload();},1000);
+            }
+        });
+
+    });
+
+    $(document).ready(function() {
+        $('.btn-primary').click(function(){
+                var scan_id = ['a7af5b68-b661-45ad-90fd-ffa27526cdce'];
+                $.each($("input[name='del_scan_id']:checked"), function(){
+                    scan_id.push($(this).val());
+                });
+
+            document.getElementById("toexport").value = scan_id.join(", ");
+
+
+        });
+
+    });
+
+    // Enable Bootstrap tooltips across the table (for failure reasons, etc.)
+    $(function () {
+        if ($.fn.tooltip) {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+    });
+
+
+</script>
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                    {% if user.is_superuser == True or user.role.id == 2 %}
+                        <div class="float-right">
+
+                            <div class="btn-group" role="group" aria-label="Basic example">
+                                <a href="{% url 'report_upload:upload' %}" class="btn btn-primary btn-mini" data-toggle="tooltip" data-placement="top" title="Upload XML Report"><i
+                                        class="fas fa-upload"></i> Upload </a>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-mini" onclick="">Delete Selected</button>
+
+                        </div>
+                    {% endif %}
+                        <br>
+                        <br>
+                        {% csrf_token %}
+{#                        <div class="float-right">#}
+{#                            <form action="{% url 'webscanners:export' %}" method="post"#}
+{#                                  class="forms-sample">#}
+{#                                {% csrf_token %}#}
+{#                                <div class="form-row align-items-center">#}
+{#                                    <div class="col-auto my-1">#}
+{#                                        <select name="type" class="custom-select mr-sm-2" id="inlineFormCustomSelect">#}
+{#                                            <option value="csv" selected>CSV</option>#}
+{#                                            <option value="json">JSON</option>#}
+{#                                            <option value="yaml">YAML</option>#}
+{#                                        </select>#}
+{#                                    </div>#}
+{#                                    <div class="col-auto my-1">#}
+{#                                         <input type="hidden" id="toexport" name="scan_id"/>#}
+{#                                        <button type="submit" class="btn btn-primary"><i#}
+{#                                                class="fas fa-arrow-alt-circle-down"></i></button>#}
+{#                                    </div>#}
+{#                                </div>#}
+{#                            </form>#}
+{#                        </div>#}
+                        <br>
+                        <div class="d-md-flex align-items-center">
+                            <h1 class="card-title">Dynamic Scans List</h1>
+                        </div>
+                        <br>
+                        <div class="row">
+                            <div class="table-responsive">
+                                <table id="data_table" class="table table-bordered data-table">
+                                    <thead>
+                                    <tr>
+                                        <th><label class="customcheckbox m-b-20">
+                                            <input type="checkbox" id="mainCheckbox">
+                                            <span class="checkmark"></span>
+                                        </label></th>
+                                        <th>URL</th>
+                                        <th>Status</th>
+                                        <th>Scanner</th>
+                                        <th>Total Vulnerability</th>
+                                        <th>Critical</th>
+                                        <th>High</th>
+                                        <th>Medium</th>
+                                        <th>Low</th>
+                                        <th>Info</th>
+                                        <th>Duplicates</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>{% for data in all_scans %}
+                                    <tr class="scan-row" data-scanid="{{data.scan_id}}" data-percent="{{ data.scan_status|default:'0' }}" data-target="#">
+                                        <td>
+                                            <form>
+                                                <label class="customcheckbox">
+                                                    <input type="checkbox" class="listCheckbox"
+                                                           value="{{data.scan_id}}"
+                                                           name="del_scan_id"
+                                                           onClick="reload">
+                                                    <span class="checkmark"></span>
+                                                </label>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'webscanners:list_vuln' %}?scan_id={{data.scan_id}}">{{data.scan_url}}</a>
+                                        </td>
+                                        <td width="20%">
+                                            <div>
+                                                {% with t=data.total_vul|default_if_none:0|add:0 c=data.critical_vul|default_if_none:0|add:0 h=data.high_vul|default_if_none:0|add:0 m=data.medium_vul|default_if_none:0|add:0 l=data.low_vul|default_if_none:0|add:0 i=data.info_vul|default_if_none:0|add:0 d=data.total_dup|default_if_none:0|add:0 %}
+                                                {% with sum_all=t|add:c|add:h|add:m|add:l|add:i|add:d %}
+                                                <div class="d-flex no-block align-items-center">
+                                                    {% if data.scan_status == '100.0' or data.scan_status == '100' or data.ui_stopped %}
+                                                        {% if sum_all == 0 %}
+                                                            <span data-role="statusText" class="text-danger" data-toggle="tooltip" data-placement="top" title="{% if data.result_count|default:0|add:0 > 0 %}Failed: results exist ({{ data.result_count }}) but no vulnerabilities were classified. Breakdown â€” Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}Failed: no scan results saved for this run.{% endif %}">Failed â€” {{data.scan_status}}%</span>
+                                                        {% else %}
+                                                            {% if data.ui_stopped %}
+                                                                <span data-role="statusText" class="text-warning" data-toggle="tooltip" data-placement="top" title="Stopped at {{data.scan_status}}% â€” no updates since {{ data.ui_last_update|date:'Y-m-d H:i' }} UTC. {% if data.result_count|default:0|add:0 > 0 %}Results saved: {{ data.result_count }}. Breakdown â€” Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}No results saved.{% endif %}">{{data.scan_status}}% Stopped</span>
+                                                            {% else %}
+                                                                <span>100% Completed</span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span>{{data.scan_status}}% In Progress</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="progress{% if data.scan_status != '100.0' %} active progress-striped{% endif %}">
+                                                    <div data-role="progressBar" class="progress-bar progress-bar-striped {% if sum_all == 0 %}bg-danger{% elif data.ui_stopped %}bg-warning{% endif %}"
+                                                         role="progressbar"
+                                                         style="width: {{ data.scan_status|default:'0' }}%"
+                                                         aria-valuenow="10" aria-valuemin="0"
+                                                         aria-valuemax="100"
+                                                         {% if sum_all == 0 %}
+                                                          data-toggle="tooltip" data-placement="top"
+                                                          title="{% if data.result_count|default:0|add:0 > 0 %}Failed: results exist ({{ data.result_count }}) but no vulnerabilities were classified. Breakdown â€” Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}Failed: no scan results saved for this run.{% endif %}"
+                                                         {% endif %}
+                                                     ></div>
+                                                </div>
+                                                {% endwith %}
+                                                {% endwith %}
+                                            </div>
+                                        </td>
+                                        <td>{% with scanType=data.scanner %}
+                                            <div class="p-1"><img src="{{ PARSER_DICT | get_icon:scanType }}" alt="user"
+                                                    width="30" class="rounded-circle" data-toggle="tooltip"
+                                                    data-placement="top"
+                                                    title="{{ PARSER_DICT | get_displayName:scanType }}">
+                                            </div>
+                                            {% endwith %}
+                                        </td>
+
+                                        <td>
+                                            <span class="badge badge-pill badge-dark"
+                                                  {% if data.total_vul == None or data.total_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 vulnerabilities, but {{ data.result_count }} results exist. Breakdown â€” Critical: {{data.res_critical}}, High: {{data.res_high}}, Medium: {{data.res_medium}}, Low: {{data.res_low}}, Info: {{data.res_info}}, Duplicates: {{data.res_dup}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.total_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-critical"
+                                                  {% if data.critical_vul == None or data.critical_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Critical, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.critical_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-danger"
+                                                  {% if data.high_vul == None or data.high_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 High, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.high_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-warning"
+                                                  {% if data.medium_vul == None or data.medium_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Medium, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.medium_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-info"
+                                                  {% if data.low_vul == None or data.low_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Low, but results exist ({{data.result_count}}).{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.low_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-info"
+                                                  {% if data.info_vul == None or data.info_vul|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Info in summary, but results exist ({{data.result_count}}). Info findings present: {{data.res_info}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.info_vul|default_if_none:'0' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-pill badge-secondary"
+                                                  {% if data.total_dup == None or data.total_dup|default_if_none:0|add:0 == 0 %}
+                                                  data-toggle="tooltip" data-placement="top"
+                                                  title="{% if data.result_count|default:0|add:0 > 0 %}0 Duplicates in summary, but results exist ({{data.result_count}}). Duplicate findings detected by parser: {{data.res_dup}}.{% else %}No results saved for this scan.{% endif %}"
+                                                  {% endif %}
+                                            >{{ data.total_dup|default_if_none:'0' }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+<script>
+    // Auto-refresh while any scan is not 100%
+    (function(){
+        try {
+            var intervalSec = {{ REFRESH_TIMER|default:5 }};
+            var apiUrl = '/api' + window.location.pathname;
+            function toInt(v){ try { var s = (v==null? '': String(v)).trim(); return s? parseInt(parseFloat(s)) : 0; } catch(e){ return 0; } }
+            function setTooltip(el, title){ if (!el) return; el.setAttribute('title', title||''); el.setAttribute('data-original-title', title||''); }
+            function updateRow(row, item){
+                var p = toInt(item.scan_status);
+                row.setAttribute('data-percent', p);
+                var statusEl = row.querySelector('[data-role="statusText"]');
+                var bar = row.querySelector('[data-role="progressBar"]');
+                if (bar){ bar.style.width = (p||0) + '%'; bar.classList.remove('bg-danger','bg-warning'); }
+                var t = toInt(item.total_vul) + toInt(item.critical_vul) + toInt(item.high_vul) + toInt(item.medium_vul) + toInt(item.low_vul) + toInt(item.info_vul) + toInt(item.total_dup);
+                var titleFailed = (item.result_count>0)
+                ? ('Failed: results exist ('+ item.result_count +') but no vulnerabilities were classified. Breakdown - Critical: '+ (item.res_critical||0) +', High: '+ (item.res_high||0) +', Medium: '+ (item.res_medium||0) +', Low: '+ (item.res_low||0) +', Info: '+ (item.res_info||0) +', Duplicates: '+ (item.res_dup||0) +'.')
+                : 'Failed: no scan results saved for this run.';
+                if (statusEl){
+                if (item.ui_stopped){
+                    statusEl.textContent = (p||0) + '% Stopped';
+                    statusEl.classList.remove('text-danger');
+                    statusEl.classList.add('text-warning');
+                    setTooltip(statusEl, 'Stopped at '+ (p||0) +'% - no updates since ' + (item.ui_last_update || '') + ' UTC.' + (item.result_count>0? (' Results saved: '+ item.result_count +'.') : ' No results saved.'));
+                    if (bar) bar.classList.add('bg-warning');
+                } else if (p >= 100){
+                    if (t === 0){
+                    statusEl.textContent = 'Failed - ' + (p||0) + '%';
+                    statusEl.classList.remove('text-warning');
+                    statusEl.classList.add('text-danger');
+                    setTooltip(statusEl, titleFailed);
+                    if (bar) bar.classList.add('bg-danger');
+                    } else {
+                    statusEl.textContent = '100% Completed';
+                    statusEl.classList.remove('text-warning','text-danger');
+                    setTooltip(statusEl, '');
+                    }
+                } else {
+                    statusEl.textContent = (p||0) + '% In Progress';
+                    statusEl.classList.remove('text-warning','text-danger');
+                    setTooltip(statusEl, '');
+                }
+                }
+                var fields = ['total_vul','critical_vul','high_vul','medium_vul','low_vul','info_vul','total_dup'];
+                fields.forEach(function(f){ var el = row.querySelector('[data-field="'+f+'"]'); if (el){ el.textContent = (item[f] == null ? '0' : item[f]); }});
+            }
+            function tick(){
+                fetch(apiUrl, { credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(data){
+                if (!Array.isArray(data)) return;
+                var map = {};
+                data.forEach(function(it){ if (it && it.scan_id) { map[String(it.scan_id)] = it; }});
+                document.querySelectorAll('tr.scan-row').forEach(function(row){
+                    var id = row.getAttribute('data-scanid');
+                    if (id && map[id]) { updateRow(row, map[id]); }
+                });
+                if (window.$ && $.fn && $.fn.tooltip){ $('[data-toggle="tooltip"]').tooltip(); }
+                }).catch(function(){});
+            }
+            setInterval(tick, intervalSec * 1000);
+        } catch(e) { /* no-op */ }
+    })();
+    // Re-init tooltips on dynamic loads
+    $(function () { if ($.fn.tooltip) { $('[data-toggle="tooltip"]').tooltip(); } });
+</script>
+{% endblock %}
+
+

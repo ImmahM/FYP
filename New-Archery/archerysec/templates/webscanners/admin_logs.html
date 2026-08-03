@@ -1,0 +1,115 @@
+{% extends 'base/site_base.html' %}
+{% block body %}
+  <style>
+    .log-board { background: #0f1115; color: #e6e6e6; border: 1px solid #2a2f3a; border-radius: 8px; overflow: hidden; }
+    .toolbar { background: #151821; padding: 8px 12px; border-bottom: 1px solid #2a2f3a; display: flex; align-items: center; gap: 12px; }
+    .status { font-size: 13px; color: #aab2bf; }
+    .wrap { max-height: 60vh; overflow: auto; background: #0f1115; }
+    .log-board pre { margin: 0; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #f0f3f7; line-height: 1.38; font-size: 13.5px; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+    .nav-tabs .nav-link { color: #c7d1e1; }
+    .nav-tabs .nav-link.active { color: #fff; background: #151821; border-color: #2a2f3a #2a2f3a #151821; }
+    a, a:visited { color: #8cc4ff; }
+    button { background: #242933; color: #e6e6e6; border: 1px solid #3a4150; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #2c3340; }
+  </style>
+  <div class="row">
+    <div class="col-12">
+      <ul class="nav nav-tabs" id="adminLogTabs" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#zap" role="tab">ZAP</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#openvas" role="tab">OpenVAS</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#nmap" role="tab">Nmap (latest)</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#nikto" role="tab">Nikto (latest)</a></li>
+      </ul>
+      <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="zap" role="tabpanel">
+          <div class="log-board">
+            <div class="toolbar">
+              <strong>ZAP Service Log</strong>
+              <span class="status ml-2" id="st_zap"></span>
+              <label style="margin-left:auto; font-size:13px;">
+                <input type="checkbox" id="as_zap" checked /> Auto-scroll
+              </label>
+              <a id="dl_zap" download>Download raw</a>
+              <button id="pa_zap">Pause</button>
+            </div>
+            <div class="wrap"><pre id="lg_zap"></pre></div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="openvas" role="tabpanel">
+          <div class="log-board">
+            <div class="toolbar">
+              <strong>OpenVAS Service Log</strong>
+              <span class="status ml-2" id="st_ov"></span>
+              <label style="margin-left:auto; font-size:13px;">
+                <input type="checkbox" id="as_ov" checked /> Auto-scroll
+              </label>
+              <a id="dl_ov" download>Download raw</a>
+              <button id="pa_ov">Pause</button>
+            </div>
+            <div class="wrap"><pre id="lg_ov"></pre></div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="nmap" role="tabpanel">
+          <div class="log-board">
+            <div class="toolbar">
+              <strong>Nmap Latest Log</strong>
+              <span class="status ml-2" id="st_nm"></span>
+              <label style="margin-left:auto; font-size:13px;">
+                <input type="checkbox" id="as_nm" checked /> Auto-scroll
+              </label>
+              <a id="dl_nm" download>Download raw</a>
+              <button id="pa_nm">Pause</button>
+            </div>
+            <div class="wrap"><pre id="lg_nm"></pre></div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="nikto" role="tabpanel">
+          <div class="log-board">
+            <div class="toolbar">
+              <strong>Nikto Latest Log</strong>
+              <span class="status ml-2" id="st_nk"></span>
+              <label style="margin-left:auto; font-size:13px;">
+                <input type="checkbox" id="as_nk" checked /> Auto-scroll
+              </label>
+              <a id="dl_nk" download>Download raw</a>
+              <button id="pa_nk">Pause</button>
+            </div>
+            <div class="wrap"><pre id="lg_nk"></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const urls = {
+      zap: "{% url 'webscanners:zap_log' %}?raw=1&fallback=1",
+      openvas: "{% url 'networkscanners:openvas_service_log' %}?raw=1",
+      nmap: "{% url 'networkscanners:nmap_latest_log' %}?raw=1",
+      nikto: "{% url 'tools:nikto_latest_log' %}?raw=1"
+    };
+    const state = { zap:false, openvas:false, nmap:false, nikto:false };
+    const pollMs = 3000;
+    function setup(key, preId, stId, dlId, paId, asId){
+      const pre = document.getElementById(preId), st = document.getElementById(stId), dl = document.getElementById(dlId), pa = document.getElementById(paId), as = document.getElementById(asId);
+      dl.href = urls[key];
+      async function pull(){
+        if (state[key]) return;
+        try{
+          const resp = await fetch(urls[key] + '&ts=' + Date.now(), { cache:'no-store' });
+          if (resp.status === 200){ const txt = await resp.text(); pre.textContent = txt||'(empty)'; st.textContent = 'Live'; if (as.checked) pre.scrollTop = pre.scrollHeight; }
+          else if (resp.status === 202){ st.textContent = 'Waiting…'; }
+          else { pre.textContent = await resp.text(); st.textContent = 'Error ' + resp.status; }
+        }catch(e){ st.textContent = 'Network error'; }
+      }
+      setInterval(pull, pollMs); pull();
+      pa.addEventListener('click', function(){ state[key] = !state[key]; pa.textContent = state[key] ? 'Resume' : 'Pause'; });
+    }
+    window.addEventListener('load', function(){
+      setup('zap', 'lg_zap', 'st_zap', 'dl_zap', 'pa_zap', 'as_zap');
+      setup('openvas', 'lg_ov', 'st_ov', 'dl_ov', 'pa_ov', 'as_ov');
+      setup('nmap', 'lg_nm', 'st_nm', 'dl_nm', 'pa_nm', 'as_nm');
+      setup('nikto', 'lg_nk', 'st_nk', 'dl_nk', 'pa_nk', 'as_nk');
+    });
+  </script>
+{% endblock %}
+

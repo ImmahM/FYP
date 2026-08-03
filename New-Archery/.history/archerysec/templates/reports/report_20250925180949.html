@@ -1,0 +1,172 @@
+{# archerysec/templates/reports/report.html #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Security Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; color: #222; }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .download-buttons { margin-bottom: 18px; }
+        .download-buttons a { display:inline-block; margin-right:10px; padding:8px 12px; color:white; text-decoration:none; border-radius:4px; font-weight:600 }
+        .btn-html { background:#007bff; } .btn-pdf { background:#28a745; }
+        .controls { margin-bottom: 16px; padding:12px; background:#fff; border:1px solid #eee; border-radius:6px; }
+        .controls label { margin-right:12px; }
+        .filter-row { margin-bottom:10px; }
+    </style>
+</head>
+<body>
+    <h1>📊 Security Summary Report</h1>
+
+    <!-- ===== Filters Form ===== -->
+    <div class="controls">
+        <form method="get" action="{% url 'reports:generate_report' %}">
+            <div class="filter-row">
+                <label><strong>Project:</strong>
+                    <select name="project_id">
+                        <option value="">-- All Projects --</option>
+                        {% for p in projects %}
+                            <option value="{{ p.id }}" {% if selected_project and selected_project.id == p.id %}selected{% endif %}>{{ p.project_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+
+            <div class="filter-row">
+                <strong>Scan types:</strong>
+                <label><input type="checkbox" name="scan_types" value="web" {% if 'web' in selected_scan_types %}checked{% endif %}/> Web (Dynamic)</label>
+                <label><input type="checkbox" name="scan_types" value="network" {% if 'network' in selected_scan_types %}checked{% endif %}/> Infrastructure</label>
+                <label><input type="checkbox" name="scan_types" value="static" {% if 'static' in selected_scan_types %}checked{% endif %}/> Static</label>
+                <label><input type="checkbox" name="scan_types" value="cloud" {% if 'cloud' in selected_scan_types %}checked{% endif %}/> Cloud</label>
+            </div>
+
+            <div class="filter-row">
+                <strong>Severities:</strong>
+                <label><input type="checkbox" name="severity" value="critical" {% if 'critical' in selected_severities %}checked{% endif %}/> Critical</label>
+                <label><input type="checkbox" name="severity" value="high" {% if 'high' in selected_severities %}checked{% endif %}/> High</label>
+                <label><input type="checkbox" name="severity" value="medium" {% if 'medium' in selected_severities %}checked{% endif %}/> Medium</label>
+                <label><input type="checkbox" name="severity" value="low" {% if 'low' in selected_severities %}checked{% endif %}/> Low</label>
+            </div>
+
+            <div style="margin-top:10px;">
+                <button type="submit">🔎 Preview Report</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ===== Download Buttons (respect filters) ===== -->
+    <div class="download-buttons">
+        {# Use query_string passed from view so downloads match preview #}
+        {% if query_string %}
+            <a class="btn-html" href="{% url 'reports:download_html' %}?{{ query_string }}">📥 Download HTML</a>
+            <a class="btn-pdf" href="{% url 'reports:download_pdf' %}?{{ query_string }}">📄 Download PDF</a>
+        {% else %}
+            <a class="btn-html" href="{% url 'reports:download_html' %}">📥 Download HTML</a>
+            <a class="btn-pdf" href="{% url 'reports:download_pdf' %}">📄 Download PDF</a>
+        {% endif %}
+    </div>
+
+    <!-- ===== Report Content (preview) ===== -->
+    <!-- Projects Overview -->
+    <h2>Projects Overview</h2>
+    <table>
+        <tr>
+            <th>Project</th>
+            <th>Total</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th>
+        </tr>
+        {% for p in projects %}
+        <tr>
+            <td>{{ p.project_name }}</td>
+            <td>{{ p.total_vuln }}</td>
+            <td>{{ p.total_critical }}</td>
+            <td>{{ p.total_high }}</td>
+            <td>{{ p.total_medium }}</td>
+            <td>{{ p.total_low }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No project data available</td></tr>
+        {% endfor %}
+    </table>
+
+    <!-- Dynamic Web Scans -->
+    <h2>Dynamic Web Scans</h2>
+    <table>
+        <tr><th>URL</th><th>Total Vuln</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr>
+        {% for scan in web_scans %}
+        <tr>
+            <td>{{ scan.scan_url }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No web scan data available.</td></tr>
+        {% endfor %}
+    </table>
+
+    <!-- Infrastructure -->
+    <h2>Infrastructure Scans</h2>
+    <table>
+        <tr><th>Target IP</th><th>Total Vuln</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr>
+        {% for scan in infra_scans %}
+        <tr>
+            <td>{{ scan.ip }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No infra scan data available.</td></tr>
+        {% endfor %}
+    </table>
+
+    <!-- Static -->
+    <h2>Static Analysis Scans</h2>
+    <table>
+        <tr><th>Project</th><th>Total Vuln</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr>
+        {% for scan in static_scans %}
+        <tr>
+            <td>{{ scan.project_name }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No static scan data available.</td></tr>
+        {% endfor %}
+    </table>
+
+    <!-- Cloud -->
+    <h2>Cloud Scans</h2>
+    <table>
+        <tr><th>Cloud Account</th><th>Total Vuln</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr>
+        {% for scan in cloud_scans %}
+        <tr>
+            <td>{{ scan.cloudAccountId }}</td>
+            <td>{{ scan.total_vul }}</td>
+            <td>{{ scan.critical_vul }}</td>
+            <td>{{ scan.high_vul }}</td>
+            <td>{{ scan.medium_vul }}</td>
+            <td>{{ scan.low_vul }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No cloud scan data available.</td></tr>
+        {% endfor %}
+    </table>
+
+    <!-- Optional generated timestamp -->
+    <div style="margin-top:18px; color:#666; font-size:13px;">
+        Preview generated: {{ now|date:"Y-m-d H:i" }}
+    </div>
+</body>
+</html>
+{# End of archerysec/templates/reports/report.html #}

@@ -1,0 +1,52 @@
+{% if findings and findings.total %}
+<div class="mt-4 detailed-findings">
+    <h4 class="h6 text-uppercase text-muted mb-3">Detailed Vulnerabilities ({{ findings.total }})</h4>
+
+    <div class="detailed-charts">
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h5 class="chart-title">Severity Distribution</h5>
+                <p class="chart-subtitle mb-0">Breakdown of findings across severity classes</p>
+            </div>
+            {% if findings.chart.severity.segments %}
+            <div class="donut-chart" style="background: conic-gradient({{ findings.chart.severity.gradient }});">
+                <div class="donut-center">
+                    <div class="donut-value">{{ findings.chart.total }}</div>
+                    <div class="donut-label">Findings</div>
+                </div>
+            </div>
+            <ul class="chart-legend">
+                {% for segment in findings.chart.severity.segments %}
+                <li><span class="legend-swatch" style="background: {{ segment.color }};"></span>{{ segment.label }}<span class="legend-value">{{ segment.count }}</span></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="chart-empty">No severity data is available for the current selection.</p>
+            {% endif %}
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h5 class="chart-title">Detection Volume</h5>
+                <p class="chart-subtitle mb-0">Monthly findings recorded</p>
+            </div>
+            {% if findings.chart.timeline.points %}
+            <div class="bar-chart">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {% for bar in findings.chart.timeline.bars %}
+                    <rect x="{{ bar.x|floatformat:2 }}" y="{{ bar.y|floatformat:2 }}" width="{{ bar.width|floatformat:2 }}" height="{{ bar.height|floatformat:2 }}" fill="#0f4c81" rx="2" ry="2" />
+                    {% endfor %}
+                </svg>
+            </div>
+            <ul class="chart-legend timeline-legend">
+                {% for point in findings.chart.timeline.points %}
+                <li><span>{{ point.label }}</span><strong>{{ point.count }}</strong></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="chart-empty">Not enough detection data to build the chart.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}

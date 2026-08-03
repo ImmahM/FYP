@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    {% if not export_mode %}
+    <!-- ✅ FILTER FORM (hidden in export) -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Generate Security Report</h4>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'reports:generate_report' %}">
+                <!-- Project Filter -->
+                <div class="form-group mb-3">
+                    <label for="project">Select Project:</label>
+                    <select class="form-control" name="project_id" id="project">
+                        <option value="">-- All Projects --</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}" {% if selected_project and project.id == selected_project.id %}selected{% endif %}>{{ project.project_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Scan Type Filter -->
+                <div class="form-group mb-3">
+                    <label>Scan Types:</label><br>
+                    {% for scan_type in scan_types %}
+                        <label class="me-3">
+                            <input type="checkbox" name="scan_types" value="{{ scan_type }}" {% if scan_type in selected_scan_types %}checked{% endif %}>
+                            {{ scan_type|capfirst }}
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <!-- Severity Filter -->
+                <div class="form-group mb-3">
+                    <label>Severities:</label><br>
+                    {% for level in severity_levels %}
+                        <label class="me-3">
+                            <input type="checkbox" name="severity" value="{{ level }}" {% if level in selected_severities %}checked{% endif %}>
+                            {{ level|capfirst }}
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <!-- Preview Button -->
+                <button type="submit" class="btn btn-primary">🔍 Preview</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ✅ DOWNLOAD BUTTONS (hidden in export) -->
+    {% if report_generated %}
+    <div class="mb-4">
+        {% if query_string %}
+            <a class="btn btn-success me-2" href="{% url 'reports:download_html' %}?{{ query_string }}">📥 Download HTML</a>
+            <a class="btn btn-danger" href="{% url 'reports:download_pdf' %}?{{ query_string }}">📄 Download PDF</a>
+        {% else %}
+            <a class="btn btn-success me-2" href="{% url 'reports:download_html' %}">📥 Download HTML</a>
+            <a class="btn btn-danger" href="{% url 'reports:download_pdf' %}">📄 Download PDF</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+    <!-- ✅ END UI AREA -->
+
+
+    <!-- 📊 REPORT TABLES (Always visible when data is present) -->
+    {% if report_generated %}
+    <div class="report-section">
+        <h3 class="mb-3">Security Report {% if selected_project %}for {{ selected_project.project_name }}{% endif %}</h3>
+
+        {% if web_scans %}
+        <h4>🌐 Dynamic Web Scans</h4>
+        <table class="table table-striped table-bordered mb-5">
+            <thead>
+                <tr>
+                    <th>Target URL</th>
+                    <th>Total Vulns</th>
+                    <th>Critical</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in web_scans %}
+                <tr>
+                    <td>{{ scan.scan_url }}</td>
+                    <td>{{ scan.total_vul }}</td>
+                    <td>{{ scan.critical_vul }}</td>
+                    <td>{{ scan.high_vul }}</td>
+                    <td>{{ scan.medium_vul }}</td>
+                    <td>{{ scan.low_vul }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if network_scans %}
+        <h4>🏢 Infrastructure Scans</h4>
+        <table class="table table-striped table-bordered mb-5">
+            <thead>
+                <tr>
+                    <th>IP</th>
+                    <th>Total Vulns</th>
+                    <th>Critical</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in network_scans %}
+                <tr>
+                    <td>{{ scan.ip }}</td>
+                    <td>{{ scan.total_vul }}</td>
+                    <td>{{ scan.critical_vul }}</td>
+                    <td>{{ scan.high_vul }}</td>
+                    <td>{{ scan.medium_vul }}</td>
+                    <td>{{ scan.low_vul }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if static_scans %}
+        <h4>📦 Static Code Scans</h4>
+        <table class="table table-striped table-bordered mb-5">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Total Vulns</th>
+                    <th>Critical</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in static_scans %}
+                <tr>
+                    <td>{{ scan.project_name }}</td>
+                    <td>{{ scan.total_vul }}</td>
+                    <td>{{ scan.critical_vul }}</td>
+                    <td>{{ scan.high_vul }}</td>
+                    <td>{{ scan.medium_vul }}</td>
+                    <td>{{ scan.low_vul }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if cloud_scans %}
+        <h4>☁️ Cloud Scans</h4>
+        <table class="table table-striped table-bordered mb-5">
+            <thead>
+                <tr>
+                    <th>Cloud Account ID</th>
+                    <th>Total Vulns</th>
+                    <th>Critical</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in cloud_scans %}
+                <tr>
+                    <td>{{ scan.cloudAccountId }}</td>
+                    <td>{{ scan.total_vul }}</td>
+                    <td>{{ scan.critical_vul }}</td>
+                    <td>{{ scan.high_vul }}</td>
+                    <td>{{ scan.medium_vul }}</td>
+                    <td>{{ scan.low_vul }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

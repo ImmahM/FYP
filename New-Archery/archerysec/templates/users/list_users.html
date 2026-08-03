@@ -1,0 +1,355 @@
+{% extends 'base/site_base.html' %}
+{% load custom_tags %}
+
+{% block body %}
+    <script type="text/javascript">
+
+        // Helper flag: is current viewer an Organization Admin?
+        var IS_ORG_ADMIN = ("{{ user.role.role }}" === "Organization Admin") && ("{{ user.is_superuser|yesno:'1,0' }}" === "0");
+
+        // Select/Deselect all only for eligible row checkboxes.
+        // Org Admins: never select protected Admin/superuser rows.
+        $(document).on('change', '#mainCheckbox', function () {
+            var checked = $(this).prop('checked');
+            var $boxes = $("input[name='del_scan_id']:checkbox");
+            if (IS_ORG_ADMIN) {
+                $boxes = $boxes.filter(":not(:disabled)").filter("[data-protect!='1']");
+            } else {
+                $boxes = $boxes.filter(":not(:disabled)");
+            }
+            $boxes.prop('checked', checked);
+        });
+
+        // Safety: on load, ensure protected rows are unchecked for Org Admins
+        $(function(){
+            if (IS_ORG_ADMIN) {
+                $("input[name='del_scan_id'][data-protect='1']").prop('checked', false);
+            }
+        });
+        $(document).ready(function () {
+            $('.btn-danger').click(function () {
+                if (confirm('Are you sure you want to delete this?')) {
+                    var scan_id = [];
+                    $.each($("input[name='del_scan_id']:checked"), function () {
+                        scan_id.push($(this).val());
+                    });
+
+                    var json_scanid = scan_id.join(", ");
+                    $.ajax({
+                        type: 'POST',
+                        <!--contentType: 'application/json; charset=utf-8',-->
+                        url: '{% url 'users:list_user' %}',
+                        data: {
+                            user_id: json_scanid,
+                            csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        sucess: function () {
+
+                        }
+                    });
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                }
+            });
+
+        });
+
+    </script>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="float-right">
+                        {% if user.is_superuser or user.role.role == 'Admin' or user.role.role == 'Organization Admin' %}
+                            <button type="button" class="btn btn-danger btn-mini" onclick="">Delete Selected </button>
+                            <a type="button" href="{% url 'users:add_user' %}" class="btn btn-success btn-mini">Add User </a>
+                        {% endif %}
+                    </div>
+
+                    <br>
+                    <br>
+                    <br>
+                    <div class="d-md-flex align-items-center">
+                        <h1 class="card-title">Users List</h1>
+                    </div>
+                    <br>
+                    <div class="row">
+                        <div class="table-responsive">
+                            <table id="data_table" class="table table-bordered data-table">
+                                <thead>
+                                <tr>
+                                    <th>
+                                        {% if user.is_superuser or user.role.role == 'Admin' %}
+                                        <label class="customcheckbox m-b-20">
+                                            <input type="checkbox" id="mainCheckbox">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                        {% else %}
+                                        {# Hide Select All for Organization Admin and others #}
+                                        {% endif %}
+                                    </th>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Email</th>
+                                    <th>Date Time</th>
+                                    {% if user.is_superuser or user.role.role == 'Admin' %}
+                                    <th>Last Password Change</th>
+                                    {% endif %}
+                                    <th>Organization</th>
+                                    <th>Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody>{% for data in all_users %}
+                                    <tr data-target="#">
+                                        <td>
+                                            <form>{% csrf_token %}
+                                                <label class="customcheckbox">
+                                                    {# Org Admin cannot delete Admin/superuser accounts: disable checkbox #}
+                                                    <input type="checkbox" class="listCheckbox"
+                                                           value="{{ data.uu_id }}"
+                                                           name="del_scan_id"
+                                                           {% if user.role.role == 'Organization Admin' and data.is_superuser or user.role.role == 'Organization Admin' and data.role and data.role.role == 'Admin' %}disabled title="Organization Admins cannot delete Admin users"{% endif %}
+                                                           {% if data.is_superuser or data.role and data.role.role == 'Admin' %}data-protect="1"{% endif %}
+                                                           onClick="reload">
+                                                    <span class="checkmark"></span>
+                                                </label>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            {% if user.is_superuser or user.role.role == 'Admin' or user.role.role == 'Organization Admin' %}
+                                                <a href="{% url 'users:edit_user' uu_id=data.uu_id %}">{{ data.name }} </a>
+                                            {% else %}
+                                                {{ data.name }}
+                                            {% endif %}
+                                        </td>
+                                        <th>
+                                            {% if data.is_superuser %}
+                                                <span class="badge badge-pill badge-info">Admin</span>
+                                            {% else %}
+                                                <span class="badge badge-pill badge-info">{{ data.role|role_display }}</span>
+                                            {% endif %}
+                                        </th>
+                                        <td>{{data.email}}</td>
+                                        <td>{{ data.created_time|date:"M j, Y, g:i a"|default:"--" }}</td>
+                                        {% if user.is_superuser or user.role == 'Admin' %}
+                                        <td>{{ data.password_updt_time }}</td>
+                                        {% endif %}
+                                        <td>{{ data.organization }}</td>
+                                        <td>
+                                            {% if data.uu_id == user.uu_id %}
+                                                <button type="button"
+                                                        class="btn btn-outline-primary btn-sm self-password-btn"
+                                                        data-uuid="{{ data.uu_id }}"
+                                                        data-name="{{ data.name }}"
+                                                        data-requires-old="1">
+                                                    Change Password
+                                                </button>
+                                            {% elif user.is_superuser or user.role.role == 'Admin' %}
+                                                <button type="button"
+                                                        class="btn btn-outline-primary btn-sm self-password-btn"
+                                                        data-uuid="{{ data.uu_id }}"
+                                                        data-name="{{ data.name }}"
+                                                        data-requires-old="0">
+                                                    Change Password
+                                                </button>
+                                            {% elif user.role.role == 'Organization Admin' %}
+                                                {% if data.organization and user.organization and data.organization.id == user.organization.id %}
+                                                    {% if not data.is_superuser %}
+                                                        {% if not data.role or data.role.role != 'Admin' %}
+                                                        <button type="button"
+                                                                class="btn btn-outline-primary btn-sm self-password-btn"
+                                                                data-uuid="{{ data.uu_id }}"
+                                                                data-name="{{ data.name }}"
+                                                                data-requires-old="0">
+                                                            Change Password
+                                                        </button>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .password-toggle-wrapper {
+            position: relative;
+        }
+        .password-toggle-wrapper input {
+            padding-right: 2.75rem;
+        }
+        .password-toggle-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: #6b7280;
+            font-size: 1rem;
+        }
+    </style>
+
+    <div class="modal fade" id="selfPasswordModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form id="self-password-form" method="POST" action="{% url 'users:self_password' %}">
+                    {% csrf_token %}
+                    <input type="hidden" id="self-password-user" name="user_uuid" value="{{ user.uu_id }}">
+                    <input type="hidden" id="self-requires-old" value="1">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="self-password-modal-title">Change Password</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="self-password-error" class="alert alert-danger" style="display:none;"></div>
+                        <div class="form-group" id="self-old-wrapper">
+                            <label for="self-old-password">Current Password</label>
+                            <div class="password-toggle-wrapper">
+                                <input type="password" class="form-control" id="self-old-password" name="old_password">
+                                <button type="button" class="password-toggle-btn" data-target="#self-old-password">&#128065;</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="self-new-password">New Password</label>
+                            <small class="form-text text-muted">Minimum 8 characters and must include a letter, a number, and a symbol.</small>
+                            <div class="password-toggle-wrapper">
+                                <input type="password" class="form-control" id="self-new-password" name="new_password1" required>
+                                <button type="button" class="password-toggle-btn" data-target="#self-new-password">&#128065;</button>
+                            </div>
+                            <div id="self-pw-meter" style="height:6px;background:#e5e7eb;border-radius:4px;margin-top:6px;">
+                                <div id="self-pw-meter-bar" style="height:6px;width:0%;background:#ef4444;border-radius:4px;transition:width .2s ease, background-color .2s ease;"></div>
+                            </div>
+                            <small id="self-pw-label" class="form-text" style="color:#6b7280;">Strength: -</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="self-new-password2">Confirm New Password</label>
+                            <div class="password-toggle-wrapper">
+                                <input type="password" class="form-control" id="self-new-password2" name="new_password2" required>
+                                <button type="button" class="password-toggle-btn" data-target="#self-new-password2">&#128065;</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function ($) {
+            const modal = $('#selfPasswordModal');
+            const form = $('#self-password-form');
+            const oldWrapper = $('#self-old-wrapper');
+            const oldInput = $('#self-old-password');
+            const newInput = $('#self-new-password');
+            const confirmInput = $('#self-new-password2');
+            const errorBox = $('#self-password-error');
+            const requiresOldField = $('#self-requires-old');
+            const meterBar = $('#self-pw-meter-bar');
+            const meterLabel = $('#self-pw-label');
+            const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'];
+            const labels = ['Very Weak', 'Weak', 'Medium', 'Strong', 'Very Strong'];
+
+            function score(pw) {
+                if (!pw) return 0;
+                let s = 0;
+                if (pw.length >= 8) s += 1;
+                if (pw.length >= 12) s += 1;
+                if (/[A-Za-z]/.test(pw)) s += 1;
+                if (/\d/.test(pw)) s += 1;
+                if (/[^A-Za-z0-9]/.test(pw)) s += 1;
+                return Math.min(s, 5);
+            }
+
+            function updateMeter() {
+                const value = newInput.val();
+                const sc = score(value);
+                const pct = (sc / 5) * 100;
+                meterBar.css({
+                    width: pct + '%',
+                    backgroundColor: colors[Math.max(sc - 1, 0)] || colors[0]
+                });
+                meterLabel.text(sc ? ('Strength: ' + (labels[Math.max(sc - 1, 0)] || labels[0])) : 'Strength: -');
+            }
+
+            newInput.on('input', updateMeter);
+
+            $(document).on('click', '.password-toggle-btn', function (e) {
+                e.preventDefault();
+                const target = $($(this).data('target'));
+                if (!target.length) {
+                    return;
+                }
+                const isPassword = target.attr('type') === 'password';
+                target.attr('type', isPassword ? 'text' : 'password');
+                $(this).text(isPassword ? '🙈' : '👁️');
+            });
+
+            $('.self-password-btn').on('click', function () {
+                const btn = $(this);
+                const requiresOld = btn.data('requires-old') === 1;
+                modal.find('.password-toggle-btn').each(function () {
+                    const target = $($(this).data('target'));
+                    if (target.length) {
+                        target.attr('type', 'password');
+                    }
+                    $(this).text('👁️');
+                });
+                $('#self-password-user').val(btn.data('uuid'));
+                $('#self-password-modal-title').text('Change Password' + (btn.data('name') ? ' - ' + btn.data('name') : ''));
+                oldWrapper.toggle(requiresOld);
+                oldInput.prop('required', requiresOld).val('');
+                requiresOldField.val(requiresOld ? '1' : '0');
+                newInput.val('');
+                confirmInput.val('');
+                errorBox.hide().text('');
+                updateMeter();
+                modal.modal('show');
+            });
+
+            form.on('submit', function (e) {
+                const requiresOld = requiresOldField.val() === '1';
+                const errors = [];
+                const newPw = newInput.val();
+                const confirmPw = confirmInput.val();
+                if (requiresOld && !oldInput.val()) {
+                    errors.push('Current password is required.');
+                }
+                if (!newPw) {
+                    errors.push('New password is required.');
+                } else {
+                    if (newPw.length < 8) {
+                        errors.push('Password must be at least 8 characters.');
+                    }
+                    if (!/[A-Za-z]/.test(newPw) || !/\d/.test(newPw) || !/[^A-Za-z0-9]/.test(newPw)) {
+                        errors.push('Password must include at least one letter, one number, and one symbol.');
+                    }
+                }
+                if (newPw && confirmPw && newPw !== confirmPw) {
+                    errors.push('Passwords do not match.');
+                }
+                if (errors.length) {
+                    e.preventDefault();
+                    errorBox.html(errors.join('<br>')).show();
+                }
+            });
+        })(jQuery);
+    </script>
+{% endblock %}

@@ -1,0 +1,583 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block body %}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-md-flex align-items-center">
+          <h1 class="card-title">Web Scan</h1>
+        </div>
+        <br>
+        <style>
+          .nikto-options-grid{
+            display:grid;
+            grid-template-columns:repeat(2, minmax(480px, 1fr));
+            gap:1rem 4rem;
+            width:100%;
+          }
+          @media (max-width:1200px){
+            .nikto-options-grid{
+              grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));
+            }
+          }
+          .nikto-options-grid .checkbox label{
+            display:inline-flex;
+            align-items:center;
+            gap:12px;
+            width:100%;
+          }
+        </style>
+        <div class="nikto-options-grid">
+          <div class="col-md-6">
+            <div class="card">
+              <form id="start_scan" class="form-horizontal">{% csrf_token %}
+                <div class="card-body">
+                  <div class="form-group row">
+                    <label class="col-sm-3 text-right control-label col-form-label">URLs</label>
+                    <div class="col-sm-9">
+                      <textarea class="form-control" name="url" id="url" placeholder="http://site1.com,http://site2.com">{{ url }}</textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-body">
+                    <div class="form-group row">
+                      <label class="col-sm-3 text-right control-label col-form-label">Projects</label>
+                      <div class="col-md-9">
+                        <select id="project_id" name="project_id" class="select2 form-control custom-select" style="width: 100%; height:36px;">
+                          {% for data in all_scans_db %}
+                          <option value="{{data.uu_id}}">{{data.project_name}}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                    </div>
+                    {% if user.is_superuser or user.role.role == 'Admin' %}
+                    <div id="nikto_limits_group">
+                    <div class="form-group row mt-2">
+                      <label class="col-sm-3 text-right control-label col-form-label">Max time (minutes)</label>
+                      <div class="col-sm-9">
+                        <input class="form-control" type="number" min="0" step="1" id="nikto_maxtime_min" name="nikto_maxtime_min" placeholder="leave blank for no cap">
+                        <small class="text-muted">Caps how long Nikto runs so scans finish predictably on large sites.</small>
+                      </div>
+                    </div>
+                    <div class="form-group row mt-2">
+                      <label class="col-sm-3 text-right control-label col-form-label">Error limit (FAILURES)</label>
+                      <div class="col-sm-9">
+                        <input class="form-control" type="number" min="0" step="1" id="nikto_failures" name="nikto_failures" placeholder="default: {{ settings.NIKTO_DEFAULT_FAILURES|default:'0' }} (0 disables)">
+                        <small class="text-muted">Raises or disables the internal “too many errors” cut‑off to reduce early termination on protected sites (e.g., behind WAF/CDN).</small>
+                      </div>
+                    </div>
+                    </div>
+                    {% endif %}
+                  </div>
+                  <div class="card-body">
+                    <div class="controls d-flex align-items-center flex-wrap" style="gap:0.5rem;">
+                      <div>
+                        <input id="launch_btn" type="submit" class="btn btn-primary" value="Launch">
+                        <span id="launch_spinner" class="loading-ring ml-2" aria-hidden="true" style="display:none;"></span>
+                      </div>
+                      <a href="{% url 'webscanners:web_scan_schedule' %}"
+                         class="btn btn-outline-primary"
+                         title="Plan this scan for later or set up repeats">
+                        <i class="fas fa-calendar-alt mr-1"></i>Schedule scan
+                      </a>
+                    </div>
+                    <style>
+                      .loading-ring{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.15);border-top-color:#6c63ff;border-radius:50%;animation:loading-rotate .6s linear infinite;vertical-align:middle}
+                      @keyframes loading-rotate{to{transform:rotate(360deg)}}
+                    </style>
+                    <div id="status"></div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="d-md-flex align-items-center">
+          <h5 class="card-title mb-2">{% if user.is_superuser or user.role == 'Admin' %}ZAP Scan Types{% else %}Web Scan Types{% endif %}</h5>
+        </div>
+        {% if user.is_superuser or user.role == 'Admin' %}
+        <div class="mt-1 mb-2">
+          <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-0">
+            <label class="d-flex align-items-center" style="margin:0;">
+              <input name="run_zap" id="run_zap" type="checkbox">
+              <span>Enable ZAP</span>
+            </label>
+          </div>
+        </div>
+        {% endif %}
+        <br>
+        <p>{% if user.is_superuser or user.role == 'Admin' %}Select which ZAP steps to run:{% else %}Select which web scan steps to run:{% endif %}</p>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="zap_spider" id="zap_spider" type="checkbox">
+                  <span>Spider (crawl) <span class="text-muted" data-toggle="tooltip" title="Follows links to discover pages and build the site map.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="zap_ajax_spider" id="zap_ajax_spider" type="checkbox">
+                  <span>AJAX Spider (SPA) <span class="text-muted" data-toggle="tooltip" title="Uses a headless browser to crawl dynamic/JS-driven content.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="zap_pscan_wait" id="zap_pscan_wait" type="checkbox">
+                  <span>Passive Scan Wait <span class="text-muted" data-toggle="tooltip" title="Waits until ZAP’s passive scanner finishes analyzing traffic; no attack payloads.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="zap_active_scan" id="zap_active_scan" type="checkbox">
+                  <span>Active Scan <span class="text-muted" data-toggle="tooltip" title="Sends attack payloads to detect vulnerabilities; intrusive and can change state.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="zap_forced_browse" id="zap_forced_browse" type="checkbox">
+                  <span>Forced Browse (DirBuster) <span class="text-muted" data-toggle="tooltip" title="Brute‑forces common paths/files to uncover hidden resources; noisy and slower.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if user.is_superuser or user.role == 'Admin' %}
+    <div class="card mt-3">
+      <div class="card-body">
+        <div class="d-md-flex align-items-center">
+          <h5 class="card-title">Nikto Scan Types</h5>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            {% if user.is_superuser or user.role == 'Admin' %}
+            <div class="form-group">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="run_nikto" id="run_nikto" type="checkbox">
+                  <span>Enable Nikto <span class="text-muted" data-toggle="tooltip" title="Run Nikto web server checks for each URL.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+            <p class="mb-2">Select which Nikto options to run:</p>
+            {% else %}{% endif %}
+            <style>
+              .nikto-launch-grid{
+                display:grid;
+                grid-template-columns:repeat(2, minmax(450px, 1fr));
+                gap:0.60rem 1rem;
+                width:100%;
+              }
+              @media (max-width:1200px){
+                .nikto-launch-grid{
+                  grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));
+                }
+              }
+              .nikto-launch-grid .checkbox label{
+                display:inline-flex;
+                align-items:center;
+                gap:10px;
+                width:100%;
+              }
+            </style>
+            <div class="nikto-launch-grid">
+              <div>
+                <div class="form-group">
+                  <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                    <label>
+                      <input name="nikto_baseline" id="nikto_baseline" type="checkbox">
+                      <span>Stealthy Information Gathering &amp; Software Identification <span class="text-muted" data-toggle="tooltip" title="Fingerprints web/server software and versions, checks for info disclosure and misconfigurations, and builds a tech inventory. Uses a small pause to be quieter and avoids aggressive probes.">&#x2754;</span></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                    <label>
+                      <input name="nikto_injection" id="nikto_injection" type="checkbox">
+                      <span>Targeted Injection &amp; XSS Vulnerability Scan <span class="text-muted" data-toggle="tooltip" title="Sends crafted payloads to parameters and paths to detect injection points and reflected XSS. Adds basic evasion to slip past naive filters. More intrusive and slower than Baseline.">&#x2754;</span></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="form-group">
+                  <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                    <label>
+                      <input name="nikto_comprehensive" id="nikto_comprehensive" type="checkbox">
+                      <span>Comprehensive File Retrieval &amp; Server-Side Scan <span class="text-muted" data-toggle="tooltip" title="Tries to fetch sensitive/backup files, exposes server-side script issues, default admin panels/credentials, and deeper misconfigurations. Uses heavier evasion and longer pauses. Longest, noisiest, most likely to trigger WAFs; highest chance to find critical exposures.">&#x2754;</span></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                    <label>
+                      <input name="nikto_broad" id="nikto_broad" type="checkbox">
+                      <span>Broad Scan with Dangerous Test Exclusions <span class="text-muted" data-toggle="tooltip" title="Runs a wide sweep of Nikto checks while specifically skipping denial-of-service tests. Broader coverage than Baseline but safer for uptime than fully comprehensive or DoS-inclusive profiles.">&#x2754;</span></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group" style="display:none;">
+              <label>Preset (optional)</label>
+              <select id="nikto_preset" name="nikto_preset" class="form-control" disabled style="display:none;">
+                <option value="">None (use options above)</option>
+                <option value="stealth_info">Stealth Info &amp; Fingerprint (-Pause 5, -Tuning 3b)</option>
+                <option value="targeted_injection">Targeted Injection &amp; XSS (-Pause 7, -Tuning 49a, -evasion 17)</option>
+                <option value="file_retrieval">File Retrieval &amp; Server-Side (-Pause 10, -Tuning 57, -evasion 248)</option>
+                <option value="broad_no_dos">Broad (exclude DoS) (-Pause 6, -Tuning x6)</option>
+              </select>
+              <small class="text-muted">Selecting a preset overrides tuning/evasion/pause for this run.</small>
+            </div>
+            <div class="form-group" style="display:none;">
+              <label>Custom User-Agent (optional)</label>
+              <input type="text" class="form-control" id="nikto_useragent" name="nikto_useragent" placeholder="e.g., Mozilla/5.0 ..." disabled style="display:none;"/>
+            </div>
+            <div class="form-group" style="display:none;">
+              <label>
+                Extra Nikto flags (optional)
+                <span class="text-muted" data-toggle="tooltip" title="Space-separated flags appended to the Nikto command, e.g.: -Plugins tests,fileops -userdbs userdb.txt. Do not include -o or -host.">&#x2754;</span>
+              </label>
+              <input type="text" class="form-control" id="nikto_extra_flags" name="nikto_extra_flags" placeholder="e.g., -Plugins tests,fileops -userdbs userdb.txt" disabled style="display:none;"/>
+            </div>
+            <div class="form-group" style="display:none;">
+              <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
+                <label>
+                  <input name="nikto_disable_failures" id="nikto_disable_failures" type="checkbox" disabled style="display:none;">
+                  <span>Disable error limit (FAILURES=0) <span class="text-muted" data-toggle="tooltip" title="Writes a per-scan nikto.conf with FAILURES=0 and runs with -config to prevent early termination on WAFs.">&#x2754;</span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  function my_special_notification_callback(data) {
+    for (var i = 0; i < data.unread_list.length; i++) {
+      var msg = data.unread_list[i];
+      console.log(msg);
+    }
+  }
+</script>
+
+<script type="text/javascript">
+  $(document).on('submit', '#start_scan', function (e) {
+    e.preventDefault();
+    // Require a project selection; show a small top-right toast if missing
+    try{
+      var pid = String($('#project_id').val()||'').trim();
+      if (!pid){
+        if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.warning('Please select a Project'); }catch(ex){} }
+        return;
+      }
+    }catch(e){}
+    var isAdmin = {% if user.is_superuser or user.role == 'Admin' %} true {% else %} false {% endif %};
+    var launchDelaySec = 0; // launch immediately
+    function showSpinnerStatus(){ try{ $('#launch_spinner').css('display','inline-block'); }catch(e){} }
+    function startRedirectWhenVisible(listUrl, matchText, timeoutMs, intervalMs){
+      var start = Date.now();
+      var pollMs = Math.max(800, intervalMs || 1500);
+      var limit = Math.max(10000, timeoutMs || 90000);
+      var timer = null;
+      function poll(){
+        if ((Date.now() - start) > limit){
+          window.location = listUrl; // safety fallback
+          return;
+        }
+        $.get(listUrl).done(function(html){
+          try{
+            if (html && typeof html === 'string' && html.indexOf(matchText) !== -1){
+              window.location = listUrl;
+              return;
+            }
+          }catch(e){}
+          timer = setTimeout(poll, pollMs);
+        }).fail(function(){ timer = setTimeout(poll, pollMs); });
+      }
+      poll();
+      return function cancel(){ try{ if (timer) clearTimeout(timer); }catch(e){} };
+    }
+    var pending = [];
+    function stopAllWebLaunches(){
+      try{ $('#launch_spinner').hide(); }catch(e){}
+      try{
+        pending.forEach(function(r){
+          try{ if (r && r.abort) r.abort(); }catch(err){}
+        });
+      }catch(_) {}
+    }
+    var urlErrorMsg = 'Web scans only support URLs (e.g., https://example.com).';
+    function parseUrlInput(raw){
+      var tokens = String(raw || '').split(/[\s,]+/);
+      var valid = [], invalid = [], seen = {};
+      for (var i = 0; i < tokens.length; i++){
+        var t = String(tokens[i] || '').trim();
+        if (!t || seen[t]){ continue; }
+        seen[t] = true;
+        try{
+          var u = new URL(t);
+          if (u.protocol === 'http:' || u.protocol === 'https:'){
+            valid.push(t);
+            continue;
+          }
+        }catch(err){}
+        invalid.push(t);
+      }
+      return { valid: valid, invalid: invalid };
+    }
+    var urlCheck = parseUrlInput($('#url').val());
+    if (!urlCheck.valid.length || urlCheck.invalid.length){
+      var errMsg = urlErrorMsg;
+      if (urlCheck.invalid.length){
+        var preview = urlCheck.invalid.slice(0,3).join(', ');
+        if (urlCheck.invalid.length > 3){ preview += ' (+' + (urlCheck.invalid.length - 3) + ' more)'; }
+        errMsg += ' Invalid: ' + preview;
+      }
+      if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); toastr.error(errMsg); }catch(ex){} }
+      return;
+    }
+    var urlValue = urlCheck.valid.join(',');
+    var firstTarget = urlCheck.valid[0] || '/';
+    var zapSteps = $('#zap_spider').is(':checked') || $('#zap_ajax_spider').is(':checked') || $('#zap_pscan_wait').is(':checked') || $('#zap_active_scan').is(':checked') || $('#zap_forced_browse').is(':checked');
+    var runZap = ($('#run_zap').length ? ($('#run_zap').is(':checked') || zapSteps) : zapSteps) && zapSteps;
+    // Run Nikto when explicitly selected:
+    // - Admin: via master toggle
+    // - Non-admin: when any Nikto profile option is selected
+    var niktoOptionsSelected = $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked');
+    var runNikto = ($('#run_nikto').length ? ($('#run_nikto').is(':checked') || niktoOptionsSelected) : niktoOptionsSelected);
+
+    function launchNikto() {
+      if (!runNikto) return $.Deferred().resolve().promise();
+      var comprehensive = $('#nikto_comprehensive').is(':checked');
+      var baseline = $('#nikto_baseline').is(':checked');
+      var injection = $('#nikto_injection').is(':checked');
+      var broad = $('#nikto_broad').is(':checked');
+      var tuning = '';
+      return $.ajax({
+        type: 'POST',
+        url: '{% url 'tools:niktolaunch' %}',
+        data: {
+          url: urlValue,
+          project_id: $('#project_id').val(),
+          nikto_comprehensive: comprehensive,
+          nikto_baseline: baseline,
+          nikto_injection: injection,
+          nikto_broad: broad,
+          nikto_maxtime_min: ($('#nikto_maxtime_min').val() || '').trim(),
+          nikto_failures: ($('#nikto_failures').val() || '').trim(),
+          // advanced flags temporarily hidden per request
+          nikto_tuning: tuning,
+          csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+        }
+      }).done(function () { /* no text status */ }).fail(function (jqXHR) { 
+        stopAllWebLaunches();
+        if (window.toastr){ 
+          try{ 
+            var resp = (jqXHR && (jqXHR.responseJSON||{})) || {}; 
+            var raw = (jqXHR && jqXHR.responseText) || '';
+            var msg = resp.error || resp.message || raw || 'Launch failed'; 
+            try{
+              var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+              if (/ZAP settings are missing|ZAP Connection Not Found|ZAP Connection Disabled/i.test(msg)){
+                msg = isAdmin ? 'ZAP connector is missing or disabled. Configure it under Settings → Add Connector → OWASP ZAP.' : 'ZAP connector is not configured. Please contact your Admin.';
+              }
+            }catch(x){}
+            toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); 
+            toastr.error(msg); 
+          }catch(ex){}
+        }
+      });
+    }
+
+    function doLaunch(){
+      var requests = [];
+      var anySelected = false;
+      if (runZap) {
+        anySelected = true;
+        var reqZap = $.ajax({
+          type: 'POST',
+          url: '{% url 'zapscanner:zap_scan' %}',
+          data: {
+            url: urlValue,
+            project_id: $('#project_id').val(),
+            zap_spider: $('#zap_spider').is(':checked'),
+            zap_ajax_spider: $('#zap_ajax_spider').is(':checked'),
+            zap_pscan_wait: $('#zap_pscan_wait').is(':checked'),
+            zap_active_scan: $('#zap_active_scan').is(':checked'),
+            zap_forced_browse: $('#zap_forced_browse').is(':checked'),
+            csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+          }
+        }).done(function () { /* no text status */ })
+          .fail(function (jqXHR) { 
+            stopAllWebLaunches();
+            if (window.toastr){ 
+              try{ 
+                var resp = (jqXHR && (jqXHR.responseJSON||{})) || {}; 
+                var raw = (jqXHR && jqXHR.responseText) || '';
+                var msg = resp.error || resp.message || raw || 'Launch failed'; 
+                try{
+                  var isAdmin = {% if user.is_superuser or user.role == 'Admin' %}true{% else %}false{% endif %};
+                  if (/ZAP settings are missing|ZAP Connection Not Found|ZAP Connection Disabled/i.test(msg)){
+                    msg = isAdmin ? 'ZAP connector is missing or disabled. Configure it under Settings → Add Connector → OWASP ZAP.' : 'ZAP connector is not configured. Please contact your Admin.';
+                  }
+                }catch(x){}
+                toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:3000 }); 
+                toastr.error(msg); 
+              }catch(ex){}
+            }
+          });
+        requests.push(reqZap);
+        pending.push(reqZap);
+      }
+      if (runNikto) { anySelected = true; var reqNik = launchNikto(); requests.push(reqNik); pending.push(reqNik); }
+      if (!anySelected) {
+        if (window.toastr){ try{ toastr.options = Object.assign({}, toastr.options||{}, { positionClass:'toast-top-right', timeOut:2500 }); toastr.info('Select at least one scan step'); }catch(ex){} }
+        return;
+      }
+      // Show spinner and poll the list until the new scan appears, then redirect
+      var listUrl = '{% url 'webscanners:list_scans' %}';
+      showSpinnerStatus();
+      startRedirectWhenVisible(listUrl, firstTarget || '/', 90000, 1500);
+      // Fire-and-forget launch requests; we don't block on these
+      $.when.apply($, requests).always(function(){ /* no-op */ });
+    }
+    // Disable Launch until a project is selected
+    function syncLaunchEnabled(){
+      try{
+        var hasProj = String($('#project_id').val()||'').trim().length > 0;
+        $('#launch_btn').prop('disabled', !hasProj);
+      }catch(e){}
+    }
+    $(document).on('change input', '#project_id', syncLaunchEnabled);
+    syncLaunchEnabled();
+    // Launch now; show spinner + redirect-on-appear
+    doLaunch();
+  });
+</script>
+
+<script>
+  function myFunction() {
+    document.getElementById("start_scan").reset();
+  }
+  // Enable/disable Nikto controls and show custom tuning when selected
+  $(function () {
+    // Simple class to visually gray-out disabled groups
+    var styleTag = document.createElement('style');
+    // NOTE:
+    // The mutual-exclusion logic adds `group-disabled` to the closest `.card` for
+    // Nikto fields. That card also contains the Launch button. Using pointer-events:none
+    // on the whole card blocks click handling for all descendants in many browsers.
+    // To avoid disabling Launch (for Org Admin, Admin, and User), do NOT set
+    // pointer-events on the container; rely on the actual disabled attribute we set
+    // on the individual form controls instead, and keep a light visual gray-out.
+    styleTag.innerHTML = '.group-disabled{opacity:.45;filter:grayscale(15%);}';
+    try { document.head.appendChild(styleTag); } catch(e) {}
+
+    function setGroupDisabledByInputs(ids, disabled){
+      try{
+        ids.forEach(function(id){
+          var $el = $('#'+id);
+          if (!$el.length) return;
+          if ($el.is('input,select,textarea,button')){ $el.prop('disabled', disabled); }
+          // Apply visual gray-out to the appropriate UI group without touching
+          // the top form card that contains the Project dropdown and Launch button.
+          if (id === 'nikto_maxtime_min' || id === 'nikto_failures'){
+            var $grp = $('#nikto_limits_group');
+            if ($grp && $grp.length){ $grp.toggleClass('group-disabled', !!disabled); }
+          } else {
+            var $card = $el.closest('.card');
+            if ($card && $card.length){ $card.toggleClass('group-disabled', !!disabled); }
+          }
+        });
+      }catch(e){}
+    }
+
+    function zapAnySelected(){
+      return $('#zap_spider').is(':checked') || $('#zap_ajax_spider').is(':checked') || $('#zap_pscan_wait').is(':checked') || $('#zap_active_scan').is(':checked') || $('#zap_forced_browse').is(':checked') || ($('#run_zap').length && $('#run_zap').is(':checked'));
+    }
+    function niktoAnySelected(){
+      return $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked') || ($('#run_nikto').length && $('#run_nikto').is(':checked'));
+    }
+    function syncMutualGroups(){
+      var zapOn = zapAnySelected();
+      var niktoOn = niktoAnySelected();
+      // If one tool is selected, disable the other
+      setGroupDisabledByInputs(['nikto_baseline','nikto_injection','nikto_comprehensive','nikto_broad','nikto_maxtime_min','nikto_failures','run_nikto'], zapOn && !niktoOn);
+      setGroupDisabledByInputs(['zap_spider','zap_ajax_spider','zap_pscan_wait','zap_active_scan','zap_forced_browse','run_zap'], niktoOn && !zapOn);
+      // Never disable the Launch button; keep it interactive for all roles
+      try {
+        $('#project_id').prop('disabled', false);
+        $('#url').prop('disabled', false);
+        $('#launch_btn').prop('disabled', false).removeClass('disabled').css('opacity', 1);
+      } catch(e) {}
+    }
+    // bind changes
+    $('#zap_spider,#zap_ajax_spider,#zap_pscan_wait,#zap_active_scan,#zap_forced_browse,#run_zap,#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad,#run_nikto').on('change', function(){ syncMutualGroups(); });
+    // initial
+    setTimeout(syncMutualGroups, 0);
+    var isAdmin = {% if user.is_superuser or user.role == 'Admin' %} true {% else %} false {% endif %};
+    function syncZapControls() {
+      // Keep ZAP step controls enabled regardless of master toggle so behavior matches for all roles
+      $('#zap_spider,#zap_ajax_spider,#zap_pscan_wait,#zap_active_scan,#zap_forced_browse').prop('disabled', false);
+    }
+    $('#run_zap').on('change', syncZapControls);
+    syncZapControls();
+    function syncNiktoControls() {
+      // Always leave Nikto profile checkboxes enabled for all roles
+      $('#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad,#nikto_maxtime_min,#nikto_failures').prop('disabled', false);
+      var compOn = $('#nikto_comprehensive').is(':checked');
+      if (compOn) {
+        // When Comprehensive is ON, switch the other two OFF (mutually exclusive profiles)
+        $('#nikto_baseline,#nikto_injection').prop('checked', false);
+      }
+    }
+    // Keep the set mutually consistent
+    $('#run_nikto').on('change', function () { syncNiktoControls(); });
+    // Keep the four options mutually exclusive
+    function _onlyOneChanged(changedId) {
+      var ids = ['#nikto_baseline', '#nikto_injection', '#nikto_comprehensive', '#nikto_broad'];
+      ids.forEach(function (id) { if (id !== changedId) $(id).prop('checked', false); });
+      syncNiktoControls();
+    }
+    $('#nikto_baseline').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_baseline'); });
+    $('#nikto_injection').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_injection'); });
+    $('#nikto_comprehensive').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_comprehensive'); });
+    $('#nikto_broad').on('change', function () { if ($(this).is(':checked')) _onlyOneChanged('#nikto_broad'); });
+    // Initial state
+    syncNiktoControls();
+    // Keep runNikto in sync for non-admins when options change
+    $('#nikto_baseline,#nikto_injection,#nikto_comprehensive,#nikto_broad').on('change', function(){
+      niktoOptionsSelected = $('#nikto_baseline').is(':checked') || $('#nikto_injection').is(':checked') || $('#nikto_comprehensive').is(':checked') || $('#nikto_broad').is(':checked');
+    });
+  });
+</script>
+
+{% endblock %}

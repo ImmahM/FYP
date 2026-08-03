@@ -1,0 +1,74 @@
+{% extends 'base/site_base.html' %}
+{% block body %}
+<script type="text/javascript">
+    $(function(){
+        $(document).on('click', '#btn-delete', function(){
+            if(!confirm('Delete selected project(s)? This will remove all related scans and findings.')) return;
+            var ids = [];
+            $("input[name='del_project_id']:checked").each(function(){ ids.push($(this).val()); });
+            if(ids.length === 0){ return; }
+            var form = $('<form>', {method:'POST', action:'{% url "projects:manage" %}'});
+            form.append($('<input>', {type:'hidden', name:'csrfmiddlewaretoken', value:$('input[name=csrfmiddlewaretoken]').val()}));
+            form.append($('<input>', {type:'hidden', name:'project_ids', value: ids.join(', ')}));
+            $('body').append(form);
+            form.submit();
+        });
+        $(document).on('change', '#mainCheckbox', function(){
+            var checked = $(this).prop('checked');
+            $("input[name='del_project_id']").prop('checked', checked);
+        });
+    });
+</script>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="float-right" style="position: relative; z-index: 5;">
+                    {% if user.is_superuser or user.role == 'Admin' %}
+                    <button id="btn-delete" type="button" class="btn btn-danger btn-mini">Delete Selected</button>
+                    {% endif %}
+                    <a href="{% url 'projects:project_create' %}" class="btn btn-success btn-mini">Add Project</a>
+                </div>
+                <h1 class="card-title">Projects</h1>
+                <div style="clear: both;"></div>
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table id="data_table" class="table table-bordered data-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    {% if user.is_superuser or user.role == 'Admin' %}
+                                    <label class="customcheckbox m-b-20"><input type="checkbox" id="mainCheckbox"><span class="checkmark"></span></label>
+                                    {% endif %}
+                                </th>
+                                <th>Name</th>
+                                <th>Total Scans</th>
+                                <th>Web</th>
+                                <th>Network</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for p in projects %}
+                            <tr>
+                                <td>
+                                    {% if user.is_superuser or user.role == 'Admin' %}
+                                    <label class="customcheckbox">
+                                        <input type="checkbox" name="del_project_id" value="{{ p.uu_id }}"><span class="checkmark"></span>
+                                    </label>
+                                    {% endif %}
+                                </td>
+                                <td>{{ p.project_name }}</td>
+                                <td>{{ p.web_count|add:p.net_count }}</td>
+                                <td>{{ p.web_count }}</td>
+                                <td>{{ p.net_count }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

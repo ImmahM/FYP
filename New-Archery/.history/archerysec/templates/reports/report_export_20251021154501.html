@@ -1,0 +1,579 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Security Assessment Report</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 1.5cm;
+      @top-center {
+        content: "Security Vulnerability Assessment Report";
+        font-size: 13px;
+        font-weight: bold;
+      }
+      @bottom-center {
+        content: "TeamCloud Solutions &mdash; Page " counter(page) " of " counter(pages);
+        font-size: 11px;
+        color: #6b7280;
+      }
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .container {
+      border: 2px solid #0f4c81;
+      padding: 20px 28px;
+      border-radius: 12px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-logo img {
+      width: 160px;
+      height: auto;
+    }
+    h1 {
+      font-size: 28px;
+      color: #0f4c81;
+      margin: 0 0 6px 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 28px 0 12px 0;
+      color: #0f4c81;
+      border-bottom: 2px solid #0f4c81;
+      padding-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    h3 {
+      font-size: 15px;
+      margin: 0 0 8px 0;
+      color: #1f2937;
+    }
+
+    .meta {
+      text-align: right;
+      font-size: 12px;
+      color: #4b5563;
+    }
+
+    .summary-grid {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: #f3f4f6;
+      border-radius: 10px;
+      padding: 14px 16px;
+      border: 1px solid #d1d5db;
+    }
+
+    .summary-card .label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+
+    .summary-card .value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .risk-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #ffffff;
+      background: #ef4444;
+    }
+
+    .risk-badge.danger { background: #b91c1c; }
+    .risk-badge.warning { background: #d97706; }
+    .risk-badge.info { background: #0369a1; }
+    .risk-badge.success { background: #15803d; }
+
+    .severity-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      font-size: 12px;
+      color: #374151;
+    }
+
+    .severity-list span {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: #e5e7eb;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px 0;
+      font-size: 11px;
+    }
+
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+    .note {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .top-targets {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+      font-size: 12px;
+    }
+
+    .top-targets li {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .top-targets li:last-child {
+      border-bottom: none;
+    }
+
+    .section-intro {
+      font-size: 12px;
+      color: #4b5563;
+      margin-bottom: 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 12px;
+      font-style: italic;
+      color: #6b7280;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .severity-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #ffffff;
+    }
+    .severity-tag.severity-critical { background: #b91c1c; }
+    .severity-tag.severity-high { background: #d97706; }
+    .severity-tag.severity-medium { background: #1d4ed8; }
+    .severity-tag.severity-low { background: #0f766e; }
+    .severity-tag.severity-informational,
+    .severity-tag.severity-other { background: #4b5563; }
+    .finding-block {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      background: #f9fafb;
+    }
+    .finding-title {
+      font-size: 14px;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    .finding-meta {
+      font-size: 12px;
+      color: #4b5563;
+      margin-bottom: 6px;
+    }
+    .finding-meta .meta-item {
+      margin-left: 10px;
+    }
+    .finding-fields {
+      margin: 0 0 6px 16px;
+      padding: 0;
+    }
+    .finding-fields li {
+      margin-bottom: 4px;
+    }
+    .finding-text {
+      font-size: 12px;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+    .severity-heading {
+      font-size: 14px;
+      color: #0f4c81;
+      margin: 18px 0 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="brand-logo">
+        <img src="{{ teamcloud_image_path }}" alt="TeamCloud Solutions Logo">
+      </div>
+      <div class="meta">
+        <h1>Security Assessment Report</h1>
+        <p>Generated on: {{ now|date:"Y-m-d H:i" }}</p>
+        {% if all_projects_selected %}
+          <p>Projects: All Projects</p>
+        {% elif selected_project_names %}
+          <p>Projects: {{ selected_project_names|join:', ' }}</p>
+        {% else %}
+          <p>Projects: None Selected</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if 'overview' in selected_sections %}
+      {% if has_scan_data %}
+      <section>
+        <h2>Executive Summary</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">Total Findings</div>
+            <div class="value">{{ overall_counts.total }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Risk Posture</div>
+            <div>
+              <span class="risk-badge {{ risk_overview.css }}">{{ risk_overview.label }} Risk</span>
+              <div class="note" style="margin-top:6px;">Risk score: {{ risk_overview.score }}</div>
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Critical Findings</div>
+            <div class="value">{{ overall_counts.critical }}</div>
+            <div class="note">High: {{ overall_counts.high }} &nbsp; | &nbsp; Medium: {{ overall_counts.medium }} &nbsp; | &nbsp; Low: {{ overall_counts.low }}</div>
+          </div>
+        </div>
+        <div class="severity-list">
+          <span>Critical: {{ severity_percentages.critical }}%</span>
+          <span>High: {{ severity_percentages.high }}%</span>
+          <span>Medium: {{ severity_percentages.medium }}%</span>
+          <span>Low: {{ severity_percentages.low }}%</span>
+        </div>
+      </section>
+      {% else %}
+      <section>
+        <h2>Executive Summary</h2>
+        <div class="empty-state">No scan data is available for the current selection.</div>
+      </section>
+      {% endif %}
+    {% endif %}
+
+    {% if 'coverage' in selected_sections and scan_summaries %}
+    <section>
+      <h2>Scan Coverage</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Scan Type</th>
+            <th>Assets Covered</th>
+            <th>Last Run</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+            <th>Primary Tooling</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for summary in scan_summaries %}
+          <tr>
+            <td>{{ summary.label }}</td>
+            <td>{{ summary.asset_count }}</td>
+            <td>{% if summary.last_scan %}{{ summary.last_scan|date:"Y-m-d H:i" }}{% else %}Not recorded{% endif %}</td>
+            <td>{{ summary.counts.critical }}</td>
+            <td>{{ summary.counts.high }}</td>
+            <td>{{ summary.counts.medium }}</td>
+            <td>{{ summary.counts.low }}</td>
+            <td>{% if summary.scanners %}{{ summary.scanners|join:", " }}{% else %}&mdash;{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {% if 'priority_targets' in selected_sections and priority_targets %}
+    <section>
+      <h2>Priority Remediation Targets</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Scan Type</th>
+            <th>Target</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Medium</th>
+            <th>Low</th>
+            <th>Risk Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for target in priority_targets %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ target.type }}</td>
+            <td>{{ target.name }}</td>
+            <td>{{ target.counts.critical }}</td>
+            <td>{{ target.counts.high }}</td>
+            <td>{{ target.counts.medium }}</td>
+            <td>{{ target.counts.low }}</td>
+            <td>{{ target.score }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    {% if detailed_sections_selected %}
+    <section>
+      <h2>Detailed Findings</h2>
+      {% with summary=scan_summary_map.web %}
+      {% if summary and 'web' in selected_sections %}
+      <h3>Web Application Scans</h3>
+      <p class="section-intro">Runtime validation of application endpoints for injection flaws, session weaknesses, and misconfigurations.</p>
+      <table>
+        <tbody>
+          <tr>
+            <th style="width:25%">Assets Covered</th>
+            <td>{{ summary.asset_count }}</td>
+          </tr>
+          <tr>
+            <th>Last Run</th>
+            <td>{% if summary.last_scan %}{{ summary.last_scan|date:"Y-m-d H:i" }}{% else %}Not recorded{% endif %}</td>
+          </tr>
+          {% if summary.top_targets %}
+          <tr>
+            <th>Most Impacted Targets</th>
+            <td>
+              <ul class="top-targets">
+                {% for target in summary.top_targets %}
+                <li>
+                  <span>{{ target.name }}</span>
+                  <span>Critical {{ target.counts.critical }} | High {{ target.counts.high }} | Total {{ target.counts.total }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% if selected_summary_fields %}
+      <table>
+        <thead>
+          <tr>
+            {% if 'url' in selected_summary_fields %}<th>URL</th>{% endif %}
+            {% if 'status' in selected_summary_fields %}<th>Status</th>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<th>Scan Type</th>{% endif %}
+            {% if 'total' in selected_summary_fields %}<th>Total</th>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<th>Critical</th>{% endif %}
+            {% if 'high' in selected_summary_fields %}<th>High</th>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<th>Medium</th>{% endif %}
+            {% if 'low' in selected_summary_fields %}<th>Low</th>{% endif %}
+            {% if 'info' in selected_summary_fields %}<th>Info</th>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<th>Duplicates</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in web_results %}
+          <tr>
+            {% if 'url' in selected_summary_fields %}<td>{{ scan.scan_url }}</td>{% endif %}
+            {% if 'status' in selected_summary_fields %}<td>{{ scan.scan_status|default:"&mdash;" }}</td>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<td>{% if scan.scan_type %}{{ scan.scan_type }}{% else %}{{ scan.scanner|default:"&mdash;" }}{% endif %}</td>{% endif %}
+            {% if 'total' in selected_summary_fields %}<td>{{ scan.total_vul|default:0 }}</td>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<td>{{ scan.critical_vul|default:0 }}</td>{% endif %}
+            {% if 'high' in selected_summary_fields %}<td>{{ scan.high_vul|default:0 }}</td>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<td>{{ scan.medium_vul|default:0 }}</td>{% endif %}
+            {% if 'low' in selected_summary_fields %}<td>{{ scan.low_vul|default:0 }}</td>{% endif %}
+            {% if 'info' in selected_summary_fields %}<td>{{ scan.info_vul|default:0 }}</td>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<td>{{ scan.total_dup|default:0 }}</td>{% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ selected_summary_fields|length }}" class="empty-state">No web application findings matched the current filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">No summary columns selected for web scan metrics.</p>
+      {% endif %}
+      {% include "reports/_detailed_findings_export.html" with findings=summary.findings %}
+      {% endif %}
+      {% with summary=scan_summary_map.network %}
+      {% if summary and 'network' in selected_sections %}
+      <h3>Network Scans</h3>
+      <p class="section-intro">Network reconnaissance and vulnerability discovery across servers, services, and exposed interfaces.</p>
+      <table>
+        <tbody>
+          <tr>
+            <th style="width:25%">Assets Covered</th>
+            <td>{{ summary.asset_count }}</td>
+          </tr>
+          <tr>
+            <th>Last Run</th>
+            <td>{% if summary.last_scan %}{{ summary.last_scan|date:"Y-m-d H:i" }}{% else %}Not recorded{% endif %}</td>
+          </tr>
+          {% if summary.top_targets %}
+          <tr>
+            <th>Most Impacted Targets</th>
+            <td>
+              <ul class="top-targets">
+                {% for target in summary.top_targets %}
+                <li>
+                  <span>{{ target.name }}</span>
+                  <span>Critical {{ target.counts.critical }} | High {{ target.counts.high }} | Total {{ target.counts.total }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% if selected_summary_fields %}
+      <table>
+        <thead>
+          <tr>
+            {% if 'url' in selected_summary_fields %}<th>Target</th>{% endif %}
+            {% if 'status' in selected_summary_fields %}<th>Status</th>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<th>Scanner</th>{% endif %}
+            {% if 'total' in selected_summary_fields %}<th>Total</th>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<th>Critical</th>{% endif %}
+            {% if 'high' in selected_summary_fields %}<th>High</th>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<th>Medium</th>{% endif %}
+            {% if 'low' in selected_summary_fields %}<th>Low</th>{% endif %}
+            {% if 'info' in selected_summary_fields %}<th>Info</th>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<th>Duplicates</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in network_results %}
+          <tr>
+            {% if 'url' in selected_summary_fields %}<td>{{ scan.ip }}</td>{% endif %}
+            {% if 'status' in selected_summary_fields %}<td>{{ scan.scan_status|default:"&mdash;" }}</td>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<td>{{ scan.scanner|default:"&mdash;" }}</td>{% endif %}
+            {% if 'total' in selected_summary_fields %}<td>{{ scan.total_vul|default:0 }}</td>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<td>{{ scan.critical_vul|default:0 }}</td>{% endif %}
+            {% if 'high' in selected_summary_fields %}<td>{{ scan.high_vul|default:0 }}</td>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<td>{{ scan.medium_vul|default:0 }}</td>{% endif %}
+            {% if 'low' in selected_summary_fields %}<td>{{ scan.low_vul|default:0 }}</td>{% endif %}
+            {% if 'info' in selected_summary_fields %}<td>{{ scan.info_vul|default:0 }}</td>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<td>{{ scan.total_dup|default:0 }}</td>{% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ selected_summary_fields|length }}" class="empty-state">No network findings matched the current filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">No summary columns selected for network metrics.</p>
+      {% endif %}
+      {% include "reports/_detailed_findings_export.html" with findings=summary.findings %}
+      {% endif %}
+      {% with summary=scan_summary_map.cloud %}
+      {% if summary and 'cloud' in selected_sections %}
+      <h3>Cloud Security Scans</h3>
+      <p class="section-intro">Cloud configuration and posture findings across accounts and projects.</p>
+      <table>
+        <thead>
+          <tr>
+            {% if 'url' in selected_summary_fields %}<th>Account/Project</th>{% endif %}
+            {% if 'status' in selected_summary_fields %}<th>Status</th>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<th>Scanner</th>{% endif %}
+            {% if 'total' in selected_summary_fields %}<th>Total</th>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<th>Critical</th>{% endif %}
+            {% if 'high' in selected_summary_fields %}<th>High</th>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<th>Medium</th>{% endif %}
+            {% if 'low' in selected_summary_fields %}<th>Low</th>{% endif %}
+            {% if 'info' in selected_summary_fields %}<th>Info</th>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<th>Duplicates</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in cloud_results %}
+          <tr>
+            {% if 'url' in selected_summary_fields %}<td>{% if scan.cloudAccountId %}{{ scan.cloudAccountId }}{% elif scan.project %}{{ scan.project.project_name }}{% else %}&mdash;{% endif %}</td>{% endif %}
+            {% if 'status' in selected_summary_fields %}<td>{{ scan.scan_status|default:"&mdash;" }}</td>{% endif %}
+            {% if 'scanner' in selected_summary_fields %}<td>{{ scan.scanner|default:"&mdash;" }}</td>{% endif %}
+            {% if 'total' in selected_summary_fields %}<td>{{ scan.total_vul|default:0 }}</td>{% endif %}
+            {% if 'critical' in selected_summary_fields %}<td>{{ scan.critical_vul|default:0 }}</td>{% endif %}
+            {% if 'high' in selected_summary_fields %}<td>{{ scan.high_vul|default:0 }}</td>{% endif %}
+            {% if 'medium' in selected_summary_fields %}<td>{{ scan.medium_vul|default:0 }}</td>{% endif %}
+            {% if 'low' in selected_summary_fields %}<td>{{ scan.low_vul|default:0 }}</td>{% endif %}
+            {% if 'info' in selected_summary_fields %}<td>{{ scan.info_vul|default:0 }}</td>{% endif %}
+            {% if 'duplicates' in selected_summary_fields %}<td>{{ scan.total_dup|default:0 }}</td>{% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{{ selected_summary_fields|length }}" class="empty-state">No cloud configuration findings matched the current filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">No summary columns selected for cloud metrics.</p>
+      {% endif %}
+      {% include "reports/_detailed_findings_export.html" with findings=summary.findings %}
+      {% endif %}
+
+    </section>
+    {% endif %}
+
+    <footer>
+      (c) {{ now|date:"Y" }} TeamCloud Solutions &mdash; Confidential Security Report
+    </footer>
+  </div>
+</body>
+</html>

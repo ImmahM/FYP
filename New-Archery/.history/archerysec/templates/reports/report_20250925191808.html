@@ -1,0 +1,181 @@
+{% extends "base/site_base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h1 class="mb-4">📊 Generate Security Report</h1>
+
+    {# --- FILTER SECTION (visible only in browser, hidden when exporting) --- #}
+    <div id="filter-section" class="card p-3 mb-4">
+        <form id="report-form" method="post" onsubmit="return false;">
+            {% csrf_token %}
+
+            <!-- Scanning Type -->
+            <div class="mb-3">
+                <label for="scanType" class="form-label fw-bold">Scan Type</label>
+                <select class="form-select" id="scanType" name="scanType" multiple>
+                    <option value="dynamic">Dynamic (DAST)</option>
+                    <option value="static">Static (SAST)</option>
+                    <option value="infrastructure">Infrastructure</option>
+                    <option value="cloud">Cloud</option>
+                </select>
+                <small class="text-muted">Hold CTRL (Windows) or CMD (Mac) to select multiple.</small>
+            </div>
+
+            <!-- Preview Button -->
+            <button type="button" class="btn btn-primary" onclick="previewReport()">🔎 Preview Report</button>
+
+            <!-- Download Buttons -->
+            <div class="mt-3">
+                <button type="button" class="btn btn-success" onclick="downloadReport('pdf')">⬇️ Download PDF</button>
+                <button type="button" class="btn btn-secondary" onclick="downloadReport('html')">⬇️ Download HTML</button>
+            </div>
+        </form>
+    </div>
+
+    {# --- REPORT PREVIEW SECTION (hidden until preview is generated) --- #}
+    <div id="report-content" style="display:none;">
+        <h2 class="mb-3">📄 Report Preview</h2>
+
+        <!-- Dynamic Results Table Example -->
+        <div id="dynamic-section" class="mb-5" style="display:none;">
+            <h3>Dynamic Scan Results</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Vulnerability</th>
+                        <th>Severity</th>
+                        <th>URL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vuln in dynamic_results %}
+                    <tr>
+                        <td>{{ vuln.name }}</td>
+                        <td>{{ vuln.severity }}</td>
+                        <td>{{ vuln.url }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3">No dynamic scan results.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Static Results Table Example -->
+        <div id="static-section" class="mb-5" style="display:none;">
+            <h3>Static Scan Results</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Vulnerability</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vuln in static_results %}
+                    <tr>
+                        <td>{{ vuln.file }}</td>
+                        <td>{{ vuln.name }}</td>
+                        <td>{{ vuln.severity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3">No static scan results.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Infrastructure Results Table Example -->
+        <div id="infrastructure-section" class="mb-5" style="display:none;">
+            <h3>Infrastructure Scan Results</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Host</th>
+                        <th>Issue</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vuln in infrastructure_results %}
+                    <tr>
+                        <td>{{ vuln.host }}</td>
+                        <td>{{ vuln.issue }}</td>
+                        <td>{{ vuln.severity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3">No infrastructure results.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Cloud Results Table Example -->
+        <div id="cloud-section" class="mb-5" style="display:none;">
+            <h3>Cloud Scan Results</h3>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Issue</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vuln in cloud_results %}
+                    <tr>
+                        <td>{{ vuln.resource }}</td>
+                        <td>{{ vuln.issue }}</td>
+                        <td>{{ vuln.severity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3">No cloud results.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function previewReport() {
+    // Show the report content section
+    document.getElementById('report-content').style.display = 'block';
+
+    // Get selected types
+    const selected = Array.from(document.getElementById('scanType').selectedOptions).map(o => o.value);
+
+    // Hide all sections initially
+    ['dynamic','static','infrastructure','cloud'].forEach(type => {
+        document.getElementById(type + '-section').style.display = 'none';
+    });
+
+    // Show only the ones selected
+    selected.forEach(type => {
+        const section = document.getElementById(type + '-section');
+        if (section) section.style.display = 'block';
+    });
+
+    // Prevent full page reload (stay on same page)
+    return false;
+}
+
+function downloadReport(format) {
+    // Hide filter section before download
+    document.getElementById('filter-section').style.display = 'none';
+
+    // Redirect to the backend download URL
+    window.location.href = `/reports/download/?format=${format}`;
+    
+    // Optional: Show it again after 2s (if you stay on the page)
+    setTimeout(() => {
+        document.getElementById('filter-section').style.display = 'block';
+    }, 2000);
+}
+</script>
+
+{% endblock %}
