@@ -525,7 +525,8 @@ class Settings(APIView):
                 SettingsDb.objects.filter(
                     setting_id=setting_id, organization=org
                 ).update(setting_status=openvas_info)
-            except Exception:
+            except Exception as e:
+                print(f"OpenVAS connection test failed: {e}")
                 openvas_info = False
                 SettingsDb.objects.filter(
                     setting_id=setting_id, organization=org

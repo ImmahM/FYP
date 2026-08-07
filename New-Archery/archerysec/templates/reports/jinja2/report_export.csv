@@ -1,0 +1,10 @@
+Project,Scan Type,Target,Vulnerability,Severity,CVSS Score,CVSS Severity,MITRE ATT&CK,Status,Scanner,Description,Solution,Reference
+{% for slug, summary in (scan_summary_map or {}).items() %}
+{% if summary.findings and summary.findings.grouped %}
+{% for group in summary.findings.grouped %}
+{% for finding in group.table_items %}
+"{{ finding.project_name|default('') }}","{{ slug }}","{{ finding.target|default('') }}","{{ finding.title|default('') }}","{{ group.label }}","{{ finding.cvss_score|default('') }}","{{ finding.cvss_severity|default('') }}","{% if finding.mitre_has_data %}{% for t in finding.mitre_techniques %}{{ t.id }}:{{ t.name }}{% if not loop.last %}; {% endif %}{% endfor %}{% endif %}","{{ finding.status|default('') }}","{{ finding.scanner|default('') }}","{{ finding.description|default('')|replace('\n', ' ')|replace('\r', ' ') }}","{{ finding.solution|default('')|replace('\n', ' ')|replace('\r', ' ') }}","{{ finding.reference|default('')|replace('\n', ' ')|replace('\r', ' ') }}"
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}

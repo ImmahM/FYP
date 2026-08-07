@@ -379,6 +379,58 @@ class UnifiedScanResultImportView(APIView):
             )
 
 
+class UnifiedScanDeleteView(APIView):
+    """Delete one or more scans"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Delete scans by scan_ids"""
+        try:
+            organization_id = getattr(request.user, 'organization_id', None)
+            if not organization_id:
+                return Response(
+                    {'error': 'User must belong to an organization'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            scan_ids = request.data.get('scan_ids', [])
+            if not scan_ids:
+                return Response(
+                    {'error': 'scan_ids is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Ensure scan_ids is a list
+            if not isinstance(scan_ids, list):
+                scan_ids = [scan_ids]
+
+            # Non-admins can only delete their own scans
+            try:
+                is_admin = (str(getattr(request.user, "role", "")) == "Admin") or getattr(request.user, "is_superuser", False)
+            except Exception:
+                is_admin = False
+
+            queryset = UnifiedScanSummary.objects.filter(
+                scan_id__in=scan_ids,
+                organization_id=organization_id
+            )
+            if not is_admin:
+                queryset = queryset.filter(created_by_id=request.user.id)
+
+            deleted_count, _ = queryset.delete()
+
+            return Response({
+                'deleted_count': deleted_count,
+                'message': f'Successfully deleted {deleted_count} scan(s)'
+            })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class ScannerListView(APIView):
     """List all available scanners and parsers"""
     permission_classes = [IsAuthenticated]

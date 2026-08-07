@@ -81,24 +81,30 @@ class OpenVAS_Plugin:
         Connecting with OpenVAS
         :return:
         """
-
-        global ov_host, ov_user, ov_pass, ov_port
         all_openvas = OpenvasSettingDb.objects.filter(
             organization=self.organization
-        )
+        ).first()
 
-        for openvas in all_openvas:
-            ov_user = openvas.user
-            ov_pass = openvas.password
-            ov_host = openvas.host
-            ov_port = openvas.port
+        if not all_openvas:
+            raise Exception("OpenVAS settings not configured for this organization")
 
-        scanner = VulnscanManager(
-            str(ov_host), str(ov_user), str(ov_pass), int(ov_port)
-        )
-        time.sleep(5)
+        ov_user = all_openvas.user
+        ov_pass = all_openvas.password
+        ov_host = all_openvas.host
+        ov_port = all_openvas.port or 9390
 
-        return scanner
+        if not all([ov_host, ov_user, ov_pass]):
+            raise Exception("OpenVAS host, username, and password are required")
+
+        try:
+            scanner = VulnscanManager(
+                str(ov_host), str(ov_user), str(ov_pass), int(ov_port)
+            )
+            # Test the connection by getting profiles
+            scanner.get_profiles
+            return scanner
+        except Exception as e:
+            raise Exception(f"OpenVAS connection failed: {str(e)}")
 
     def scan_launch(self, scanner):
         """
@@ -225,33 +231,29 @@ def vuln_an_id(scan_id, project_id, request, organization=None):
     :param scan_id:
     :return:
     """
-    ov_ip = ""
-    ov_user = ""
-    ov_pass = ""
-    ov_port = None
     try:
         effective_org = organization or getattr(request.user, "organization", None)
     except Exception:
         effective_org = organization
-    all_openvas = OpenvasSettingDb.objects.filter(
-        organization=effective_org
-    )
 
-    scan_status = "100"
-    # Use timezone-aware timestamps to avoid warnings
-    date_time = timezone.now()
+    all_openvas = OpenvasSettingDb.objects.filter(organization=effective_org).first()
 
-    for openvas in all_openvas:
-        ov_user = openvas.user
-        ov_pass = openvas.password
-        ov_ip = openvas.host
-        ov_port = openvas.port
+    if not all_openvas:
+        raise Exception("OpenVAS settings not configured for this organization")
 
-    # Include port if available; default to 9390
+    ov_user = all_openvas.user
+    ov_pass = all_openvas.password
+    ov_ip = all_openvas.host
+    ov_port = all_openvas.port or 9390
+
+    if not all([ov_ip, ov_user, ov_pass]):
+        raise Exception("OpenVAS host, username, and password are required")
+
     try:
         port = int(ov_port) if ov_port else 9390
     except Exception:
         port = 9390
+
     scanner = VulnscanManager(str(ov_ip), str(ov_user), str(ov_pass), int(port))
     openvas_results = scanner.get_raw_xml(str(scan_id))
 

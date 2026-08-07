@@ -50,7 +50,7 @@
             $(document).ready(function () {
                 $('.btn-delete').click(function () {
                     if (confirm('Are you sure you want to delete this?')) {
-                        var scan_id = ['a7af5b68-b661-45ad-90fd-ffa27526cdce'];
+                        var scan_id = [];
                         $.each($("input[name='del_scan_id']:checked"), function () {
                             scan_id.push($(this).val());
                         });

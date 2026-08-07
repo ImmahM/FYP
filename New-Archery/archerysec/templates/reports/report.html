@@ -610,8 +610,8 @@
                     <button type="button" class="btn btn-outline-success dropdown-toggle" data-toggle="dropdown" aria-expanded="false" id="downloadDropdownBtn">
                         Download Report
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdownBtn" style="min-width: 200px;">
-                        <li><h6 class="dropdown-header">Choose Format</h6></li>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdownBtn" style="min-width: 220px;">
+                        <li><h6 class="dropdown-header">Standard Formats</h6></li>
                         <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=pdf{% if query_string %}&{{ query_string }}{% endif %}">
                             <span class="dropdown-item-icon">⬜</span> PDF Document
                             <small class="text-muted d-block">Portable Document Format</small>
@@ -627,6 +627,28 @@
                         <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=xml{% if query_string %}&{{ query_string }}{% endif %}">
                             <span class="dropdown-item-icon">📄</span> XML Document
                             <small class="text-muted d-block">Structured data format</small>
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Jinja2 Formats (Customizable)</h6></li>
+                        <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=jinja2_pdf{% if query_string %}&{{ query_string }}{% endif %}">
+                            <span class="dropdown-item-icon">📝</span> Jinja2 PDF
+                            <small class="text-muted d-block">Custom template → PDF</small>
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=jinja2_html{% if query_string %}&{{ query_string }}{% endif %}">
+                            <span class="dropdown-item-icon">🌐</span> Jinja2 HTML
+                            <small class="text-muted d-block">Custom template → HTML</small>
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=jinja2_csv{% if query_string %}&{{ query_string }}{% endif %}">
+                            <span class="dropdown-item-icon">📊</span> Jinja2 CSV
+                            <small class="text-muted d-block">Custom template → CSV</small>
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=jinja2_xml{% if query_string %}&{{ query_string }}{% endif %}">
+                            <span class="dropdown-item-icon">📄</span> Jinja2 XML
+                            <small class="text-muted d-block">Custom template → XML</small>
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'reports:download_report' %}?format=jinja2_json{% if query_string %}&{{ query_string }}{% endif %}">
+                            <span class="dropdown-item-icon">📋</span> Jinja2 JSON
+                            <small class="text-muted d-block">Custom template → JSON</small>
                         </a></li>
                     </ul>
                 </div>

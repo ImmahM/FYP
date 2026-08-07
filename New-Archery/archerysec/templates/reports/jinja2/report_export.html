@@ -1,0 +1,353 @@
+{% extends "reports/jinja2/base_report.html" %}
+
+{% block content %}
+{# Overview Section #}
+{% if 'overview' in selected_sections %}
+<section class="section-card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h2>Executive Summary</h2>
+      <p class="section-subtitle">AI-assisted analysis: rule-based risk scoring and priority assessment.</p>
+    </div>
+    <span class="pill pill-accent">Duplicate names removed</span>
+  </div>
+
+  {% if has_scan_data %}
+  {% if executive_narrative %}
+  <div class="callout" style="margin-bottom: 12px; background: #eef3ff; border-color: #c8d9ff;">
+    <p style="margin: 0; color: #0f172a; font-size: 12.5px; line-height: 1.6;">{{ executive_narrative }}</p>
+  </div>
+  {% endif %}
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Findings</div>
+      <div class="stat-value">{{ overall_counts.total }}</div>
+      <div class="stat-note">Unique vulnerability names across all included scans.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Risk Posture</div>
+      <div class="stat-value">{{ risk_overview.label }} Risk</div>
+      <div class="stat-note">
+        Score: {{ risk_overview.score|floatformat(1) }} |
+        Confidence: {{ risk_overview.confidence }}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Critical & High</div>
+      <div class="stat-value">{{ overall_counts.critical }} / {{ overall_counts.high }}</div>
+      <div class="stat-note">Medium: {{ overall_counts.medium }} &nbsp; | &nbsp; Low: {{ overall_counts.low }}</div>
+    </div>
+  </div>
+
+  <div class="severity-bars">
+    <div class="severity-row">
+      <span class="pill severity-critical">Critical</span>
+      <div class="severity-track"><div class="severity-fill severity-critical" style="width: {{ severity_percentages.critical }}%;"></div></div>
+      <span>{{ severity_percentages.critical }}%</span>
+    </div>
+    <div class="severity-row">
+      <span class="pill severity-high">High</span>
+      <div class="severity-track"><div class="severity-fill severity-high" style="width: {{ severity_percentages.high }}%;"></div></div>
+      <span>{{ severity_percentages.high }}%</span>
+    </div>
+    <div class="severity-row">
+      <span class="pill severity-medium">Medium</span>
+      <div class="severity-track"><div class="severity-fill severity-medium" style="width: {{ severity_percentages.medium }}%;"></div></div>
+      <span>{{ severity_percentages.medium }}%</span>
+    </div>
+    <div class="severity-row">
+      <span class="pill severity-low">Low</span>
+      <div class="severity-track"><div class="severity-fill severity-low" style="width: {{ severity_percentages.low }}%;"></div></div>
+      <span>{{ severity_percentages.low }}%</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state-card">
+    No scan data is available for the current selection.
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{# Coverage Section #}
+{% if 'coverage' in selected_sections and scan_summaries %}
+<section class="section-card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Coverage</p>
+      <h2>Scan Coverage</h2>
+      <p class="section-subtitle">Assets covered, recent activity, and severity distribution by scan type.</p>
+    </div>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Scan Type</th>
+        <th>Assets Covered</th>
+        <th>Last Run</th>
+        <th>Critical</th>
+        <th>High</th>
+        <th>Medium</th>
+        <th>Low</th>
+        {% if user.is_superuser or user.role == 'Admin' %}
+        <th>Primary Tooling</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for summary in scan_summaries %}
+      <tr>
+        <td>{{ summary.label }}</td>
+        <td>{{ summary.asset_count }}</td>
+        <td>{% if summary.last_scan %}{{ summary.last_scan.strftime('%Y-%m-%d %H:%M') }}{% else %}Not recorded{% endif %}</td>
+        <td>{{ summary.counts.critical }}</td>
+        <td>{{ summary.counts.high }}</td>
+        <td>{{ summary.counts.medium }}</td>
+        <td>{{ summary.counts.low }}</td>
+        {% if user.is_superuser or user.role == 'Admin' %}
+        <td>{% if summary.scanners %}{{ summary.scanners|join(', ') }}{% else %}&mdash;{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# Priority Targets Section #}
+{% if 'priority_targets' in selected_sections and priority_targets %}
+<section class="section-card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Focus</p>
+      <h2>Priority Remediation Targets</h2>
+      <p class="section-subtitle">Top assets by weighted risk to guide immediate remediation.</p>
+    </div>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Scan Type</th>
+        <th>Target</th>
+        <th>Critical</th>
+        <th>High</th>
+        <th>Medium</th>
+        <th>Low</th>
+        <th>CVSS Ø</th>
+        <th>Risk Score</th>
+        <th>Priority</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for target in priority_targets %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ target.type }}</td>
+        <td>{{ target.name }}</td>
+        <td>{{ target.counts.critical }}</td>
+        <td>{{ target.counts.high }}</td>
+        <td>{{ target.counts.medium }}</td>
+        <td>{{ target.counts.low }}</td>
+        <td>{{ target.cvss_score|floatformat(1) }}</td>
+        <td>{{ target.analysis_score.score|floatformat(1) }}</td>
+        <td>{{ target.analysis_score.tier.value|capitalize }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if priority_analysis and priority_analysis.top_priorities %}
+  <div class="callout" style="margin-top: 12px;">
+    <p style="margin: 0 0 6px 0; font-weight: 600; color: #0f172a;">Top Priority Items</p>
+    <ul style="margin: 0; padding-left: 16px; font-size: 12px; color: #4b5563;">
+      {% for item in priority_analysis.top_priorities[:5] %}
+      <li style="margin-bottom: 4px;">
+        <strong>{{ item.title }}</strong>
+        {% if item.target %} — {{ item.target }}{% endif %}
+        <span style="color: #6b7280;">(score: {{ item.score|floatformat(1) }}, {{ item.tier|capitalize }})</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{# Detailed Findings Section #}
+{% if detailed_sections_selected %}
+<section class="section-card">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Findings</p>
+      <h2>Detailed Findings</h2>
+      <p class="section-subtitle">Every vulnerability name is deduplicated; descriptions, solutions, and references remain intact.</p>
+    </div>
+  </div>
+
+  {# Web Scans #}
+  {% if scan_summary_map.web and 'web' in selected_sections %}
+  <div class="section-spacer"></div>
+  <div class="section-heading">
+    <div>
+      <h3>Web Application Scans</h3>
+      <p class="section-subtitle">Runtime validation of application endpoints for injection flaws, session weaknesses, and misconfigurations.</p>
+    </div>
+  </div>
+  <table class="data-table">
+    <tbody>
+      <tr>
+        <th style="width:25%">Assets Covered</th>
+        <td>{{ scan_summary_map.web.asset_count }}</td>
+      </tr>
+      <tr>
+        <th>Last Run</th>
+        <td>{% if scan_summary_map.web.last_scan %}{{ scan_summary_map.web.last_scan.strftime('%Y-%m-%d %H:%M') }}{% else %}Not recorded{% endif %}</td>
+      </tr>
+      {% if scan_summary_map.web.top_targets %}
+      <tr>
+        <th>Most Impacted Targets</th>
+        <td>
+          <ul class="top-targets">
+            {% for target in scan_summary_map.web.top_targets %}
+            <li class="target-pill">
+              <strong>{{ target.name }}</strong>
+              <span>Critical {{ target.counts.critical }} | High {{ target.counts.high }} | Total {{ target.counts.total }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  {% if selected_summary_fields %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        {% if 'url' in selected_summary_fields %}<th>URL</th>{% endif %}
+        {% if 'status' in selected_summary_fields %}<th>Status</th>{% endif %}
+        {% if 'scanner' in selected_summary_fields %}<th>Scan Type</th>{% endif %}
+        {% if 'total' in selected_summary_fields %}<th>Total</th>{% endif %}
+        {% if 'critical' in selected_summary_fields %}<th>Critical</th>{% endif %}
+        {% if 'high' in selected_summary_fields %}<th>High</th>{% endif %}
+        {% if 'medium' in selected_summary_fields %}<th>Medium</th>{% endif %}
+        {% if 'low' in selected_summary_fields %}<th>Low</th>{% endif %}
+        {% if 'info' in selected_summary_fields %}<th>Info</th>{% endif %}
+        {% if 'duplicates' in selected_summary_fields %}<th>Duplicates</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for scan in web_results %}
+      <tr>
+        {% if 'url' in selected_summary_fields %}<td>{{ scan.scan_url }}</td>{% endif %}
+        {% if 'status' in selected_summary_fields %}<td>{{ scan.scan_status|default("&mdash;") }}</td>{% endif %}
+        {% if 'scanner' in selected_summary_fields %}
+        <td>
+          {% if user.is_superuser or user.role == 'Admin' %}
+            {% if scan.scan_type %}{{ scan.scan_type }}{% else %}{{ scan.scanner|default("&mdash;") }}{% endif %}
+          {% else %}
+            {{ scan.scan_type }} {# user_scan_type filter not available in Jinja2, using raw #}
+          {% endif %}
+        </td>
+        {% endif %}
+        {% if 'total' in selected_summary_fields %}<td>{{ scan.total_vul|default(0) }}</td>{% endif %}
+        {% if 'critical' in selected_summary_fields %}<td>{{ scan.critical_vul|default(0) }}</td>{% endif %}
+        {% if 'high' in selected_summary_fields %}<td>{{ scan.high_vul|default(0) }}</td>{% endif %}
+        {% if 'medium' in selected_summary_fields %}<td>{{ scan.medium_vul|default(0) }}</td>{% endif %}
+        {% if 'low' in selected_summary_fields %}<td>{{ scan.low_vul|default(0) }}</td>{% endif %}
+        {% if 'info' in selected_summary_fields %}<td>{{ scan.info_vul|default(0) }}</td>{% endif %}
+        {% if 'duplicates' in selected_summary_fields %}<td>{{ scan.total_dup|default(0) }}</td>{% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ selected_summary_fields|length }}" class="empty-state-card">No web application findings matched the current filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state-card">No summary columns selected for web scan metrics.</div>
+  {% endif %}
+  {% set findings = scan_summary_map.web.findings %}
+  {% include "reports/jinja2/_detailed_findings_export.html" %}
+  {% endif %}
+
+  {# Network Scans #}
+  {% if scan_summary_map.network and 'network' in selected_sections %}
+  <div class="section-spacer"></div>
+  <div class="section-heading">
+    <div>
+      <h3>Network Scans</h3>
+      <p class="section-subtitle">Network reconnaissance and vulnerability discovery across servers, services, and exposed interfaces.</p>
+    </div>
+  </div>
+  <table class="data-table">
+    <tbody>
+      <tr>
+        <th style="width:25%">Assets Covered</th>
+        <td>{{ scan_summary_map.network.asset_count }}</td>
+      </tr>
+      <tr>
+        <th>Last Run</th>
+        <td>{% if scan_summary_map.network.last_scan %}{{ scan_summary_map.network.last_scan.strftime('%Y-%m-%d %H:%M') }}{% else %}Not recorded{% endif %}</td>
+      </tr>
+      {% if scan_summary_map.network.top_targets %}
+      <tr>
+        <th>Most Impacted Targets</th>
+        <td>
+          <ul class="top-targets">
+            {% for target in scan_summary_map.network.top_targets %}
+            <li class="target-pill">
+              <strong>{{ target.name }}</strong>
+              <span>Critical {{ target.counts.critical }} | High {{ target.counts.high }} | Total {{ target.counts.total }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  {% if selected_summary_fields %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        {% if 'url' in selected_summary_fields %}<th>Target</th>{% endif %}
+        {% if 'status' in selected_summary_fields %}<th>Status</th>{% endif %}
+        {% if (user.is_superuser or user.role == 'Admin') and 'scanner' in selected_summary_fields %}<th>Scanner</th>{% endif %}
+        {% if 'total' in selected_summary_fields %}<th>Total</th>{% endif %}
+        {% if 'critical' in selected_summary_fields %}<th>Critical</th>{% endif %}
+        {% if 'high' in selected_summary_fields %}<th>High</th>{% endif %}
+        {% if 'medium' in selected_summary_fields %}<th>Medium</th>{% endif %}
+        {% if 'low' in selected_summary_fields %}<th>Low</th>{% endif %}
+        {% if 'info' in selected_summary_fields %}<th>Info</th>{% endif %}
+        {% if 'duplicates' in selected_summary_fields %}<th>Duplicates</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for scan in network_results %}
+      <tr>
+        {% if 'url' in selected_summary_fields %}<td>{{ scan.ip }}</td>{% endif %}
+        {% if 'status' in selected_summary_fields %}<td>{{ scan.scan_status|default("&mdash;") }}</td>{% endif %}
+        {% if (user.is_superuser or user.role == 'Admin') and 'scanner' in selected_summary_fields %}<td>{{ scan.scanner|default("&mdash;") }}</td>{% endif %}
+        {% if 'total' in selected_summary_fields %}<td>{{ scan.total_vul|default(0) }}</td>{% endif %}
+        {% if 'critical' in selected_summary_fields %}<td>{{ scan.critical_vul|default(0) }}</td>{% endif %}
+        {% if 'high' in selected_summary_fields %}<td>{{ scan.high_vul|default(0) }}</td>{% endif %}
+        {% if 'medium' in selected_summary_fields %}<td>{{ scan.medium_vul|default(0) }}</td>{% endif %}
+        {% if 'low' in selected_summary_fields %}<td>{{ scan.low_vul|default(0) }}</td>{% endif %}
+        {% if 'info' in selected_summary_fields %}<td>{{ scan.info_vul|default(0) }}</td>{% endif %}
+        {% if 'duplicates' in selected_summary_fields %}<td>{{ scan.total_dup|default(0) }}</td>{% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ selected_summary_fields|length }}" class="empty-state-card">No network findings matched the current filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state-card">No summary columns selected for network metrics.</div>
+  {% endif %}
+  {% set findings = scan_summary_map.network.findings %}
+  {% include "reports/jinja2/_detailed_findings_export.html" %}
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

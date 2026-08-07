@@ -668,18 +668,19 @@ class OpenvasDetails(APIView):
 
     def post(self, request):
         setting_id = uuid.uuid4()
-        save_openvas_setting = save_settings.SaveSettings(
-            api_data,
-        )
-        # Determine target organization (supports superuser org switching via hidden field)
-        from user_management.models import Organization as _Org
         org = getattr(request.user, "organization", None)
+        from user_management.models import Organization as _Org
         _org_id = request.POST.get("org") or request.GET.get("org")
         if getattr(request.user, "is_superuser", False) and _org_id:
             try:
                 org = _Org.objects.get(pk=_org_id)
             except Exception:
                 pass
+
+        save_openvas_setting = save_settings.SaveSettings(
+            api_data,
+            organization=org,
+        )
 
         if request.POST.get("openvas_enabled") == "on":
             openvas_enabled = True
@@ -770,8 +771,10 @@ class OpenvasSetting(APIView):
     permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def get(self, request):
+        org = getattr(request.user, "organization", None)
         load_openvas_setting = load_settings.ArcherySettings(
             api_data,
+            organization=org,
         )
         openvas_host = load_openvas_setting.openvas_host()
         openvas_port = load_openvas_setting.openvas_port()
@@ -986,8 +989,10 @@ class OpenvasSettingEnable(APIView):
     permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def get(self, request):
+        org = getattr(request.user, "organization", None)
         load_nv_setting = load_settings.ArcherySettings(
             api_data,
+            organization=org,
         )
         nv_enabled = str(load_nv_setting.nv_enabled())
         nv_online = str(load_nv_setting.nv_enabled())
@@ -1022,8 +1027,10 @@ class OpenvasSettingEnableDetails(APIView):
         )
 
     def post(self, request):
+        org = getattr(request.user, "organization", None)
         save_nv_setting = save_settings.SaveSettings(
             api_data,
+            organization=org,
         )
         if str(request.POST.get("nv_enabled")) == "on":
             nv_enabled = True

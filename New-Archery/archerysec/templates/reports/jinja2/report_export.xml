@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <metadata>
+    <generated>{{ now.strftime('%Y-%m-%d %H:%M') }}</generated>
+    <total_findings>{{ (overall_counts or {}).total|default(0) }}</total_findings>
+    <risk_posture>{{ (risk_overview or {}).label|default('Unknown') }}</risk_posture>
+    <risk_score>{{ (risk_overview or {}).score|default(0)|floatformat(1) }}</risk_score>
+    <scan_types>{% for st in selected_scan_types %}{{ st }}{% if not loop.last %}, {% endif %}{% endfor %}</scan_types>
+  </metadata>
+  <severity_summary>
+    <critical>{{ (overall_counts or {}).critical|default(0) }}</critical>
+    <high>{{ (overall_counts or {}).high|default(0) }}</high>
+    <medium>{{ (overall_counts or {}).medium|default(0) }}</medium>
+    <low>{{ (overall_counts or {}).low|default(0) }}</low>
+  </severity_summary>
+  <findings>
+    {% for slug, summary in (scan_summary_map or {}).items() %}
+    {% if summary.findings and summary.findings.grouped %}
+    <scan_type name="{{ slug }}">
+      {% for group in summary.findings.grouped %}
+      <severity name="{{ group.label }}" count="{{ group.count }}">
+        {% for finding in group.table_items %}
+        <finding>
+          <title>{{ finding.title|default('') }}</title>
+          <project>{{ finding.project_name|default('') }}</project>
+          <target>{{ finding.target|default('') }}</target>
+          <severity>{{ group.slug }}</severity>
+          <cvss_score>{{ finding.cvss_score|default('') }}</cvss_score>
+          <cvss_severity>{{ finding.cvss_severity|default('') }}</cvss_severity>
+          <status>{{ finding.status|default('') }}</status>
+          <scanner>{{ finding.scanner|default('') }}</scanner>
+          <risk>{{ finding.risk|default(finding.severity_label|default('')) }}</risk>
+          <description><![CDATA[{{ finding.description|default('') }}]]></description>
+          <solution><![CDATA[{{ finding.solution|default('') }}]]></solution>
+          <reference><![CDATA[{{ finding.reference|default('') }}]]></reference>
+          {% if finding.mitre_has_data %}
+          <mitre_techniques>
+            {% for t in finding.mitre_techniques %}
+            <technique>
+              <id>{{ t.id }}</id>
+              <name>{{ t.name }}</name>
+              <tactic>{{ t.tactic }}</tactic>
+            </technique>
+            {% endfor %}
+          </mitre_techniques>
+          {% endif %}
+          {% if finding.identifier %}
+          <identifier>{{ finding.identifier }}</identifier>
+          {% endif %}
+          {% if finding.detected %}
+          <detected>{{ finding.detected.strftime('%Y-%m-%d %H:%M') }}</detected>
+          {% endif %}
+        </finding>
+        {% endfor %}
+      </severity>
+      {% endfor %}
+    </scan_type>
+    {% endif %}
+    {% endfor %}
+  </findings>
+</report>

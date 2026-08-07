@@ -176,6 +176,18 @@ class UnifiedScannerAPI {
         });
     }
 
+    /**
+     * Delete one or more scans
+     * @param {string|string[]} scanIds - Single ID or array of scan IDs
+     */
+    async deleteScans(scanIds) {
+        const ids = Array.isArray(scanIds) ? scanIds : [scanIds];
+        return this.request('scans/delete/', {
+            method: 'POST',
+            body: { scan_ids: ids },
+        });
+    }
+
     // ===== NETWORK SCAN OPERATIONS =====
     
     /**

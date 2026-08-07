@@ -11,6 +11,13 @@ from django.db.models import Q, Sum, Max, Case, When, Value, IntegerField, Count
 from django.db.models.functions import Coalesce
 from weasyprint import HTML
 
+# Jinja2 support for flexible report templates
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    JINJA2_AVAILABLE = True
+except ImportError:
+    JINJA2_AVAILABLE = False
+
 from projects.models import ProjectDb
 from scanners.analysis import RiskScorer, VulnerabilityPrioritizer, ReportNarrativeGenerator, CvssCalculator, NvdLookup
 from scanners.audit import log_action
@@ -1995,7 +2002,7 @@ def download_report(request):
     scan_types = request.GET.getlist("scan_types")  # must match frontend name!
     severities = request.GET.getlist("severity")
     requested_format = request.GET.get("format", "pdf")
-    if requested_format not in ("pdf", "html", "csv", "xml"):
+    if requested_format not in ("pdf", "html", "csv", "xml", "jinja2_pdf", "jinja2_html", "jinja2_csv", "jinja2_xml", "jinja2_json"):
         requested_format = "pdf"
     sections = request.GET.getlist("sections") or DEFAULT_REPORT_SECTIONS
     # Normalize legacy section keys coming from URL: dynamic->web, infrastructure->network
@@ -2127,8 +2134,8 @@ def download_report(request):
     import xml.etree.ElementTree as ET
     from xml.dom import minidom
     static_dir = os.path.join(os.path.dirname(__file__), '../templates/static')
-    image_path = os.path.abspath(os.path.join(static_dir, 'teamcloud.jpg'))
-    context["teamcloud_image_path"] = f"file://{image_path}"
+    image_path = os.path.abspath(os.path.join(static_dir, 'archerysec-logo.png'))
+    context["archerysec_image_path"] = f"file://{image_path}"
 
     # âœ… De-duplicate rows by Status for PDF tables, when a Status column is included
     def _unique_by_attr(items, attr):
@@ -2180,6 +2187,39 @@ def download_report(request):
 
     # âœ… Render HTML
     html_content = render_to_string("reports/report_export.html", context)
+    
+    # Jinja2 rendering for flexible templates
+    jinja2_html_content = None
+    if JINJA2_AVAILABLE:
+        try:
+            import os
+            
+            def floatformat(value, arg=1):
+                """Jinja2 filter equivalent to Django's floatformat"""
+                try:
+                    return f"{float(value):.{arg}f}"
+                except (ValueError, TypeError):
+                    return value
+            
+            def floatformat_no_trailing(value, arg=1):
+                """Jinja2 filter equivalent to Django's floatformat with -g (no trailing zeros)"""
+                try:
+                    formatted = f"{float(value):.{arg}f}"
+                    return formatted.rstrip('0').rstrip('.') if '.' in formatted else formatted
+                except (ValueError, TypeError):
+                    return value
+            
+            jinja2_env = Environment(
+                loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), '../templates')),
+                autoescape=select_autoescape(['html', 'xml'])
+            )
+            jinja2_env.filters['floatformat'] = floatformat
+            jinja2_env.filters['floatformat_no_trailing'] = floatformat_no_trailing
+            jinja2_template = jinja2_env.get_template("reports/jinja2/report_export.html")
+            jinja2_html_content = jinja2_template.render(**context)
+        except Exception as e:
+            print(f"Jinja2 rendering failed: {e}")
+            jinja2_html_content = None
 
     log_action(request, "report_download", "report", f"{requested_format}:{','.join(project_tokens_for_query) if project_tokens_for_query else 'all'}", {
         "format": requested_format,
@@ -2275,3 +2315,161 @@ def download_report(request):
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{download_name}"'
         return response
+
+    # âœ… Convert to PDF using Jinja2 template
+    elif requested_format == "jinja2_pdf":
+        if jinja2_html_content:
+            pdf_file = HTML(string=jinja2_html_content).write_pdf()
+            response = HttpResponse(pdf_file, content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+        else:
+            # Fallback to Django template
+            pdf_file = HTML(string=html_content).write_pdf()
+            response = HttpResponse(pdf_file, content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+
+    # âœ… HTML using Jinja2 template
+    elif requested_format == "jinja2_html":
+        if jinja2_html_content:
+            response = HttpResponse(jinja2_html_content)
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+        else:
+            # Fallback to Django template
+            response = HttpResponse(html_content)
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+
+    # âœ… CSV using Jinja2 template
+    elif requested_format == "jinja2_csv":
+        try:
+            import os
+            jinja2_env = Environment(
+                loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), '../templates')),
+                autoescape=select_autoescape(['html', 'xml'])
+            )
+            jinja2_env.filters['floatformat'] = floatformat
+            csv_content = jinja2_env.get_template("reports/jinja2/report_export.csv").render(**context)
+            response = HttpResponse(csv_content, content_type="text/csv")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+        except Exception as e:
+            print(f"Jinja2 CSV rendering failed: {e}")
+            # Fallback to Django CSV
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            writer = csv_module.writer(response)
+            writer.writerow(["Project", "Target", "Vulnerability", "Severity", "Risk", "CVSS Score", "CVSS Severity", "MITRE ATT&CK", "Status", "Scanner", "Description", "Solution"])
+            for slug, summary in (context.get("scan_summary_map") or {}).items():
+                for group in (summary.get("findings") or {}).get("grouped") or []:
+                    for item in group.get("items") or []:
+                        writer.writerow([
+                            item.get("project_name", ""),
+                            item.get("target", ""),
+                            item.get("title", ""),
+                            item.get("severity", ""),
+                            item.get("risk", ""),
+                            item.get("cvss_score", ""),
+                            item.get("cvss_severity", ""),
+                            _mitre_csv_value(item.get("mitre_techniques", [])) if item.get("mitre_has_data") else "",
+                            item.get("status", ""),
+                            item.get("scanner", ""),
+                            item.get("description", "").replace("\n", " ").replace("\r", " "),
+                            item.get("solution", "").replace("\n", " ").replace("\r", " "),
+                        ])
+            return response
+
+    # âœ… XML using Jinja2 template
+    elif requested_format == "jinja2_xml":
+        try:
+            import os
+            jinja2_env = Environment(
+                loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), '../templates')),
+                autoescape=select_autoescape(['html', 'xml'])
+            )
+            jinja2_env.filters['floatformat'] = floatformat
+            xml_content = jinja2_env.get_template("reports/jinja2/report_export.xml").render(**context)
+            response = HttpResponse(xml_content, content_type="application/xml")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+        except Exception as e:
+            print(f"Jinja2 XML rendering failed: {e}")
+            # Fallback to Django XML
+            root = ET.Element("report")
+            meta = ET.SubElement(root, "metadata")
+            ET.SubElement(meta, "generated").text = timezone.now().strftime('%Y-%m-%d %H:%M')
+            ET.SubElement(meta, "total_findings").text = str(context.get("overall_counts", {}).get("total", 0))
+            findings_elem = ET.SubElement(root, "findings")
+            seen_titles = set()
+            for slug, summary in (context.get("scan_summary_map") or {}).items():
+                for group in (summary.get("findings") or {}).get("grouped") or []:
+                    for item in group.get("items") or []:
+                        title = item.get("title", "")
+                        if title and title in seen_titles:
+                            continue
+                        if title:
+                            seen_titles.add(title)
+                        f = ET.SubElement(findings_elem, "finding")
+                        ET.SubElement(f, "title").text = title
+                        ET.SubElement(f, "severity").text = item.get("severity", "")
+                        ET.SubElement(f, "risk").text = item.get("risk", "")
+                        ET.SubElement(f, "cvss_score").text = str(item.get("cvss_score", "") or "")
+                        ET.SubElement(f, "cvss_severity").text = item.get("cvss_severity", "") or ""
+                        mitre_el = ET.SubElement(f, "mitre_techniques")
+                        if item.get("mitre_has_data"):
+                            for t in item.get("mitre_techniques", []):
+                                mt = ET.SubElement(mitre_el, "technique")
+                                ET.SubElement(mt, "id").text = t.get("id", "")
+                                ET.SubElement(mt, "name").text = t.get("name", "")
+                                ET.SubElement(mt, "tactic").text = t.get("tactic", "")
+                        ET.SubElement(f, "status").text = item.get("status", "")
+                        ET.SubElement(f, "scanner").text = item.get("scanner", "")
+                        ET.SubElement(f, "target").text = item.get("target", "")
+                        desc = ET.SubElement(f, "description")
+                        desc.text = item.get("description", "")
+                        sol = ET.SubElement(f, "solution")
+                        sol.text = item.get("solution", "")
+                        ref = ET.SubElement(f, "reference")
+                        ref.text = item.get("reference", "")
+            xml_str = minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
+            response = HttpResponse(xml_str, content_type="application/xml")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+
+    # âœ… JSON using Jinja2 template
+    elif requested_format == "jinja2_json":
+        try:
+            import os
+            jinja2_env = Environment(
+                loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), '../templates')),
+                autoescape=select_autoescape(['html', 'xml'])
+            )
+            jinja2_env.filters['floatformat'] = floatformat
+            json_content = jinja2_env.get_template("reports/jinja2/report_export.json").render(**context)
+            response = HttpResponse(json_content, content_type="application/json")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response
+        except Exception as e:
+            print(f"Jinja2 JSON rendering failed: {e}")
+            # Fallback - basic JSON
+            import json
+            fallback_data = {
+                "metadata": {
+                    "generated": timezone.now().strftime('%Y-%m-%d %H:%M'),
+                    "total_findings": context.get("overall_counts", {}).get("total", 0),
+                },
+                "findings": []
+            }
+            for slug, summary in (context.get("scan_summary_map") or {}).items():
+                for group in (summary.get("findings") or {}).get("grouped") or []:
+                    for item in group.get("items") or []:
+                        fallback_data["findings"].append({
+                            "title": item.get("title", ""),
+                            "severity": item.get("severity", ""),
+                            "target": item.get("target", ""),
+                        })
+            response = HttpResponse(json.dumps(fallback_data, indent=2), content_type="application/json")
+            response["Content-Disposition"] = f'attachment; filename="{download_name}"'
+            return response

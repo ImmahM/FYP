@@ -85,7 +85,7 @@ class NotificationPreferencesSerializer(serializers.Serializer):
 class ReportDownloadSerializer(serializers.Serializer):
     project_id = serializers.ListField(child=serializers.CharField(), required=False)
     scan_types = serializers.ListField(child=serializers.CharField(), required=False)
-    format = serializers.ChoiceField(choices=["pdf", "html", "csv", "xml"], default="pdf")
+    format = serializers.ChoiceField(choices=["pdf", "html", "csv", "xml", "jinja2_pdf", "jinja2_html", "jinja2_csv", "jinja2_xml", "jinja2_json"], default="pdf")
     severity = serializers.ListField(child=serializers.CharField(), required=False)
     sections = serializers.ListField(child=serializers.CharField(), required=False)
     status = serializers.CharField(required=False)

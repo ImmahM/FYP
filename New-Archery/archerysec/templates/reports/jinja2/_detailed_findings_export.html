@@ -1,0 +1,225 @@
+{% if findings and findings.total %}
+<section class="section-card" style="margin-top:14px;">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Findings Detail</p>
+      <h3>Detailed Vulnerabilities ({{ findings.total }})</h3>
+      <p class="section-subtitle">Titles are deduplicated; supporting fields (solutions, references, notes) remain intact.</p>
+    </div>
+    <span class="pill pill-accent">Unique vulnerability names</span>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom: 12px;">
+    <div class="stat-card">
+      <div class="stat-label">Severity Distribution</div>
+      {% if findings.chart.severity.segments %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">Severity</th>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">Findings</th>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">% Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for segment in findings.chart.severity.segments %}
+          <tr>
+            <td>
+              <span class="pill severity-{{ segment.slug }}" style="background: transparent; border: none; padding: 0;">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background: {{ segment.color }};margin-right:6px; box-shadow: 0 0 0 3px rgba(0,0,0,0.04);"></span>
+                {{ segment.label }}
+              </span>
+            </td>
+            <td>{{ segment.count }}</td>
+            <td>{{ segment.percent|floatformat(1) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state-card">No severity data is available for the current selection.</div>
+      {% endif %}
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Detection Trend</div>
+      {% if findings.chart.timeline.points %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Findings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for point in findings.chart.timeline.points %}
+          <tr>
+            <td>{{ point.label }}</td>
+            <td>{{ point.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state-card" style="text-align:center;">Not enough detection data to build a trend table.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% for group in findings.grouped %}
+  <div class="section-heading" style="margin-top: 8px; align-items: center;">
+    <div>
+      <p class="eyebrow">Severity</p>
+      <h4>{{ group.label }} Findings ({{ group.count }})</h4>
+      <p class="section-subtitle">Showing {{ group.shown_count }} unique vulnerabilities in this band.</p>
+    </div>
+    <span class="pill severity-{{ group.slug }}">{{ group.label }}</span>
+  </div>
+
+  {% if selected_vuln_table_fields %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        {% if 'title' in selected_vuln_table_fields %}<th>Vulnerability</th>{% endif %}
+        {% if 'cvss_score' in selected_vuln_table_fields %}<th>CVSS Score</th>{% endif %}
+        {% if 'cvss_severity' in selected_vuln_table_fields %}<th>CVSS Severity</th>{% endif %}
+        {% if 'mitre_techniques' in selected_vuln_table_fields %}<th>MITRE ATT&CK</th>{% endif %}
+        {% if 'status' in selected_vuln_table_fields %}<th>Status</th>{% endif %}
+        {% if 'risk' in selected_vuln_table_fields %}<th>Risk</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for finding in group.table_items %}
+      <tr>
+        {% if 'title' in selected_vuln_table_fields %}<td>{{ finding.title }}</td>{% endif %}
+        {% if 'cvss_score' in selected_vuln_table_fields %}<td>{{ finding.cvss_score|floatformat(1)|default("&mdash;") }}</td>{% endif %}
+        {% if 'cvss_severity' in selected_vuln_table_fields %}<td>{{ finding.cvss_severity|default("&mdash;") }}</td>{% endif %}
+        {% if 'mitre_techniques' in selected_vuln_table_fields %}
+        <td>
+          {% if finding.mitre_has_data %}
+            {% for t in finding.mitre_techniques %}
+              {{ t.id }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}&mdash;{% endif %}
+        </td>
+        {% endif %}
+        {% if 'status' in selected_vuln_table_fields %}<td>{{ finding.status|default("&mdash;") }}</td>{% endif %}
+        {% if 'risk' in selected_vuln_table_fields %}<td>{{ finding.risk|default(finding.severity_label) }}</td>{% endif %}
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="{{ selected_vuln_table_fields|length }}" class="empty-state-card">No findings recorded for this severity.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% for finding in group.table_items %}
+  <div class="stat-card" style="margin-top: 10px;">
+    <div class="section-heading" style="margin-bottom: 6px; align-items: center;">
+      <div>
+        <p class="finding-title" style="margin:0; font-size:14px; font-weight:700; color:var(--ink);">{{ finding.title }}</p>
+      </div>
+      <div class="callout" style="margin-top:0; padding:6px 8px; display:flex; gap:6px; align-items:center;">
+        <span class="pill severity-{{ group.slug }}">{{ group.label }}</span>
+        {% if finding.identifier %}<span class="pill pill-muted">Ref: {{ finding.identifier }}</span>{% endif %}
+        {% if finding.detected %}<span class="pill pill-muted">Detected {{ finding.detected.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+      </div>
+    </div>
+
+    {% if selected_vuln_meta_fields %}
+    <div class="stat-grid" style="margin-bottom: 6px;">
+      {% if 'title' in selected_vuln_meta_fields %}<div><div class="stat-label">Vulnerability</div><div class="stat-value" style="font-size:14px;">{{ finding.title }}</div></div>{% endif %}
+      {% if 'risk' in selected_vuln_meta_fields %}<div><div class="stat-label">Risk</div><div class="stat-value" style="font-size:14px;">{{ finding.risk|default(finding.severity_label) }}</div></div>{% endif %}
+      {% if 'jira_ticket' in selected_vuln_meta_fields %}<div><div class="stat-label">JIRA Ticket</div><div class="stat-value" style="font-size:14px;">{{ finding.jira_ticket|default("&mdash;") }}</div></div>{% endif %}
+      {% if 'status' in selected_vuln_meta_fields %}<div><div class="stat-label">Status</div><div class="stat-value" style="font-size:14px;">{{ finding.status|default("&mdash;") }}</div></div>{% endif %}
+      {% if 'false_positive' in selected_vuln_meta_fields %}<div><div class="stat-label">False Positive</div><div class="stat-value" style="font-size:14px;">{{ finding.false_positive|default("&mdash;") }}</div></div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if 'description' in selected_vuln_detail_sections and finding.description %}
+    <p class="section-subtitle" style="margin-top: 6px;"><strong>Description:</strong> {{ finding.description }}</p>
+    {% endif %}
+
+    {% if 'instance' in selected_vuln_detail_sections %}
+      {% if finding.instance_rows %}
+      <table class="data-table">
+        <tbody>
+          {% for row in finding.instance_rows %}
+          <tr>
+            <th style="width: 30%;">{{ row.label }}</th>
+            <td>{{ row.value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% elif finding.instance %}
+      <p class="section-subtitle"><strong>Instance:</strong> {{ finding.instance }}</p>
+      {% endif %}
+    {% endif %}
+
+    {% if 'solution' in selected_vuln_detail_sections and finding.solution %}
+    <p class="section-subtitle"><strong>Solutions:</strong> {{ finding.solution }}</p>
+    {% endif %}
+
+    {% if 'reference' in selected_vuln_detail_sections and finding.reference %}
+    <p class="section-subtitle"><strong>Reference:</strong> {{ finding.reference }}</p>
+    {% endif %}
+
+    {% if finding.fields %}
+    <ul style="margin: 6px 0 0 16px; padding: 0;">
+      {% for field in finding.fields %}
+      {% if field.label != 'Reference' or 'reference' not in selected_vuln_detail_sections or not finding.reference %}
+      <li style="margin-bottom: 4px; color: var(--ink);">
+        <strong>{{ field.label }}:</strong>
+        {% if field.label == 'Scan Type' %}
+          {% if user.is_superuser or user.role == 'Admin' %}
+            {{ field.value }}
+          {% else %}
+            {{ field.value }} {# user_scan_type filter not available in Jinja2 #}
+          {% endif %}
+        {% else %}
+          {{ field.value }}
+        {% endif %}
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if finding.mitre_has_data %}
+    <div class="callout" style="margin-top: 8px;">
+      <strong>MITRE ATT&CK:</strong>
+      <ul style="margin: 6px 0 0 16px; padding: 0;">
+        {% for t in finding.mitre_techniques %}
+        <li><strong>{{ t.id }}</strong> — {{ t.name }} <span style="color: #6b7280;">({{ t.tactic }})</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if finding.duplicate_notes %}
+    <div class="callout" style="margin-top: 8px;">
+      <strong>Duplicate content noted:</strong>
+      <ul style="margin: 6px 0 0 16px; padding: 0;">
+        {% for note in finding.duplicate_notes %}
+        <li><strong>{{ note.field|title }}:</strong> matches {{ note.reference }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="section-subtitle"><em>No detailed findings recorded for this category.</em></p>
+  {% endfor %}
+
+  {% if group.truncated %}
+  <p class="section-subtitle"><em>Showing {{ group.shown_count }} of {{ group.count }} findings in this category. Apply narrower filters for the full list.</em></p>
+  {% endif %}
+  {% endfor %}
+
+  {% if findings.truncated %}
+  <div class="callout"><strong>Note:</strong> Additional findings exist but were excluded from this export for brevity. Regenerate the report with refined filters to include all items.</div>
+  {% endif %}
+</section>
+{% endif %}

@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "generated": "{{ now.strftime('%Y-%m-%d %H:%M') }}",
+    "total_findings": {{ (overall_counts or {}).total|default(0) }},
+    "risk_posture": "{{ (risk_overview or {}).label|default('Unknown') }}",
+    "risk_score": {{ (risk_overview or {}).score|default(0)|floatformat(1) }},
+    "scan_types": [{% for st in selected_scan_types %}"{{ st }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  },
+  "severity_summary": {
+    "critical": {{ (overall_counts or {}).critical|default(0) }},
+    "high": {{ (overall_counts or {}).high|default(0) }},
+    "medium": {{ (overall_counts or {}).medium|default(0) }},
+    "low": {{ (overall_counts or {}).low|default(0) }}
+  },
+  "findings": [
+    {% for slug, summary in (scan_summary_map or {}).items() %}
+    {% if summary.findings and summary.findings.grouped %}
+    {% for group in summary.findings.grouped %}
+    {% for finding in group.table_items %}
+    {
+      "scan_type": "{{ slug }}",
+      "title": "{{ finding.title|default('')|escape }}",
+      "project": "{{ finding.project_name|default('')|escape }}",
+      "target": "{{ finding.target|default('')|escape }}",
+      "severity": "{{ group.slug }}",
+      "severity_label": "{{ group.label }}",
+      "cvss_score": {{ finding.cvss_score|default('null') }},
+      "cvss_severity": "{{ finding.cvss_severity|default('')|escape }}",
+      "status": "{{ finding.status|default('')|escape }}",
+      "scanner": "{{ finding.scanner|default('')|escape }}",
+      "risk": "{{ finding.risk|default(finding.severity_label|default(''))|escape }}",
+      "description": "{{ finding.description|default('')|escape }}",
+      "solution": "{{ finding.solution|default('')|escape }}",
+      "reference": "{{ finding.reference|default('')|escape }}",
+      {% if finding.mitre_has_data %}
+      "mitre_techniques": [
+        {% for t in finding.mitre_techniques %}
+        {
+          "id": "{{ t.id }}",
+          "name": "{{ t.name|escape }}",
+          "tactic": "{{ t.tactic|escape }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ],
+      {% else %}
+      "mitre_techniques": [],
+      {% endif %}
+      {% if finding.identifier %}
+      "identifier": "{{ finding.identifier|escape }}",
+      {% endif %}
+      {% if finding.detected %}
+      "detected": "{{ finding.detected.strftime('%Y-%m-%d %H:%M') }}",
+      {% endif %}
+      "jira_ticket": "{{ finding.jira_ticket|default('')|escape }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+  ]
+}

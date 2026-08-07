@@ -27,8 +27,9 @@ from archerysettings.models import (ArachniSettingsDb, BurpSettingDb, EmailDb,
 
 
 class SaveSettings:
-    def __init__(self, setting_file):
+    def __init__(self, setting_file, organization=None):
         self.setting_file = setting_file
+        self.organization = organization
 
     def nmap_vulners(self, enabled, version, online, timing):
         """
@@ -39,7 +40,7 @@ class SaveSettings:
         :param timing:
         :return:
         """
-        all_nv = NmapVulnersSettingDb.objects.filter()
+        all_nv = NmapVulnersSettingDb.objects.filter(organization=self.organization)
         all_nv.delete()
         if timing > 5:
             timing = 5
@@ -47,7 +48,8 @@ class SaveSettings:
             timing = 0
 
         save_nv_settings = NmapVulnersSettingDb(
-            enabled=enabled, version=version, online=online, timing=timing
+            enabled=enabled, version=version, online=online, timing=timing,
+            organization=self.organization
         )
         save_nv_settings.save()
 
@@ -59,7 +61,7 @@ class SaveSettings:
         :param zaport:
         :return:
         """
-        all_zap = ZapSettingsDb.objects.filter()
+        all_zap = ZapSettingsDb.objects.filter(organization=self.organization)
         all_zap.delete()
 
         save_zapsettings = ZapSettingsDb(
@@ -67,6 +69,7 @@ class SaveSettings:
             zap_api=apikey,
             zap_port=zaport,
             setting_id=setting_id,
+            organization=self.organization,
         )
         save_zapsettings.save()
 
@@ -78,7 +81,7 @@ class SaveSettings:
         :return:
         """
 
-        all_burp = BurpSettingDb.objects.filter()
+        all_burp = BurpSettingDb.objects.filter(organization=self.organization)
         all_burp.delete()
 
         save_burpsettings = BurpSettingDb(
@@ -86,6 +89,7 @@ class SaveSettings:
             burp_port=burport,
             burp_api_key=burpapikey,
             setting_id=setting_id,
+            organization=self.organization,
         )
         save_burpsettings.save()
 
@@ -97,7 +101,6 @@ class SaveSettings:
         openvas_user,
         openvas_password,
         setting_id,
-        organization=None,
     ):
         """
         Save OpenVAS Settings into Setting files.
