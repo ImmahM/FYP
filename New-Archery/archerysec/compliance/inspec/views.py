@@ -16,9 +16,11 @@
 
 import hashlib
 
+from django.contrib import messages
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from rest_framework import status
+from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework.response import Response
@@ -34,7 +36,7 @@ def export(request):
     :param request:
     :return:
     """
-    username = request.user.username
+    username = getattr(request.user, 'email', None) or getattr(request.user, 'username', str(request.user))
 
     if request.method == "POST":
         scan_id = request.POST.get("scan_id")
@@ -57,6 +59,7 @@ def export(request):
             response = HttpResponse(dataset.yaml, content_type="application/x-yaml")
             response["Content-Disposition"] = 'attachment; filename="%s.yaml"' % scan_id
             return response
+    return HttpResponseRedirect(reverse("inspec:inspec_list"))
 
 
 class InspecScanList(APIView):
@@ -82,7 +85,10 @@ class InspecVulnList(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
+        scan_id = request.GET.get("scan_id")
+        if not scan_id:
+            messages.warning(request, "Missing required parameter: scan_id.")
+            return HttpResponseRedirect(reverse("inspec:inspec_list"))
         inspec_all_vuln = (
             InspecScanResultsDb.objects.filter(scan_id=scan_id)
             .values(
@@ -116,8 +122,11 @@ class InspecVulnData(APIView):
     permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
-        vuln_id = request.GET["vuln_id"]
+        scan_id = request.GET.get("scan_id")
+        vuln_id = request.GET.get("vuln_id")
+        if not scan_id or not vuln_id:
+            messages.warning(request, "Missing required parameters: scan_id and vuln_id.")
+            return HttpResponseRedirect(reverse("inspec:inspec_list"))
 
         inspec_vuln_data = InspecScanResultsDb.objects.filter(
             scan_id=scan_id,
@@ -188,8 +197,11 @@ class InspecDetails(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
-        vuln_id = request.GET["vuln_id"]
+        scan_id = request.GET.get("scan_id")
+        vuln_id = request.GET.get("vuln_id")
+        if not scan_id or not vuln_id:
+            messages.warning(request, "Missing required parameters: scan_id and vuln_id.")
+            return HttpResponseRedirect(reverse("inspec:inspec_list"))
         inspec_vuln_details = InspecScanResultsDb.objects.filter(
             scan_id=scan_id, vuln_id=vuln_id
         )

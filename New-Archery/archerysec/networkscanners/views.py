@@ -722,7 +722,6 @@ class OpenvasDetails(APIView):
             openvas_user=openvas_user,
             openvas_password=openvas_password,
             setting_id=setting_id,
-            organization=org,
         )
 
         save_settings_data = SettingsDb(
@@ -772,6 +771,21 @@ class OpenvasSetting(APIView):
 
     def get(self, request):
         org = getattr(request.user, "organization", None)
+
+        # Auto-create default OpenVAS settings if none exist
+        from archerysettings.models import OpenvasSettingDb
+        if not OpenvasSettingDb.objects.filter(organization=org).exists():
+            import uuid as uuid_mod
+            OpenvasSettingDb.objects.create(
+                setting_id=uuid_mod.uuid4(),
+                host='customarcherysecopenvas',
+                port='9390',
+                user='admin',
+                password='admin',
+                enabled=True,
+                organization=org,
+            )
+
         load_openvas_setting = load_settings.ArcherySettings(
             api_data,
             organization=org,
@@ -1259,10 +1273,12 @@ class NetworkScanVulnInfo(APIView):
     permission_classes = [IsAuthenticated | permissions.VerifyAPIKey]
 
     def get(self, request, uu_id=None):
-        jira_url = None
         jira = jirasetting.objects.filter(organization=request.user.organization)
+        jira_url = None
         for d in jira:
             jira_url = d.jira_server
+        if jira_url is None:
+            jira_url = 'https://my-fyp-org.atlassian.net/'
         if uu_id is None:
             scan_id = request.GET["scan_id"]
             # Ensure the user has access to this scan
@@ -1420,8 +1436,11 @@ class NetworkScanDetails(APIView):
         jira_username = None
         jira_password = None
         jira_projects = None
-        vuln_id = request.GET["vuln_id"]
-        scanner = request.GET["scanner"]
+        vuln_id = request.GET.get("vuln_id")
+        scanner = request.GET.get("scanner")
+        if not vuln_id:
+            messages.warning(request, "Missing required parameter: vuln_id.")
+            return HttpResponseRedirect(reverse("networkscanners:list_scans"))
         jira_setting = jirasetting.objects.filter(
             organization=request.user.organization
         )
@@ -2503,6 +2522,21 @@ class OpenVASServiceLog(APIView):
             combined.append(header + (data or ""))
         payload = "".join(combined)
         return HttpResponse(payload, content_type="text/plain") if raw else HttpResponse(payload, status=200)
+
+
+class NetworkXmlUpload(APIView):
+    renderer_classes = [TemplateHTMLRenderer]
+    template_name = "networkscanners/net_upload_xml.html"
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        from projects.models import ProjectDb
+        all_project = ProjectDb.objects.filter(organization=request.user.organization)
+        return render(request, "networkscanners/net_upload_xml.html", {"all_project": all_project})
+
+    def post(self, request):
+        messages.info(request, "XML upload received. Processing not yet implemented.")
+        return HttpResponseRedirect(reverse("networkscanners:list_scans"))
 
 
 

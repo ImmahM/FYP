@@ -21,6 +21,7 @@ urlpatterns = [
     path("recent/", views.NetworkScanRecent.as_view(), name="recent_scans"),
     path("admin_scans/", views.AdminNetworkScanExplorer.as_view(), name="admin_scans"),
     path("list_vuln_info/", views.NetworkScanVulnInfo.as_view(), name="list_vuln_info"),
+    path("list_vuln/", views.NetworkScanVulnInfo.as_view(), name="list_vuln"),
     path("scan_details/", views.NetworkScanDetails.as_view(), name="scan_details"),
     path("scan_delete/", views.NetworkScanDelete.as_view(), name="scan_delete"),
     path("vuln_delete/", views.NetworkScanVulnDelete.as_view(), name="vuln_delete"),
@@ -38,4 +39,5 @@ urlpatterns = [
     path("openvas_log/", views.OpenVASLog.as_view(), name="openvas_log"),
     path("openvas_service_log/", views.OpenVASServiceLog.as_view(), name="openvas_service_log"),
     path("nmap_latest_log/", views.NmapLatestLog.as_view(), name="nmap_latest_log"),
+    path("xml_upload/", views.NetworkXmlUpload.as_view(), name="xml_upload"),
 ]

@@ -45,12 +45,24 @@ class JiraSetting(APIView):
     permission_classes = (IsAuthenticated, permissions.IsAdmin)
 
     def get(self, request):
+        org = request.user.organization
+
+        # Auto-create default JIRA settings if none exist
+        if not jirasetting.objects.filter(organization=org).exists():
+            jirasetting.objects.create(
+                setting_id=uuid.uuid4(),
+                jira_server='https://my-fyp-org.atlassian.net',
+                jira_username=signing.dumps('tp077928@mail.apu.edu'),
+                jira_password=signing.dumps('ATATT3xFfGF0mBv3Jjdgg5WpO6uovniTe4FQCkkT99klL-5Wud8PrAuWNnNZYdx0fBV4VWmW9dzPARaIjbbxFlBsx6s0gwZuMamgGcaniwUQyqAixzUQYO7N58TBDHj4viVV2UBEszjncFfGMUgtU8QIx4LW2aUIxCiFJ4GyBXdNld42CCsUH94=DEEABC81'),
+                organization=org,
+            )
+
         jira_server = ""
         jira_username = ""
         jira_password = ""
 
         all_jira_settings = jirasetting.objects.filter(
-            organization=request.user.organization
+            organization=org
         )
         for jira in all_jira_settings:
             jira_server = jira.jira_server
@@ -173,11 +185,15 @@ class CreateJiraTicket(APIView):
             print(e)
             notify.send(user, recipient=user, verb="Jira settings not found")
 
-        summary = request.GET["summary"]
-        description = request.GET["description"]
-        scanner = request.GET["scanner"]
-        vuln_id = request.GET["vuln_id"]
-        scan_id = request.GET["scan_id"]
+        summary = request.GET.get("summary")
+        description = request.GET.get("description")
+        scanner = request.GET.get("scanner")
+        vuln_id = request.GET.get("vuln_id")
+        scan_id = request.GET.get("scan_id")
+
+        if not summary or not vuln_id or not scanner or not scan_id:
+            messages.warning(request, "Missing required parameters: summary, vuln_id, scanner, scan_id.")
+            return HttpResponseRedirect(reverse("dashboard:dashboard"))
 
         return render(
             request,

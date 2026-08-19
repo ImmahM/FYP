@@ -16,6 +16,7 @@
 
 import hashlib
 
+from django.contrib import messages
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
 from rest_framework import status
@@ -54,6 +55,7 @@ def export(request):
             response = HttpResponse(dataset.yaml, content_type="application/x-yaml")
             response["Content-Disposition"] = 'attachment; filename="%s.yaml"' % scan_id
             return response
+    return HttpResponseRedirect(reverse("dockle:dockle_list"))
 
 
 class DockleScanList(APIView):
@@ -79,7 +81,10 @@ class DockleVulnList(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
+        scan_id = request.GET.get("scan_id")
+        if not scan_id:
+            messages.warning(request, "Missing required parameter: scan_id.")
+            return HttpResponseRedirect(reverse("dockle:dockle_list"))
 
         dockle_all_vuln = DockleScanResultsDb.objects.filter(scan_id=scan_id)
         dockle_all_audit = DockleScanResultsDb.objects.filter(scan_id=scan_id)
@@ -104,8 +109,11 @@ class DockleVulnData(APIView):
     permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
-        vuln_id = request.GET["vuln_id"]
+        scan_id = request.GET.get("scan_id")
+        vuln_id = request.GET.get("vuln_id")
+        if not scan_id or not vuln_id:
+            messages.warning(request, "Missing required parameters: scan_id and vuln_id.")
+            return HttpResponseRedirect(reverse("dockle:dockle_list"))
         dockle_vuln_data = DockleScanResultsDb.objects.filter(
             scan_id=scan_id,
             vuln_id=vuln_id,
@@ -175,8 +183,11 @@ class DockleDetails(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        scan_id = request.GET["scan_id"]
-        vuln_id = request.GET["vuln_id"]
+        scan_id = request.GET.get("scan_id")
+        vuln_id = request.GET.get("vuln_id")
+        if not scan_id or not vuln_id:
+            messages.warning(request, "Missing required parameters: scan_id and vuln_id.")
+            return HttpResponseRedirect(reverse("dockle:dockle_list"))
 
         dockle_vuln_details = DockleScanResultsDb.objects.filter(
             scan_id=scan_id, vuln_id=vuln_id

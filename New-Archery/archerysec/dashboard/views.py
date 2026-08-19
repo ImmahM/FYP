@@ -70,10 +70,10 @@ def trend_update():
         )
 
         try:
-            critical = all_date_data.first()["total_critical"]
-            high = all_date_data.first()["total_high"]
-            medium = all_date_data.first()["total_medium"]
-            low = all_date_data.first()["total_low"]
+            critical = all_date_data.first()["total_critical"] or 0
+            high = all_date_data.first()["total_high"] or 0
+            medium = all_date_data.first()["total_medium"] or 0
+            low = all_date_data.first()["total_low"] or 0
         except:
             all_date_data = (
                 ProjectDb.objects.annotate(month=MonthSqlite("date_time"))
@@ -84,12 +84,15 @@ def trend_update():
                 .annotate(total_low=Sum("total_low"))
                 .order_by("month")
             )
-            critical = all_date_data.first()["total_critical"]
-            high = all_date_data.first()["total_high"]
-            medium = all_date_data.first()["total_medium"]
-            low = all_date_data.first()["total_low"]
+            critical = all_date_data.first()["total_critical"] or 0
+            high = all_date_data.first()["total_high"] or 0
+            medium = all_date_data.first()["total_medium"] or 0
+            low = all_date_data.first()["total_low"] or 0
 
         all_month_data_display = MonthDb.objects.all()
+
+        # Clean up records with invalid month values
+        MonthDb.objects.filter(month__in=['', 'None', None]).delete()
 
         if len(all_month_data_display) == 0:
             add_data = MonthDb(
@@ -117,6 +120,12 @@ def trend_update():
                 MonthDb.objects.filter(project_id=project_id, month="11").delete()
                 MonthDb.objects.filter(project_id=project_id, month="12").delete()
 
+            # Skip records with invalid month values
+            try:
+                data_month = int(data.month)
+            except (ValueError, TypeError):
+                continue
+
             match_data = MonthDb.objects.filter(
                 project_id=project_id, month=current_month
             )
@@ -131,7 +140,7 @@ def trend_update():
                 )
                 add_data.save()
 
-            elif int(data.month) == int(current_month):
+            elif data_month == int(current_month):
                 MonthDb.objects.filter(month=current_month).update(
                     critical=critical, high=high, medium=medium, low=low
                 )
@@ -855,9 +864,9 @@ def all_high_vuln(request):
     pentest_all_high = ""
 
     all_notify = Notification.objects.unread()
-    if request.GET["project_id"]:
-        project_uu_id = request.GET["project_id"]
-        severity = request.GET["severity"]
+    project_uu_id = request.GET.get("project_id", "")
+    severity = request.GET.get("severity", "")
+    if project_uu_id:
         if project_uu_id == "none":
             project_id = ""
         else:
@@ -1159,7 +1168,7 @@ def all_high_vuln(request):
 
     else:
         return HttpResponseRedirect(
-            reverse("dashboard:proj_data" + "?project_id=%s" % project_id)
+            reverse("dashboard:proj_data") + "?project_id=%s" % project_id
         )
 
     web_scan_type_subquery = WebScansDb.objects.filter(scan_id=OuterRef("scan_id")).values("scan_type")[:1]
@@ -1207,9 +1216,17 @@ def export(request):
         report_type = request.POST.get("type")
         severity = request.POST.get("severity")
 
+        # Map "All" to "Total" for the query function
+        if severity == "All":
+            severity = "Total"
+
         resource = AllResource()
 
         all_data = scans_query.all_vuln_count(project_id=project_id, query=severity)
+        
+        # Ensure we have a queryset, not an integer
+        if isinstance(all_data, int):
+            all_data = WebScanResultsDb.objects.none()
 
         dataset = resource.export(all_data)
 
@@ -1225,3 +1242,5 @@ def export(request):
                 'attachment; filename="%s.json"' % project_id
             )
             return response
+
+    return HttpResponse("Invalid request", status=400)

@@ -62,8 +62,29 @@ class EmailSetting(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        all_email = EmailDb.objects.filter(organization=request.user.organization)
+        org = request.user.organization
+
+        # Auto-create default email settings with Gmail if none exist
+        if not EmailDb.objects.filter(organization=org).exists():
+            EmailDb.objects.create(
+                setting_id=uuid.uuid4(),
+                subject='ArcherySec Notification',
+                message='',
+                recipient_list='immahkali939@gmail.com',
+                smtp_host='smtp.gmail.com',
+                smtp_port=587,
+                smtp_use_tls=True,
+                smtp_user='immahkali939@gmail.com',
+                smtp_password=signing.dumps('cyfhdwpoujgrtxei'),
+                sender_email='immahkali939@gmail.com',
+                organization=org,
+            )
+
+        all_email = EmailDb.objects.filter(organization=org)
         data = all_email.first()
+        # Don't expose the password — keep it hidden
+        if data:
+            data.smtp_password = ''
         inbox = Notification.objects.filter(recipient=request.user).order_by("-timestamp")[:50]
         return render(
             request,
@@ -369,6 +390,74 @@ class Settings(APIView):
         all_settings_data = SettingsDb.objects.filter(
             organization=org
         )
+
+        # Auto-create default JIRA settings entry if none exist
+        jira_setting_exists = jirasetting.objects.filter(organization=org).exists()
+        settings_jira_exists = SettingsDb.objects.filter(setting_scanner='Jira', organization=org).exists()
+        if not jira_setting_exists:
+            jirasetting.objects.create(
+                setting_id=uuid.uuid4(),
+                jira_server='https://my-fyp-org.atlassian.net',
+                jira_username=signing.dumps('tp077928@mail.apu.edu'),
+                jira_password=signing.dumps('ATATT3xFfGF0mBv3Jjdgg5WpO6uovniTe4FQCkkT99klL-5Wud8PrAuWNnNZYdx0fBV4VWmW9dzPARaIjbbxFlBsx6s0gwZuMamgGcaniwUQyqAixzUQYO7N58TBDHj4viVV2UBEszjncFfGMUgtU8QIx4LW2aUIxCiFJ4GyBXdNld42CCsUH94=DEEABC81'),
+                organization=org,
+            )
+        if not settings_jira_exists:
+            SettingsDb.objects.create(
+                setting_id=uuid.uuid4(),
+                setting_scanner='Jira',
+                organization=org,
+                setting_status=False,
+            )
+
+        # Auto-create default OpenVAS settings entry if none exist
+        openvas_exists = OpenvasSettingDb.objects.filter(organization=org).exists()
+        settings_openvas_exists = SettingsDb.objects.filter(setting_scanner='Openvas', organization=org).exists()
+        if not openvas_exists:
+            OpenvasSettingDb.objects.create(
+                setting_id=uuid.uuid4(),
+                host='customarcherysecopenvas',
+                port='9390',
+                user='admin',
+                password='admin',
+                enabled=True,
+                organization=org,
+            )
+        if not settings_openvas_exists:
+            SettingsDb.objects.create(
+                setting_id=uuid.uuid4(),
+                setting_scanner='Openvas',
+                organization=org,
+                setting_status=False,
+            )
+
+        # Auto-create default Email settings entry with Gmail if none exist
+        email_exists = EmailDb.objects.filter(organization=org).exists()
+        settings_email_exists = SettingsDb.objects.filter(setting_scanner='Email', organization=org).exists()
+        if not email_exists:
+            EmailDb.objects.create(
+                setting_id=uuid.uuid4(),
+                subject='ArcherySec Notification',
+                message='',
+                recipient_list='immahkali939@gmail.com',
+                smtp_host='smtp.gmail.com',
+                smtp_port=587,
+                smtp_use_tls=True,
+                smtp_user='immahkali939@gmail.com',
+                smtp_password=signing.dumps('cyfhdwpoujgrtxei'),
+                sender_email='immahkali939@gmail.com',
+                organization=org,
+            )
+        if not settings_email_exists:
+            SettingsDb.objects.create(
+                setting_id=uuid.uuid4(),
+                setting_scanner='Email',
+                organization=org,
+                setting_status=False,
+            )
+
+        # Refresh settings data after creating defaults
+        all_settings_data = SettingsDb.objects.filter(organization=org)
 
         from user_management.models import Organization
         orgs = []

@@ -117,7 +117,7 @@ class SaveSettings:
             user=openvas_user,
             password=openvas_password,
             setting_id=setting_id,
-            organization=organization,
+            organization=self.organization,
         )
         openvas_settings.save()
         try:

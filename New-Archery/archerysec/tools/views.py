@@ -30,6 +30,7 @@ import signal
 import time
 
 import defusedxml.ElementTree as ET
+from django.contrib import messages
 from django.shortcuts import HttpResponseRedirect, render
 from django.http import HttpResponse
 from django.urls import reverse
@@ -1370,7 +1371,10 @@ class Nmap(APIView):
     permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def get(self, request):
-        ip_address = request.GET["ip"]
+        ip_address = request.GET.get("ip")
+        if not ip_address:
+            messages.warning(request, "Missing required parameter: ip.")
+            return HttpResponseRedirect(reverse("tools:nmap_scan"))
 
         all_nmap = NmapResultDb.objects.filter(
             ip_address=ip_address, organization=request.user.organization

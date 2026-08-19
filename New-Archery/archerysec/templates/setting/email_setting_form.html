@@ -125,8 +125,8 @@
                   <div class="form-group row">
                     <label class="col-sm-4 col-form-label">SMTP Password (App Password):</label>
                     <div class="col-sm-6">
-                      <input type="password" name="smtp_password" class="form-control" placeholder="Leave blank to keep existing"/>
-                      <small class="form-text text-muted">Stored encrypted. Use provider app passwords where applicable.</small>
+                      <input type="password" name="smtp_password" class="form-control" placeholder="Saved (leave blank to keep existing)" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"/>
+                      <small class="form-text text-muted">Already saved. Leave blank to keep existing, or type new to change.</small>
                     </div>
                   </div>
                   {% endif %}

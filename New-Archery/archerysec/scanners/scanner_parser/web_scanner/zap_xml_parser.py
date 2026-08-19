@@ -170,7 +170,7 @@ def xml_parser(root, project_id, scan_id, request):
                 description=desc,
                 severity=risk,
                 false_positive="No",
-                jira_ticket="NA",
+                jira_ticket="",
                 vuln_status="Open",
                 dup_hash=duplicate_hash,
                 vuln_duplicate="No",

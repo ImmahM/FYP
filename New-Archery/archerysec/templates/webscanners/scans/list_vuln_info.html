@@ -111,7 +111,7 @@ $(document).on('click', '.confirm-delete', function(){
                                     {% if data.mitre_has_data %}{% for t in data.mitre_techniques %}<a href="https://attack.mitre.org/techniques/{{ t.id|cut:'.' }}/" target="_blank" rel="noopener" class="badge badge-pill badge-purple mr-1" data-toggle="tooltip" title="{{ t.tactic }} :: {{ t.name }}">{{ t.id }}</a> {% endfor %}{% else %}&mdash;{% endif %}
                                 </td>
                                 <td>
-                                    <span class="text-muted">NA</span>
+                                    {% if data.jira_ticket and data.jira_ticket != 'NA' and jira_url %}<a href="{{ jira_url }}browse/{{ data.jira_ticket }}" target="_blank">{{ data.jira_ticket }}</a>{% elif data.jira_ticket and data.jira_ticket != 'NA' %}{{ data.jira_ticket }}{% else %}&mdash;{% endif %}
                                 </td>
                                 <td>
                                     <span class="badge badge-pill badge-primary">{{data.vuln_status}}</span>

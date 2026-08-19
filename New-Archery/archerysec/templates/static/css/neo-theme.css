@@ -1338,3 +1338,198 @@ select:focus, select:active, select:hover,
 .badge-success { background: linear-gradient(135deg, #1dd1a1, #10ac84); }
 .badge-warning { background: linear-gradient(135deg, #f6b93b, #ee5253); }
 .badge-info { background: linear-gradient(135deg, #54a0ff, #5f27cd); }
+
+/* ===== Darker modals, forms, and white elements ===== */
+.modal-content {
+  background: linear-gradient(135deg, #1a1f2e, #141d2f) !important;
+  border: 1px solid rgba(127, 90, 240, 0.3) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+  color: #e5e8ff !important;
+}
+.modal-header {
+  border-bottom: 1px solid rgba(127, 90, 240, 0.25) !important;
+}
+.modal-header .modal-title {
+  color: #f8fafc !important;
+}
+.modal-header .close {
+  color: #e5e8ff !important;
+  text-shadow: none !important;
+}
+.modal-footer {
+  border-top: 1px solid rgba(127, 90, 240, 0.25) !important;
+}
+.modal-body label {
+  color: #cbd5e1 !important;
+}
+.modal-body .form-control,
+.modal-body .form-control:focus {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+  border-radius: 10px !important;
+}
+.modal-body .form-control::placeholder {
+  color: #94a3b8 !important;
+}
+.modal-body select.form-control option {
+  background: #1a1f2e !important;
+  color: #f1f5ff !important;
+}
+.modal-backdrop {
+  background: rgba(5, 8, 15, 0.85) !important;
+}
+
+/* Form controls in general */
+.form-control,
+.form-control:focus {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+  border-radius: 10px !important;
+}
+.form-control::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Card bodies inside modals */
+.modal .card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+}
+.modal .card-body {
+  color: #e5e8ff !important;
+}
+
+/* Select2 inside modals */
+.modal .select2-container--default .select2-selection--single,
+.modal .select2-container--default .select2-selection--multiple {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5ff !important;
+}
+.modal .select2-container--default .select2-selection__rendered {
+  color: #f1f5ff !important;
+}
+.select2-dropdown {
+  background: #1a1f2e !important;
+  border: 1px solid rgba(127, 90, 240, 0.3) !important;
+  color: #f1f5ff !important;
+}
+.select2-results__option {
+  color: #e5e8ff !important;
+}
+.select2-results__option--highlighted {
+  background: rgba(127, 90, 240, 0.4) !important;
+  color: #fff !important;
+}
+
+/* Textareas */
+textarea.form-control {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f1f5ff !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+/* White text on colored badges inside modals */
+.modal .badge {
+  color: #fff !important;
+}
+
+/* Pre-formatted text (Instance field) */
+pre {
+  color: #e5e8ff !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  padding: 12px 14px !important;
+}
+
+/* Make text-muted more visible */
+.text-muted {
+  color: #94a3b8 !important;
+}
+
+/* General white overrides for better visibility */
+.card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+}
+.card-body {
+  color: #e5e8ff !important;
+}
+.card-title {
+  color: #f8fafc !important;
+}
+
+/* Tables */
+.table {
+  color: #e5e8ff !important;
+}
+.table thead th {
+  background: rgba(127, 90, 240, 0.15) !important;
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(127, 90, 240, 0.3) !important;
+}
+.table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.table tbody tr:hover {
+  background: rgba(127, 90, 240, 0.08) !important;
+}
+.table td, .table th {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* DataTables */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_processing,
+.dataTables_wrapper .dataTables_paginate {
+  color: #cbd5e1 !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  color: #e5e8ff !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+  background: rgba(127, 90, 240, 0.4) !important;
+  color: #fff !important;
+  border: none !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: rgba(127, 90, 240, 0.2) !important;
+  color: #fff !important;
+}
+
+/* Alerts */
+.alert {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #e5e8ff !important;
+  border-radius: 12px !important;
+}
+
+/* Buttons inside modals */
+.modal .btn-success {
+  background: linear-gradient(135deg, #1dd1a1, #10ac84) !important;
+  border: none !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+}
+.modal .btn-primary {
+  background: linear-gradient(135deg, #7f5af0, #5f27cd) !important;
+  border: none !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+}
+.modal .btn-secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #e5e8ff !important;
+  border-radius: 10px !important;
+}

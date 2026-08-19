@@ -261,14 +261,18 @@ class WebScanVulnInfo(APIView):
 
     def get(self, request, uu_id=None):
         vuln_data = ""
-        jira_url = None
-
         jira = jirasetting.objects.filter(organization=request.user.organization)
+        jira_url = None
         for d in jira:
             jira_url = d.jira_server
+        if jira_url is None:
+            jira_url = 'https://my-fyp-org.atlassian.net/'
         if uu_id is None:
-            scan_id = request.GET["scan_id"]
-            name = request.GET["scan_name"]
+            scan_id = request.GET.get("scan_id")
+            name = request.GET.get("scan_name")
+            if not scan_id or not name:
+                messages.warning(request, "Missing required parameters: scan_id and scan_name.")
+                return HttpResponseRedirect(reverse("webscanners:list_scans"))
             is_admin = getattr(request.user, 'is_superuser', False) or str(getattr(request.user, 'role', '')) in ('Admin', 'Organization Admin')
             # Ensure the user has access to this scan
             scan_qs = WebScansDb.objects.filter(scan_id=scan_id)
@@ -412,7 +416,10 @@ class WebScanDetails(APIView):
         jira_username = None
         jira_password = None
         jira_projects = None
-        vuln_id = request.GET["vuln_id"]
+        vuln_id = request.GET.get("vuln_id")
+        if not vuln_id:
+            messages.warning(request, "Missing required parameter: vuln_id.")
+            return HttpResponseRedirect(reverse("webscanners:list_scans"))
 
         jira_setting = jirasetting.objects.filter(
             organization=request.user.organization
