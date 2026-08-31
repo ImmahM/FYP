@@ -1,0 +1,54 @@
+{% extends 'dashboard/base.html' %}
+
+{% block body %}
+
+
+        <div class="row justify-content-md-center">
+            <div class="col-8">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-md-flex align-items-center">
+                            <h1 class="card-title">Nmap Connector</h1>
+                        </div>
+                        <br>
+                        <div class="card">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="widget-box">
+                                        <form  id="nmap" method="POST" action="{% url 'networkscanners:nmap_setting' %}{% if request.GET.org %}?org={{ request.GET.org }}{% endif %}">{% csrf_token %}
+                                            <input type="hidden" name="org" value="{{ request.GET.org }}">
+                                            <div class="form-group row">
+                                                <label class="col-sm-4 col-form-label">Enable</label>
+                                                <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b" style="float: right;">
+                                                    <label>
+                                                        <input name="nmap_enabled" {% if nmap_enabled == "True" %} value="on" checked="checked" {% endif %} type="checkbox"><span></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                                <div class="form-group row">
+                                                    <label class="col-sm-4 col-form-label">Binary Path</label>
+                                                    <div class="controls">
+                                                        <input type="text" name="nmap_binary" value="{{ nmap_binary }}" class="form-control" placeholder="Leave blank to auto-detect (e.g. nmap)"/>
+                                                        <small><em>Path to the nmap binary inside the server container. Blank auto-detects from PATH.</em></small>
+                                                    </div>
+                                                </div>
+                                                <div class="form-actions">
+                                                    <button type="submit" class="btn btn-success">Save</button>
+                                                </div>
+                                                </form>
+                                            </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="card-text mt-3">
+                            After saving, open <b>Settings &rarr; Connectors</b>, find the <b>Nmap</b> row and click
+                            <b>Test</b>. Nmap scans are blocked until the connector reports <b>Connected</b>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+{% endblock %}

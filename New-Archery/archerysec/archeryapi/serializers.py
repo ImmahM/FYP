@@ -46,6 +46,9 @@ class GenericScanResultsDbSerializer(serializers.Serializer):
     solution = serializers.CharField(read_only=True)
     scanner = serializers.CharField(read_only=True)
     target = serializers.CharField(read_only=True)
+    cvss_score = serializers.FloatField(read_only=True, required=False)
+    mitre_techniques = serializers.CharField(read_only=True, required=False)
+    risk_score = serializers.FloatField(read_only=True, required=False)
 
 
 class JiraLinkSerializer(serializers.Serializer):

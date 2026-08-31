@@ -108,6 +108,9 @@ class WebScanResultsDb(models.Model):
     scanner = models.TextField(editable=False)
     # Optional phase tag to classify where the finding came from (e.g., Passive, Active)
     scan_phase = models.CharField(max_length=16, null=True, blank=True)
+    cvss_score = models.FloatField(null=True, blank=True)
+    mitre_techniques = models.TextField(null=True, blank=True)
+    risk_score = models.FloatField(null=True, blank=True)
     updated_time = models.DateTimeField(auto_now=True, blank=True, null=True)
     created_time = models.DateTimeField(
         auto_now=True,

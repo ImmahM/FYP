@@ -58,6 +58,10 @@ class WebScanResultsDbSerializer(serializers.Serializer):
     vuln_duplicate = serializers.CharField(read_only=True)
     false_positive_hash = serializers.CharField(read_only=True)
     scanner = serializers.CharField(read_only=True)
+    scan_phase = serializers.CharField(read_only=True, required=False)
+    cvss_score = serializers.FloatField(read_only=True, required=False)
+    mitre_techniques = serializers.CharField(read_only=True, required=False)
+    risk_score = serializers.FloatField(read_only=True, required=False)
 
 
 class UploadScanSerializer(serializers.Serializer):

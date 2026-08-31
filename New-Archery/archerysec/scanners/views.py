@@ -410,14 +410,46 @@ class UnifiedScanDeleteView(APIView):
             except Exception:
                 is_admin = False
 
-            queryset = UnifiedScanSummary.objects.filter(
-                scan_id__in=scan_ids,
-                organization_id=organization_id
-            )
+            # Scope to org for the summary table. Admins (superuser / role "Admin")
+            # may browse all orgs via the Admin explorer, so skip the org filter.
+            queryset = UnifiedScanSummary.objects.filter(scan_id__in=scan_ids)
             if not is_admin:
-                queryset = queryset.filter(created_by_id=request.user.id)
+                queryset = queryset.filter(
+                    organization_id=organization_id,
+                    created_by_id=request.user.id,
+                )
 
             deleted_count, _ = queryset.delete()
+
+            # The UI list pages (web + network) render from the native per-scanner
+            # tables (WebScansDb / NetworkScanDb), NOT from UnifiedScanSummary.
+            # Delete those rows and their artifacts so the lists actually refresh.
+            # For admins use each scan row's own org; for non-admins keep org scope.
+            for scan_id in scan_ids:
+                try:
+                    from webscanners.models import WebScansDb
+                    from webscanners.views import _delete_web_scan_artifacts
+                    ws = WebScansDb.objects.filter(scan_id=scan_id)
+                    if not is_admin:
+                        ws = ws.filter(organization_id=organization_id, created_by=request.user)
+                    ws_row = ws.first()
+                    if ws_row is not None:
+                        _delete_web_scan_artifacts(scan_id, ws_row.organization_id)
+                        ws.delete()
+                except Exception:
+                    pass
+                try:
+                    from networkscanners.models import NetworkScanDb
+                    from networkscanners.views import _delete_network_scan_artifacts
+                    ns = NetworkScanDb.objects.filter(scan_id=scan_id)
+                    if not is_admin:
+                        ns = ns.filter(organization_id=organization_id, created_by=request.user)
+                    ns_row = ns.first()
+                    if ns_row is not None:
+                        _delete_network_scan_artifacts(scan_id, ns_row.organization_id)
+                        ns.delete()
+                except Exception:
+                    pass
 
             return Response({
                 'deleted_count': deleted_count,

@@ -28,6 +28,7 @@ urlpatterns = [
     # Nikto requests
     path("nikto/", views.NiktoScanList.as_view(), name="nikto"),
     path("niktolaunch/", views.NiktoScanLaunch.as_view(), name="niktolaunch"),
+    path("nikto_setting/", views.NiktoSetting.as_view(), name="nikto_setting"),
     path("nikto_result/", views.NiktoScanResult.as_view(), name="nikto_result"),
     path("nikto_log/", views.NiktoLog.as_view(), name="nikto_log"),
     path("nikto_latest_log/", views.NiktoLatestLog.as_view(), name="nikto_latest_log"),

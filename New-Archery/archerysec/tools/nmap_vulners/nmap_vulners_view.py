@@ -16,7 +16,8 @@
 
 from itertools import starmap
 
-from django.shortcuts import HttpResponseRedirect, render
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import render
 from notifications.signals import notify
 
 from tools.models import NmapResultDb, NmapScanDb, NmapVulnersPortResultDb
@@ -47,6 +48,22 @@ def nmap_vulners(request):
     if request.method == "POST":
         ip_address = request.POST.get("ip")
         project_id = request.POST.get("project_id")
+
+        # Preflight: require the org-level Nmap connector (parity with other Nmap launch paths)
+        try:
+            from archerysettings.models import SettingsDb as _SettingsDb
+            has_connector = _SettingsDb.objects.filter(
+                setting_scanner="Nmap",
+                organization=request.user.organization,
+                setting_status=True,
+            ).exists()
+        except Exception:
+            has_connector = False
+        if not has_connector:
+            return HttpResponse(
+                "Nmap settings are missing or disabled for your organization. Configure it under Settings → Add Connector → Nmap.",
+                status=400,
+            )
 
         try:
             run_nmap_vulners(ip_addr=ip_address, project_id=project_id)

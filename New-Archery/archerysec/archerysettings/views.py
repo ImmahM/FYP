@@ -39,6 +39,7 @@ from django.core.exceptions import ValidationError
 
 import PyArachniapi
 from archerysettings.models import (ArachniSettingsDb, BurpSettingDb, EmailDb,
+                                    NiktoSettingDb, NmapSettingDb,
                                     OpenvasSettingDb, SettingsDb,
                                     ZapSettingsDb)
 from jiraticketing.models import jirasetting
@@ -361,6 +362,40 @@ class DeleteSettings(APIView):
         return HttpResponseRedirect(redirect_url)
 
 
+def _run_scanner_connector_test(kind, org):
+    """Probe the local Nmap/Nikto binary and report connectivity.
+
+    Returns (ok: bool, detail: str).
+    """
+    import subprocess as _sp
+    import shutil as _sh
+    try:
+        if kind == "nmap":
+            row = NmapSettingDb.objects.filter(organization=org).first()
+            enabled = bool(getattr(row, "enabled", True)) if row else False
+            binary = ((row.binary_path or "").strip()) if row else ""
+            if not binary:
+                binary = _sh.which("nmap") or "nmap"
+            argv = [binary, "-V"]
+        elif kind == "nikto":
+            row = NiktoSettingDb.objects.filter(organization=org).first()
+            enabled = bool(getattr(row, "enabled", True)) if row else False
+            binary = ((row.binary_path or "").strip()) if row else ""
+            if not binary:
+                binary = _sh.which("nikto") or "nikto"
+            argv = [binary, "-Version"]
+        else:
+            return False, "unknown connector"
+        if not enabled:
+            return False, "connector disabled"
+        proc = _sp.run(argv, stdout=_sp.PIPE, stderr=_sp.STDOUT, timeout=20)
+        ok = proc.returncode == 0
+        out = (proc.stdout or b"").decode("utf-8", "ignore").strip()[:120]
+        return ok, (out or "{} returned rc={}".format(binary, proc.returncode))
+    except Exception as e:
+        return False, str(e)[:120]
+
+
 class Settings(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "setting/settings_page.html"
@@ -398,8 +433,8 @@ class Settings(APIView):
             jirasetting.objects.create(
                 setting_id=uuid.uuid4(),
                 jira_server='https://my-fyp-org.atlassian.net',
-                jira_username=signing.dumps('tp077928@mail.apu.edu'),
-                jira_password=signing.dumps('ATATT3xFfGF0mBv3Jjdgg5WpO6uovniTe4FQCkkT99klL-5Wud8PrAuWNnNZYdx0fBV4VWmW9dzPARaIjbbxFlBsx6s0gwZuMamgGcaniwUQyqAixzUQYO7N58TBDHj4viVV2UBEszjncFfGMUgtU8QIx4LW2aUIxCiFJ4GyBXdNld42CCsUH94=DEEABC81'),
+                jira_username=signing.dumps('tp077928@mail.apu.edu.my'),
+                jira_password=signing.dumps('ATATT3xFfGF0w1kJWrkMgOPr8pNiAtQfIpm9TSgDLOhuauD2paYZDq48X95bEkpWvlVENjz4WhemR-xjRzH_PK4pjGM3VEZa8VtIU2bcKt1hBYCWx_vj1_HBkt1C5tot402a6GEUlgt1wS5oEyISnnf3As8_hYw8EjPK6Vl5DyoreT1ZhknTygs=97F9994B'),
                 organization=org,
             )
         if not settings_jira_exists:
@@ -452,6 +487,42 @@ class Settings(APIView):
             SettingsDb.objects.create(
                 setting_id=uuid.uuid4(),
                 setting_scanner='Email',
+                organization=org,
+                setting_status=False,
+            )
+
+        # Auto-create default Nmap connector entry if none exist
+        nmap_exists = NmapSettingDb.objects.filter(organization=org).exists()
+        settings_nmap_exists = SettingsDb.objects.filter(setting_scanner='Nmap', organization=org).exists()
+        if not nmap_exists:
+            NmapSettingDb.objects.create(
+                setting_id=uuid.uuid4(),
+                binary_path='',
+                enabled=True,
+                organization=org,
+            )
+        if not settings_nmap_exists:
+            SettingsDb.objects.create(
+                setting_id=uuid.uuid4(),
+                setting_scanner='Nmap',
+                organization=org,
+                setting_status=False,
+            )
+
+        # Auto-create default Nikto connector entry if none exist
+        nikto_exists = NiktoSettingDb.objects.filter(organization=org).exists()
+        settings_nikto_exists = SettingsDb.objects.filter(setting_scanner='Nikto', organization=org).exists()
+        if not nikto_exists:
+            NiktoSettingDb.objects.create(
+                setting_id=uuid.uuid4(),
+                binary_path='',
+                enabled=True,
+                organization=org,
+            )
+        if not settings_nikto_exists:
+            SettingsDb.objects.create(
+                setting_id=uuid.uuid4(),
+                setting_scanner='Nikto',
                 organization=org,
                 setting_status=False,
             )
@@ -694,7 +765,7 @@ class Settings(APIView):
 
                 jira_projects = jira_ser.projects()
                 print(len(jira_projects))
-                jira_info = True
+                jira_info = len(jira_projects) > 0
                 SettingsDb.objects.filter(
                     setting_id=setting_id, organization=org
                 ).update(setting_status=jira_info)
@@ -704,6 +775,42 @@ class Settings(APIView):
                 SettingsDb.objects.filter(
                     setting_id=setting_id, organization=org
                 ).update(setting_status=jira_info)
+
+        if setting_of == "nmap":
+            nmap_info, nmap_detail = _run_scanner_connector_test("nmap", org)
+            SettingsDb.objects.filter(
+                setting_scanner="Nmap", organization=org
+            ).update(setting_status=nmap_info)
+            if nmap_info:
+                print(f"Nmap connector OK: {nmap_detail}")
+            else:
+                print(f"Nmap connector FAILED: {nmap_detail}")
+            try:
+                from django.contrib import messages as _msgs
+                if nmap_info:
+                    _msgs.success(request, f"Nmap connector OK — {nmap_detail}")
+                else:
+                    _msgs.error(request, f"Nmap connector failed — {nmap_detail}")
+            except Exception:
+                pass
+
+        if setting_of == "nikto":
+            nikto_info, nikto_detail = _run_scanner_connector_test("nikto", org)
+            SettingsDb.objects.filter(
+                setting_scanner="Nikto", organization=org
+            ).update(setting_status=nikto_info)
+            if nikto_info:
+                print(f"Nikto connector OK: {nikto_detail}")
+            else:
+                print(f"Nikto connector FAILED: {nikto_detail}")
+            try:
+                from django.contrib import messages as _msgs
+                if nikto_info:
+                    _msgs.success(request, f"Nikto connector OK — {nikto_detail}")
+                else:
+                    _msgs.error(request, f"Nikto connector failed — {nikto_detail}")
+            except Exception:
+                pass
 
         from user_management.models import Organization
         orgs = []
@@ -717,6 +824,8 @@ class Settings(APIView):
                 "all_notify": all_notify,
                 "orgs": orgs,
                 "selected_org": org,
+                "nmap_info": locals().get("nmap_info"),
+                "nikto_info": locals().get("nikto_info"),
             },
         )
 

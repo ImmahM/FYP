@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         jira_url = options['url'] or 'https://my-fyp-org.atlassian.net'
-        jira_username = options['username'] or 'tp077928@mail.apu.edu'
+        jira_username = options['username'] or 'tp077928@mail.apu.edu.my'
         jira_token = options['token']
 
         if not jira_token:

@@ -16,6 +16,7 @@
 
 from __future__ import unicode_literals
 
+import hashlib
 import json
 import os
 import threading
@@ -36,10 +37,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from selenium import webdriver
 import pytz
 
 from archerysettings.models import EmailDb, SettingsDb, ZapSettingsDb
+from utility.email_notify import email_scan_summary
 from user_management.models import Organization
 from projects.models import ProjectDb
 from scanners.audit import log_action
@@ -460,19 +461,9 @@ def email_notify(user, subject, message):
         notify.send(user, recipient=user, verb="Email Settings Not Configured")
 
 
-def email_sch_notify(subject, message):
-    global to_mail
-    all_email = EmailDb.objects.all()
-    for email in all_email:
-        to_mail = email.recipient_list
-
-    print(to_mail)
-    email_from = settings.EMAIL_HOST_USER
-    recipient_list = [to_mail]
-    try:
-        send_mail(subject, message, email_from, recipient_list)
-    except Exception as e:
-        print(e)
+def email_sch_notify(subject, message, html=None):
+    from utility.email_notify import email_sch_notify as _notify
+    return _notify(subject, message, html=html)
 
 
 def _build_zap_scan_type(do_spider, do_ajax_spider, do_pscan_wait, do_active, do_forced_browse):
@@ -1011,14 +1002,12 @@ def launch_zap_scan(
 
     notify.send(user, recipient=user, verb="ZAP Scan URL %s Completed" % target_url)
 
-    subject = "Archery Tool Scan Status - ZAP Scan Completed"
-    message = (
-        "ZAP Scanner has completed the scan "
-        "  %s <br> Total: %s <br>High: %s <br>"
-        "Medium: %s <br>Low %s"
-        % (target_url, total_vuln, total_high, total_medium, total_low)
+    email_scan_summary(
+        subject="Archery Tool Scan Status - ZAP Scan Completed",
+        scan_id=scan_id,
+        target_url=target_url,
+        organization_id=request.user.organization_id,
     )
-    email_sch_notify(subject=subject, message=message)
 
 
 def launch_schudle_zap_scan(
@@ -1128,15 +1117,12 @@ def launch_schudle_zap_scan(
         total_medium = data.medium_vul
         total_low = data.low_vul
 
-    subject = "Archery Tool Scan Status - ZAP Scan Completed"
-    message = (
-        "ZAP Scanner has completed the scan "
-        "  %s <br> Total: %s <br>High: %s <br>"
-        "Medium: %s <br>Low %s"
-        % (target_url, total_vuln, total_high, total_medium, total_low)
+    email_scan_summary(
+        subject="Archery Tool Scan Status - ZAP Scan Completed",
+        scan_id=scan_id,
+        target_url=target_url,
+        organization_id=request.user.organization_id,
     )
-
-    email_sch_notify(subject=subject, message=message)
 
 
 class ZapScan(APIView):
@@ -1374,13 +1360,27 @@ class ZapScan(APIView):
                 "max_files": _to_int(request.POST.get("fb_max_files"), 20000, 0, 200000),
                 "wordlist": _resolve_wordlist_path(_to_str(request.POST.get("fb_wordlist"))),
             }
-        project_id = (
-            ProjectDb.objects.filter(
-                uu_id=project_uu_id, organization=request.user.organization
-            )
-            .values("id")
-            .get()["id"]
-        )
+        # Resolve project safely: accept UUID or fallback to a recent project in the org
+        try:
+            from uuid import UUID as _UUID
+            base_projects = ProjectDb.objects.filter(organization=request.user.organization)
+            if project_uu_id:
+                proj_row = base_projects.filter(uu_id=_UUID(str(project_uu_id))).values("id").first()
+            else:
+                proj_row = None
+            if not proj_row:
+                proj_row = base_projects.order_by("-updated_time", "-created_time").values("id").first()
+            if not proj_row:
+                msg = "No project available. Please create a project first."
+                if request.path[:4] == "/api":
+                    return Response({"error": msg}, status=400)
+                return HttpResponse(msg, status=400)
+            project_id = proj_row["id"]
+        except Exception:
+            msg = "No project available. Please create a project first."
+            if request.path[:4] == "/api":
+                return Response({"error": msg}, status=400)
+            return HttpResponse(msg, status=400)
         rescan_id = None
         rescan = "No"
         targets, invalid_targets = _parse_target_urls(target_url)

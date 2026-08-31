@@ -125,6 +125,56 @@ class OpenvasSettingDb(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, default=1)
 
 
+class NmapSettingDb(models.Model):
+    setting_id = models.UUIDField(blank=True, null=True)
+    # Optional override for the nmap binary; leave blank to auto-detect from PATH
+    binary_path = models.TextField(blank=True, null=True)
+    enabled = models.BooleanField(blank=False, null=False, default=True)
+    created_time = models.DateTimeField(
+        auto_now=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="nmap_setting_db_created",
+    )
+    updated_by = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="nmap_setting_db_updated",
+    )
+    is_active = models.BooleanField(default=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, default=1)
+
+
+class NiktoSettingDb(models.Model):
+    setting_id = models.UUIDField(blank=True, null=True)
+    # Optional override for the nikto binary; leave blank to auto-detect from PATH
+    binary_path = models.TextField(blank=True, null=True)
+    enabled = models.BooleanField(blank=False, null=False, default=True)
+    created_time = models.DateTimeField(
+        auto_now=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="nikto_setting_db_created",
+    )
+    updated_by = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="nikto_setting_db_updated",
+    )
+    is_active = models.BooleanField(default=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, default=1)
+
+
 class NmapVulnersSettingDb(models.Model):
     setting_id = models.UUIDField(blank=True, null=True)
     enabled = models.BooleanField(blank=False, null=False)

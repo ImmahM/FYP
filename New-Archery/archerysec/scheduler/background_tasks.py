@@ -116,6 +116,17 @@ def _execute_web(schedule_id):
         f"Scheduled web scan for {schedule.target} (scanner: {schedule.scanner}) started.",
     )
     try:
+        from utility.email_notify import email_scan_started
+
+        email_scan_started(
+            subject="Archery Tool Scan Status - Scheduled Web Scan Started",
+            target_url=schedule.target,
+            scanner=schedule.scanner or "web",
+            scheduled_for=schedule.schedule_time or schedule.schedule_time_utc,
+        )
+    except Exception as exc:
+        _log(f"Scheduled web scan started email failed: {exc}")
+    try:
         if schedule.scanner == "zap_scan":
             config = schedule.scan_config or {}
 
@@ -184,6 +195,23 @@ def _run_scheduled_nikto(schedule, user):
     target = schedule.target
     org = schedule.organization
     now = timezone.now()
+    # Preflight: only run the scheduled Nikto scan if the org Nikto connector is green
+    try:
+        from archerysettings.models import SettingsDb as _SettingsDb
+        has_connector = _SettingsDb.objects.filter(
+            setting_scanner="Nikto",
+            organization=org,
+            setting_status=True,
+        ).exists()
+    except Exception:
+        has_connector = False
+    if not has_connector:
+        _log(f"Scheduled Nikto scan skipped: Nikto connector missing/disabled for org {getattr(org, 'id', None)}")
+        _notify_user(
+            user,
+            f"Scheduled Nikto scan for {target} skipped: Nikto connector is not enabled. Configure it under Settings → Connectors.",
+        )
+        return
     try:
         nikto_res_dir = getattr(
             settings, "NIKTO_RESULT_DIR", os.path.join(os.getcwd(), "nikto_result")
@@ -286,6 +314,25 @@ def _run_scheduled_nmap(schedule, user):
     scan_id = uuid.uuid4()
     target = str(schedule.target or "").strip()
     org = schedule.organization
+
+    # Preflight: only run the scheduled Nmap scan if the org Nmap connector is green
+    try:
+        from archerysettings.models import SettingsDb as _SettingsDb
+        has_connector = _SettingsDb.objects.filter(
+            setting_scanner="Nmap",
+            organization=org,
+            setting_status=True,
+        ).exists()
+    except Exception:
+        has_connector = False
+    if not has_connector:
+        _log(f"Scheduled Nmap scan skipped: Nmap connector missing/disabled for org {getattr(org, 'id', None)}")
+        _notify_user(
+            user,
+            f"Scheduled Nmap scan for {target} skipped: Nmap connector is not enabled. Configure it under Settings → Connectors.",
+        )
+        return
+
     now = timezone.now()
 
     NetworkScanDb.objects.create(
@@ -333,6 +380,17 @@ def _execute_network(schedule_id):
         user,
         f"Scheduled network scan for {schedule.target} (scanner: {schedule.scanner}) started.",
     )
+    try:
+        from utility.email_notify import email_scan_started
+
+        email_scan_started(
+            subject="Archery Tool Scan Status - Scheduled Network Scan Started",
+            target_url=schedule.target,
+            scanner=schedule.scanner or "network",
+            scheduled_for=schedule.schedule_time or schedule.schedule_time_utc,
+        )
+    except Exception as exc:
+        _log(f"Scheduled network scan started email failed: {exc}")
     try:
         scanner_name = str(schedule.scanner or "")
         if scanner_name == "open_vas":
@@ -419,7 +477,8 @@ def bootstrap():
         return
     if os.environ.get("DISABLE_SCHEDULER") == "1":
         return
-    if settings.DEBUG and os.environ.get("RUN_MAIN") != "true":
+    if settings.DEBUG and os.environ.get("RUN_MAIN") != "true" and os.environ.get("FORCE_SCHEDULER") != "1":
+        _log("Scheduler skipped: DEBUG=True and RUN_MAIN!=true (set FORCE_SCHEDULER=1 to override)")
         return
     _BOOTSTRAPPED = True
     try:

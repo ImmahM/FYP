@@ -754,7 +754,19 @@ class ZAPScanner:
                 try:
                     from webscanners.models import WebScansDb as _WS
                     row = _WS.objects.filter(scan_id=un_scanid).only('failure_reason').first()
-                    if row and getattr(row, 'failure_reason', '') == 'Stopped by user':
+                    if row is None:
+                        # Scan row was deleted from the UI -> stop the active ZAP scan
+                        # and exit this polling thread.
+                        try:
+                            try:
+                                self.zap.ascan.stop(scan_id)
+                            except Exception:
+                                self.zap.ascan.pause(scan_id)
+                        except Exception:
+                            pass
+                        error_msg = "Scan deleted by user"
+                        break
+                    if getattr(row, 'failure_reason', '') == 'Stopped by user':
                         try:
                             try:
                                 self.zap.ascan.stop(scan_id)
@@ -811,10 +823,13 @@ class ZAPScanner:
                     except Exception:
                         alerts = []
                 if alerts:
-                    # Keep only same host
-                    host = urlparse(self.target_url).netloc.lstrip('www.')
-                    alerts = [a for a in alerts if urlparse(str(a.get('url') or '')).netloc.lstrip('www.') == host]
-                    self._persist_alerts(alerts, un_scanid, self.project_id)
+                    # Only persist alerts while the scan row still exists (it may have
+                    # been deleted from the UI while the scan was running).
+                    if _WS.objects.filter(scan_id=un_scanid).exists():
+                        # Keep only same host
+                        host = urlparse(self.target_url).netloc.lstrip('www.')
+                        alerts = [a for a in alerts if urlparse(str(a.get('url') or '')).netloc.lstrip('www.') == host]
+                        self._persist_alerts(alerts, un_scanid, self.project_id)
 
                 time.sleep(10)
                 WebScansDb.objects.filter(scan_id=un_scanid).update(

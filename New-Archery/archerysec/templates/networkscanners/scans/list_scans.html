@@ -3,10 +3,12 @@
 {% load static %}
 {% block body %}
 {% load static %}
+<script type="text/javascript" src="{% static 'archerysecurity/js/unified-scanner-api.js' %}"></script>
 <script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
 <script type="text/javascript">
-    // Initialize Legacy API Client
-    const api = new LegacyScannerAPI();
+    // Initialize Legacy API Client (unified-scanner-api.js MUST load first)
+    let api = null;
+    try { api = new LegacyScannerAPI(); } catch (e) { console.error('Delete API client failed to init:', e); }
 
     // Enable simple console debugging for live row updates
     window.NET_SCAN_LIVE_DEBUG = true;
@@ -56,6 +58,7 @@
                         });
 
                         // Use new unified API
+                        if (!api) { alert('Delete API client failed to load. Hard-refresh and try again.'); return; }
                         api.networkScans.delete(scan_id).then(function() {
                             setTimeout(function () {
                                 location.reload();

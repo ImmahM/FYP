@@ -32,6 +32,7 @@ from rest_framework.views import APIView
 from archerysettings.models import SettingsDb
 from cloudscanners.models import CloudScansResultsDb
 from jiraticketing.models import jirasetting
+from jiraticketing.utils import jira_issue_types
 from networkscanners.models import NetworkScanResultsDb
 from staticscanners.models import StaticScanResultsDb
 from user_management import permissions
@@ -52,8 +53,8 @@ class JiraSetting(APIView):
             jirasetting.objects.create(
                 setting_id=uuid.uuid4(),
                 jira_server='https://my-fyp-org.atlassian.net',
-                jira_username=signing.dumps('tp077928@mail.apu.edu'),
-                jira_password=signing.dumps('ATATT3xFfGF0mBv3Jjdgg5WpO6uovniTe4FQCkkT99klL-5Wud8PrAuWNnNZYdx0fBV4VWmW9dzPARaIjbbxFlBsx6s0gwZuMamgGcaniwUQyqAixzUQYO7N58TBDHj4viVV2UBEszjncFfGMUgtU8QIx4LW2aUIxCiFJ4GyBXdNld42CCsUH94=DEEABC81'),
+                jira_username=signing.dumps('tp077928@mail.apu.edu.my'),
+                jira_password=signing.dumps('ATATT3xFfGF0w1kJWrkMgOPr8pNiAtQfIpm9TSgDLOhuauD2paYZDq48X95bEkpWvlVENjz4WhemR-xjRzH_PK4pjGM3VEZa8VtIU2bcKt1hBYCWx_vj1_HBkt1C5tot402a6GEUlgt1wS5oEyISnnf3As8_hYw8EjPK6Vl5DyoreT1ZhknTygs=97F9994B'),
                 organization=org,
             )
 
@@ -126,7 +127,7 @@ class JiraSetting(APIView):
                 )
             jira_projects = jira_ser.projects()
             print(len(jira_projects))
-            jira_info = True
+            jira_info = len(jira_projects) > 0
             SettingsDb.objects.filter(
                 setting_id=setting_id, organization=request.user.organization
             ).update(setting_status=jira_info)
@@ -200,6 +201,7 @@ class CreateJiraTicket(APIView):
             "jiraticketing/submit_jira_ticket.html",
             {
                 "jira_projects": jira_projects,
+                "jira_issue_types": jira_issue_types(jira_ser),
                 "summary": summary,
                 "description": description,
                 "scanner": scanner,
@@ -252,18 +254,42 @@ class CreateJiraTicket(APIView):
         scan_id = request.POST.get("scan_id")
 
         issue_dict = {
-            "project": {"id": project_id},
+            "project": {"key": project_id} if not str(project_id).isdigit() else {"id": project_id},
             "summary": summary,
             "description": description,
             "issuetype": {"name": issue_type},
         }
-        new_issue = jira_ser.create_issue(fields=issue_dict)
+        try:
+            new_issue = jira_ser.create_issue(fields=issue_dict)
+        except Exception as e:
+            print(e)
+            messages.error(request, "Jira ticket creation failed: %s" % e)
+            if scanner == "web":
+                return HttpResponseRedirect(
+                    reverse("webscanners:list_vuln_info")
+                    + "?scan_id=%s&scan_name=%s" % (scan_id, summary)
+                )
+            elif scanner == "sast":
+                return HttpResponseRedirect(
+                    reverse("staticscanners:list_vuln_info")
+                    + "?scan_id=%s&test_name=%s" % (scan_id, summary)
+                )
+            elif scanner == "network":
+                return HttpResponseRedirect(
+                    reverse("networkscanners:list_vuln_info")
+                    + "?scan_id=%s" % (scan_id)
+                )
+            elif scanner == "cloud":
+                return HttpResponseRedirect(
+                    reverse("cloudscanners:list_vuln") + "?scan_id=%s" % (scan_id)
+                )
+            return HttpResponseRedirect(reverse("dashboard:dashboard"))
 
         if scanner == "web":
             WebScanResultsDb.objects.filter(
                 vuln_id=vuln_id, organization=request.user.organization
             ).update(jira_ticket=new_issue)
-            messages.success(request, "Jira Ticket Submitted ID: %s", new_issue)
+            messages.success(request, "Jira Ticket Submitted ID: %s" % new_issue)
             return HttpResponseRedirect(
                 reverse("webscanners:list_vuln_info")
                 + "?scan_id=%s&scan_name=%s" % (scan_id, summary)
@@ -273,7 +299,7 @@ class CreateJiraTicket(APIView):
             StaticScanResultsDb.objects.filter(
                 vuln_id=vuln_id, organization=request.user.organization
             ).update(jira_ticket=new_issue)
-            messages.success(request, "Jira Ticket Submitted ID: %s", new_issue)
+            messages.success(request, "Jira Ticket Submitted ID: %s" % new_issue)
             return HttpResponseRedirect(
                 reverse("staticscanners:list_vuln_info")
                 + "?scan_id=%s&test_name=%s" % (scan_id, summary)
@@ -291,7 +317,7 @@ class CreateJiraTicket(APIView):
                 .get()["ip"]
             )
 
-            messages.success(request, "Jira Ticket Submitted ID: %s", new_issue)
+            messages.success(request, "Jira Ticket Submitted ID: %s" % new_issue)
             return HttpResponseRedirect(
                 reverse("networkscanners:list_vuln_info")
                 + "?scan_id=%s&ip=%s" % (scan_id, ip)
@@ -301,7 +327,7 @@ class CreateJiraTicket(APIView):
                 vuln_id=vuln_id, organization=request.user.organization
             ).update(jira_ticket=new_issue)
 
-            messages.success(request, "Jira Ticket Submitted ID: %s", new_issue)
+            messages.success(request, "Jira Ticket Submitted ID: %s" % new_issue)
             return HttpResponseRedirect(
                 reverse("cloudscanners:list_vuln") + "?scan_id=%s" % (scan_id)
             )

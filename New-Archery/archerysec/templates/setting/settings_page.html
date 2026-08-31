@@ -27,6 +27,8 @@
                                 data-live-search="true" onchange="location = this.value;">
                             <option class="dropdown-item" value="/zapscanner/zap_settings/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">OWASP ZAP</option>
                             <option class="dropdown-item" value="/networkscanners/openvas_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">OpenVAS</option>
+                            <option class="dropdown-item" value="/networkscanners/nmap_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">Nmap</option>
+                            <option class="dropdown-item" value="/tools/nikto_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">Nikto</option>
                             <option class="dropdown-item" value="/jira/jira_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">JIRA</option>
                             <option class="dropdown-item" value="/settings/email_setting/{% if selected_org %}?org={{ selected_org.id }}{% endif %}">Email</option>
                         </select>
@@ -135,6 +137,98 @@
                                                     <input type="hidden" name="setting_id"
                                                            value="{{ data.setting_id }}">
                                                     <input type="hidden" name="setting_of" value="openvas">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% elif data.setting_scanner == 'Nmap' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/nmap.png" alt="user" width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="Nmap">
+                                                    <b><a href="/networkscanners/nmap_setting/">Nmap</a></b>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="nmap">
+                                                    {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                    <button type="submit" class="btn badge-cyan"><i
+                                                            class="fas fa-retweet"></i> Test
+
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% elif data.setting_scanner == 'Nikto' %}
+                                        <tr>
+                                            <td>
+                                                <div class="p-1"><img src="/static/tools/unknown.png" alt="user" width="50"
+                                                                      class="rounded-circle" data-toggle="tooltip"
+                                                                      data-placement="top" title="Nikto">
+                                                    <b><a href="/tools/nikto_setting/">Nikto</a></b>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                {% if data.setting_status == False %}
+                                                    <span class="badge badge-pill badge-danger">Not Connected</span>
+                                                {% elif data.setting_status == True %}
+                                                    <span class="badge badge-pill badge-success">Connected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.created_time }}</td>
+                                            <td class="confirm-delete">
+                                                <div>
+                                                    <form action="{% url 'archerysettings:del_setting' %}" method="POST"
+                                                          class="form-horizontal">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="setting_id"
+                                                               value="{{ data.setting_id }}">
+                                                        {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
+                                                        <button class="btn btn-danger btn-mini"><i
+                                                                class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <form method="POST"
+                                                      action="{% url 'archerysettings:settings' %}">{% csrf_token %}
+                                                    <input type="hidden" name="setting_id"
+                                                           value="{{ data.setting_id }}">
+                                                    <input type="hidden" name="setting_of" value="nikto">
                                                     {% if selected_org %}<input type="hidden" name="org" value="{{ selected_org.id }}">{% endif %}
                                                     <button type="submit" class="btn badge-cyan"><i
                                                             class="fas fa-retweet"></i> Test
@@ -294,6 +388,36 @@
         <script>
             $(window).load(function () {
                 toastr.success('Jira Connection Found');
+            });
+        </script>
+    {% endif %}
+
+    {% if nmap_info == False %}
+        <script>
+            $(window).load(function () {
+                toastr.error('Nmap Connector Not Found');
+            });
+        </script>
+    {% endif %}
+    {% if nmap_info == True %}
+        <script>
+            $(window).load(function () {
+                toastr.success('Nmap Connector Found');
+            });
+        </script>
+    {% endif %}
+
+    {% if nikto_info == False %}
+        <script>
+            $(window).load(function () {
+                toastr.error('Nikto Connector Not Found');
+            });
+        </script>
+    {% endif %}
+    {% if nikto_info == True %}
+        <script>
+            $(window).load(function () {
+                toastr.success('Nikto Connector Found');
             });
         </script>
     {% endif %}
