@@ -550,9 +550,6 @@
                     var ids = [];
                     document.querySelectorAll('tr.scan-row').forEach(function(row){
                         var p = parseInt((row.getAttribute('data-percent')||'0'), 10);
-                        var sc = (row.getAttribute('data-scanner')||'').toLowerCase();
-                        // Skip Nikto rows to avoid auto-refresh/polling for them
-                        if (sc === 'nikto') return;
                         if (!isNaN(p) && p < 100) { ids.push(row.getAttribute('data-scanid')); }
                     });
                     if (ids.length === 0) return;

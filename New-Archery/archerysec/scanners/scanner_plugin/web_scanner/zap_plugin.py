@@ -841,6 +841,37 @@ class ZAPScanner:
         except Exception:
             return False
 
+    def _deepen_active_scan(self):
+        """Enable every active-scan rule and raise attack strength to HIGH.
+
+        The default ZAP policy ships with most attack rules disabled and at
+        DEFAULT (medium) strength, so fresh active scans mostly report
+        informational/passive alerts and miss the real Medium/Low findings.
+        Apply this before each active scan so results include the deeper
+        attack coverage expected for a full scan.
+        """
+        try:
+            policy = "Default Policy"
+            self.zap.ascan.enable_all_scanners(
+                scanpolicyname=policy, apikey=zap_api_key
+            )
+            try:
+                scanners = self.zap.ascan.scanners(scanpolicyname=policy)
+                for rule in scanners:
+                    rule_id = str(rule.get("id") or "")
+                    if not rule_id:
+                        continue
+                    try:
+                        self.zap.ascan.set_scanner_attack_strength(
+                            rule_id, "High", scanpolicyname=policy, apikey=zap_api_key
+                        )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def zap_scan(self):
         """
         The function Trigger scan in ZAP scanner
@@ -863,6 +894,8 @@ class ZAPScanner:
                     pass
             # Small delay to give ZAP time to register the site
             time.sleep(2)
+            # Enable all attack rules at HIGH strength so scans find real vulns
+            self._deepen_active_scan()
             if self.context_id is not None:
                 scan_id = self.zap.ascan.scan(
                     self.target_url, contextid=str(self.context_id)
