@@ -86,7 +86,7 @@
                     </div>
                     <a href="{% url 'networkscanners:net_scan_schedule' %}"
                        class="btn btn-outline-primary"
-                       title="Plan an OpenVAS/Nmap launch for later">
+                        title="Plan a network scan launch for later">
                         <i class="fas fa-calendar-alt mr-1"></i>Schedule scan
                     </a>
                 </div>
@@ -151,26 +151,29 @@
             </div>
             </div>
 
-            {% if user.is_superuser or user.role == 'Admin' %}
             <hr class="my-3" style="border-color: var(--border);">
             <div class="section-heading mb-2">
                 <span class="dot"></span>
                 <div>
-                    <div class="tile-head">Nmap Scan Types</div>
-                    <div class="tile-sub">Admin-only Nmap profiles and OS guess.</div>
+                    <div class="tile-head">{% if user.is_superuser or user.role == 'Admin' %}Nmap Scan Types{% else %}Additional Network Scan{% endif %}</div>
                 </div>
             </div>
-            <div id="nmap_group">
-                <div class="form-group">
-                    <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
-                        <label>
-                            <input name="nmap_enable" id="nmap_enable" type="checkbox">
-                            <span>Enable Nmap</span>
-                        </label>
-                    </div>
+
+            {% if user.is_superuser or user.role == 'Admin' %}
+            <div class="option-tile mb-3">
+                <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-0">
+                    <label class="d-flex align-items-center mb-0">
+                        <input name="nmap_enable" id="nmap_enable" type="checkbox">
+                        <span>Enable Nmap</span>
+                    </label>
                 </div>
+            </div>
+            {% endif %}
+
+            <p class="mb-2">{% if user.is_superuser or user.role == 'Admin' %}Select which Nmap profile to run:{% else %}Select additional network scan options:{% endif %}</p>
+            <div id="nmap_group" class="mb-3">
                 <div id="nmap_opts" class="form-group">
-                    <div class="form-group">
+                    <div class="form-group mb-0">
                         <label class="d-block">Profile</label>
                         <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                             <label>
@@ -193,7 +196,6 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -419,7 +421,7 @@ $(document).on('submit', '#start_scan', function(e){
     doLaunch();
 });
 
-// Always keep profile controls enabled for all roles (Admin/Org Admin/User)
+// Keep profile controls enabled (mutual exclusion only applies when multiple network scanners are visible)
 (function(){
     function setGroupDisabled(groupSel, disabled){
         var el = document.querySelector(groupSel);

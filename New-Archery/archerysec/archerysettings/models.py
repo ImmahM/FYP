@@ -49,6 +49,40 @@ class ZapSettingsDb(models.Model):
     is_active = models.BooleanField(default=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, default=1)
 
+    # --- Authentication configuration ---
+    AUTH_METHOD_CHOICES = [
+        ("none", "No Authentication"),
+        ("formBased", "Form-Based Login"),
+    ]
+    auth_method = models.CharField(
+        max_length=20, choices=AUTH_METHOD_CHOICES, default="none",
+        help_text="Authentication method for ZAP to use during scanning",
+    )
+    login_url = models.TextField(
+        blank=True, default="",
+        help_text="Full URL of the login form (e.g. http://target/login)",
+    )
+    username_field = models.TextField(
+        blank=True, default="username",
+        help_text="HTML name attribute of the username input field",
+    )
+    password_field = models.TextField(
+        blank=True, default="password",
+        help_text="HTML name attribute of the password input field",
+    )
+    username_value = models.TextField(
+        blank=True, default="",
+        help_text="Username / login value to submit",
+    )
+    password_value = models.TextField(
+        blank=True, default="",
+        help_text="Password value to submit",
+    )
+    logged_in_regex = models.TextField(
+        blank=True, default="",
+        help_text="Regex that matches a page shown ONLY when logged in (e.g. Dashboard)",
+    )
+
 
 class ArachniSettingsDb(models.Model):
     setting_id = models.UUIDField(blank=True, null=True)

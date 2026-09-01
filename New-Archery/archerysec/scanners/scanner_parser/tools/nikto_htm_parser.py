@@ -493,6 +493,7 @@ parser_header_dict = {
         "displayName": "Nikto",
         "dbtype": "WebScans",  
         "dbname": "Nikto",
+        "icon": "/static/tools/nikto.svg",
         "type": "XML",
         "parserFunction": nikto_xml_parser,
     }

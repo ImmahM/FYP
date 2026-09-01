@@ -27,7 +27,7 @@ urlpatterns = [
     path("sslcan_del/", views.SslScanDelete.as_view(), name="sslcan_del"),
     # Nikto requests
     path("nikto/", views.NiktoScanList.as_view(), name="nikto"),
-    path("niktolaunch/", views.NiktoScanLaunch.as_view(), name="niktolaunch"),
+    path("scanlaunch/", views.NiktoScanLaunch.as_view(), name="scanlaunch"),
     path("nikto_setting/", views.NiktoSetting.as_view(), name="nikto_setting"),
     path("nikto_result/", views.NiktoScanResult.as_view(), name="nikto_result"),
     path("nikto_log/", views.NiktoLog.as_view(), name="nikto_log"),

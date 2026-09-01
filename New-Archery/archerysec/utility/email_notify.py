@@ -67,6 +67,66 @@ def email_sch_notify(subject, message, html=None):
         return False
 
 
+def _derive_cvss(active_cvss, severity):
+    """Return a CVSS score, preferring the stored value and falling back to a
+    severity-derived score when the scanner did not provide one."""
+    if active_cvss is not None:
+        try:
+            return round(float(active_cvss), 1)
+        except (TypeError, ValueError):
+            pass
+    try:
+        from scanners.analysis.cvss_calculator import CvssCalculator
+        return CvssCalculator().compute(severity=severity or "")["score"]
+    except Exception:
+        return None
+
+
+def _derive_mitre(finding):
+    """Return a readable MITRE ATT&CK string for a web finding, preferring the
+    stored value and deriving one from the title/description/severity otherwise."""
+    stored = getattr(finding, "mitre_techniques", None)
+    if stored:
+        return str(stored)
+    try:
+        from scanners.analysis.mitre_attack import enrich_finding
+        enriched = enrich_finding(
+            {
+                "title": getattr(finding, "title", None) or "",
+                "description": getattr(finding, "description", None) or "",
+                "severity": getattr(finding, "severity", None) or "",
+                "cwe_id": getattr(finding, "cwe_id", None) or "",
+            }
+        )
+        techniques = enriched.get("mitre_techniques") or []
+        return ", ".join(
+            "{} ({})".format(t.get("id", ""), t.get("name", "")).strip()
+            for t in techniques
+            if t.get("id")
+        )
+    except Exception:
+        return ""
+
+
+def _derive_risk(active_risk, severity):
+    """Return a risk score, preferring the stored value and falling back to a
+    severity-based score when the scanner did not provide one."""
+    if active_risk is not None:
+        try:
+            return round(float(active_risk), 1)
+        except (TypeError, ValueError):
+            pass
+    _score_map = {
+        "Critical": 10.0,
+        "High": 8.1,
+        "Medium": 5.3,
+        "Low": 2.6,
+        "Informational": 0.0,
+        "Info": 0.0,
+    }
+    return _score_map.get(str(severity or "").strip())
+
+
 def email_scan_summary(subject, scan_id, target_url, organization_id=None):
     """Send a rich HTML scan-completion email with status, score and findings."""
     from webscanners.models import WebScanResultsDb, WebScansDb
@@ -149,6 +209,9 @@ def email_scan_summary(subject, scan_id, target_url, organization_id=None):
     for i, r in enumerate(findings, 1):
         sev = r.severity or ""
         color = sev_colors.get(sev, "#333333")
+        cvss = _derive_cvss(r.cvss_score, sev)
+        mitre = _derive_mitre(r)
+        risk = _derive_risk(r.risk_score, sev)
         rows_html.append(
             "<tr>"
             "<td>{}</td>"
@@ -164,9 +227,9 @@ def email_scan_summary(subject, scan_id, target_url, organization_id=None):
                 _escape(sev),
                 _escape(r.title or ""),
                 _escape(r.url or "")[:90],
-                r.cvss_score if r.cvss_score is not None else "-",
-                _escape(r.mitre_techniques or "")[:60],
-                r.risk_score if r.risk_score is not None else "-",
+                cvss if cvss is not None else "-",
+                _escape(mitre)[:120] if mitre else "-",
+                risk if risk is not None else "-",
             )
         )
     if not rows_html:

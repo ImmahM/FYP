@@ -36,7 +36,9 @@
                                                         style="width: 100%; height:36px;">
                                                     <option value="openvas">OpenVAS</option>
                                                     <option value="nessus">Nessus</option>
+                                                    {% if user.is_superuser or user.role == 'Admin' %}
                                                     <option value="nmap">Nmap</option>
+                                                    {% endif %}
                                                 </select>
                                             </div>
                                         </div>

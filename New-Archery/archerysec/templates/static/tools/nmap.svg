@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="48" fill="#1e1e2d" stroke="#00d2ff" stroke-width="4"/>
+  <!-- Outer Eye Outline -->
+  <path d="M 12 50 Q 50 18 88 50 Q 50 82 12 50 Z" fill="none" stroke="#00d2ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Iris -->
+  <circle cx="50" cy="50" r="18" fill="#00d2ff" />
+  <!-- Pupil -->
+  <circle cx="50" cy="50" r="9" fill="#1e1e2d" />
+  <!-- Catchlight / Reflection -->
+  <circle cx="54" cy="46" r="3.5" fill="#ffffff" />
+</svg>

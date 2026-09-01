@@ -302,11 +302,10 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
             except Exception:
                 pass
             start_elapsed_guard = time.time()
-            # Wait with deletion awareness: if the scan was deleted from the UI,
-            # kill the nikto process so it can't keep running or write results.
+            est_dur = (int(maxtime_min) * 60) if maxtime_min else (180.0 if str(profile_tuning) in ('57', 'x6') else 50.0)
             while True:
                 try:
-                    proc.wait(timeout=5)
+                    proc.wait(timeout=3)
                     break
                 except subprocess.TimeoutExpired:
                     if not _scan_still_present():
@@ -324,6 +323,21 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
                             pass
                         proc.wait()
                         return 999
+
+                    elapsed = time.time() - start_elapsed_guard
+                    pct = min(95.0, round((elapsed / est_dur) * 95.0, 1))
+                    try:
+                        from django.utils import timezone as _tz
+                        from webscanners.models import WebScansDb as _WS
+                        _WS.objects.filter(scan_id=scan_id, organization=org).update(
+                            scan_status=str(pct),
+                            updated_time=_tz.now(),
+                        )
+                        NiktoResultDb.objects.filter(scan_id=scan_id, organization=org).update(
+                            nikto_status=f"Running ({pct}%)"
+                        )
+                    except Exception:
+                        pass
             proc.wait()
             try:
                 with open(log_path, 'r', encoding='utf-8', errors='ignore') as rf:
@@ -549,10 +563,31 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
             with codecs.open(nikto_res_path, "r") as f:
                 data = f.read()
             nikto_html_parser(data, project_id, scan_id, request)
-            notify.send(user, recipient=user, verb="Nikto Scan Completed")
+            _is_scanner_admin = (
+                user.is_superuser
+                or str(getattr(user, "role", "")) in ("Admin", "Organization Admin")
+            )
+            notify.send(
+                user,
+                recipient=user,
+                verb=(
+                    "Nikto Scan Completed"
+                    if _is_scanner_admin
+                    else "Web Scan Completed"
+                ),
+            )
             NiktoResultDb.objects.filter(scan_id=scan_id, organization=org).update(
                 nikto_status="Scan Completed"
             )
+            try:
+                from django.utils import timezone as _tz
+                from webscanners.models import WebScansDb as _WS
+                _WS.objects.filter(scan_id=scan_id, organization=org).update(
+                    scan_status="100.0",
+                    updated_time=_tz.now(),
+                )
+            except Exception:
+                pass
             email_scan_summary(
                 subject="Archery Tool Scan Status - Nikto Scan Completed",
                 scan_id=scan_id,
@@ -701,13 +736,13 @@ class NiktoScanLaunch(APIView):
         # New multi-switch inputs (custom tuning removed per request)
         def _to_bool(v):
             return str(v).lower() in ("1","true","on","yes")
-        comp = _to_bool(request.POST.get("nikto_comprehensive"))  # repurposed: File Retrieval preset
-        base = _to_bool(request.POST.get("nikto_baseline"))       # repurposed: Stealth Info preset
-        inj = _to_bool(request.POST.get("nikto_injection"))       # repurposed: Targeted Injection preset
-        broad = _to_bool(request.POST.get("nikto_broad"))         # new: Broad excluding DoS
+        comp = _to_bool(request.POST.get("ws_comprehensive"))  # repurposed: File Retrieval preset
+        base = _to_bool(request.POST.get("ws_baseline"))       # repurposed: Stealth Info preset
+        inj = _to_bool(request.POST.get("ws_injection"))       # repurposed: Targeted Injection preset
+        broad = _to_bool(request.POST.get("ws_broad"))         # new: Broad excluding DoS
         force_cgi_toggle = _to_bool(request.POST.get("nikto_force_cgi"))
         # Optional max time in minutes
-        maxtime_raw = request.POST.get("nikto_maxtime_min")
+        maxtime_raw = request.POST.get("ws_maxtime_min")
         try:
             maxtime_min = int(str(maxtime_raw).strip()) if str(maxtime_raw).strip() else None
             if maxtime_min is not None and maxtime_min < 1:
@@ -770,7 +805,7 @@ class NiktoScanLaunch(APIView):
         disable_failures = str(request.POST.get("nikto_disable_failures")).lower() in ("1","true","on","yes")
         failures_value = None
         try:
-            _raw = request.POST.get("nikto_failures")
+            _raw = request.POST.get("ws_failures")
             if _raw is not None:
                 _s = str(_raw).strip()
                 if _s != "":
@@ -1515,7 +1550,7 @@ class NmapScan(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "tools/nmap_scan.html"
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
 
     def get(self, request):
         all_nmap = NmapScanDb.objects.filter(organization=request.user.organization)
@@ -1527,7 +1562,7 @@ class Nmap(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "tools/nmap_list.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
 
     def get(self, request):
         ip_address = request.GET.get("ip")

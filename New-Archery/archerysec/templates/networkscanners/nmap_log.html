@@ -25,7 +25,7 @@
         const pre = document.getElementById('log');
         if (resp.status === 200) {
           const txt = await resp.text();
-          pre.textContent = txt || '\nNmap\n(Empty yet — waiting for tool output)';
+          pre.textContent = txt || '{% if user.is_superuser or user.role == "Admin" %}\nNmap\n{% endif %}(Empty yet — waiting for tool output)';
           statusEl.textContent = 'Live';
           autoscroll();
         } else if (resp.status === 202) {
@@ -68,7 +68,7 @@
     <div class="col-12">
       <div class="log-board">
         <div class="toolbar">
-          <strong style="margin-right:6px;">Nmap Log</strong>
+          <strong style="margin-right:6px;">{% if user.is_superuser or user.role == 'Admin' %}Nmap Log{% else %}Network Scan Log{% endif %}</strong>
           <span class="status" id="status"></span>
           <label style="margin-left:auto; font-size:13px;">
             <input type="checkbox" id="autoscroll" checked /> Auto‑scroll

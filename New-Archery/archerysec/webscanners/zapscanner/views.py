@@ -642,6 +642,36 @@ def launch_zap_scan(
     time.sleep(3)
     # (Row already created above)
 
+    # Configure form-based authentication if set in Zap settings
+    try:
+        from archerysettings.models import ZapSettingsDb as _ZapSettings
+        _zapset = None
+        try:
+            _zapset = _ZapSettings.objects.filter(
+                organization=request.user.organization
+            ).order_by("-id").first()
+        except Exception:
+            _zapset = None
+        if _zapset and _zapset.auth_method == "formBased" and _zapset.login_url:
+            _zap_log(scan_id, "Configuring form-based authentication for scan")
+            ctx_id = zap.setup_auth(
+                auth_method=_zapset.auth_method,
+                login_url=_zapset.login_url,
+                username_field=_zapset.username_field or "username",
+                password_field=_zapset.password_field or "password",
+                username_value=_zapset.username_value or "",
+                password_value=_zapset.password_value or "",
+                logged_in_regex=_zapset.logged_in_regex or "",
+            )
+            if ctx_id is not None:
+                _zap_log(scan_id, f"Form-based auth configured (context={ctx_id})")
+            else:
+                _zap_log(scan_id, "Form-based auth setup failed; continuing unauthenticated")
+        else:
+            _zap_log(scan_id, "No authentication configured; scanning unauthenticated")
+    except Exception as e:
+        _zap_log(scan_id, f"Auth setup skipped ({e})")
+
     notify.send(user, recipient=user, verb="Web scan started")
     _zap_log(scan_id, "ZAP scan started")
 
@@ -1436,13 +1466,29 @@ class ZapSetting(APIView):
         zap_hosts = None
         zap_ports = None
         zap_enabled = False
+        zap_auth_method = "none"
+        zap_login_url = ""
+        zap_username_field = "username"
+        zap_password_field = "password"
+        zap_username_value = ""
+        zap_password_value = ""
+        zap_logged_in_regex = ""
 
-        all_zap = ZapSettingsDb.objects.filter()
+        all_zap = ZapSettingsDb.objects.filter(
+            organization=getattr(request.user, "organization", None)
+        )
         for zap in all_zap:
             zap_api_key = zap.zap_api
             zap_hosts = zap.zap_url
             zap_ports = zap.zap_port
             zap_enabled = zap.enabled
+            zap_auth_method = zap.auth_method or "none"
+            zap_login_url = zap.login_url or ""
+            zap_username_field = zap.username_field or "username"
+            zap_password_field = zap.password_field or "password"
+            zap_username_value = zap.username_value or ""
+            zap_password_value = zap.password_value or ""
+            zap_logged_in_regex = zap.logged_in_regex or ""
 
         if zap_enabled:
             zap_enabled = "True"
@@ -1456,6 +1502,13 @@ class ZapSetting(APIView):
                     "zap_hosts": zap_hosts,
                     "zap_ports": zap_ports,
                     "zap_enabled": zap_enabled,
+                    "auth_method": zap_auth_method,
+                    "login_url": zap_login_url,
+                    "username_field": zap_username_field,
+                    "password_field": zap_password_field,
+                    "username_value": zap_username_value,
+                    "password_value": zap_password_value,
+                    "logged_in_regex": zap_logged_in_regex,
                 }
             )
         else:
@@ -1467,6 +1520,13 @@ class ZapSetting(APIView):
                     "zap_host": zap_hosts,
                     "zap_port": zap_ports,
                     "zap_enabled": zap_enabled,
+                    "zap_auth_method": zap_auth_method,
+                    "zap_login_url": zap_login_url,
+                    "zap_username_field": zap_username_field,
+                    "zap_password_field": zap_password_field,
+                    "zap_username_value": zap_username_value,
+                    "zap_password_value": zap_password_value,
+                    "zap_logged_in_regex": zap_logged_in_regex,
                 },
             )
 
@@ -1541,6 +1601,13 @@ class ZapSettingUpdate(APIView):
             zap_api=apikey,
             enabled=zap_enabled,
             organization=org,
+            auth_method=request.POST.get("auth_method", "none"),
+            login_url=request.POST.get("login_url", "") or "",
+            username_field=request.POST.get("username_field", "username") or "username",
+            password_field=request.POST.get("password_field", "password") or "password",
+            username_value=request.POST.get("username_value", "") or "",
+            password_value=request.POST.get("password_value", "") or "",
+            logged_in_regex=request.POST.get("logged_in_regex", "") or "",
         )
         save_data.save()
 

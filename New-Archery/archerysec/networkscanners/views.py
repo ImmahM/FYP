@@ -830,7 +830,7 @@ class NetworkScanSchedule(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "networkscanners/network_scan_schedule.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsViewer)
+    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def get(self, request):
         all_scans_db = ProjectDb.objects.filter(
@@ -908,19 +908,17 @@ class NetworkScanSchedule(APIView):
         nmap_selected = False
         nmap_profile = "quick"
         nmap_os_guess = False
+        profile_values = [val for val in request.POST.getlist("nmap_profile") if val]
+        if profile_values:
+            nmap_profile = profile_values[0].strip().lower()
+        if nmap_profile not in ("quick", "full"):
+            nmap_profile = "quick"
+        nmap_os_guess = _bool_from_value(request.POST.get("nmap_os_guess"))
+        nmap_enable = False
         if is_nmap_admin:
-            profile_values = [val for val in request.POST.getlist("nmap_profile") if val]
-            if profile_values:
-                nmap_profile = profile_values[0].strip().lower()
-            if nmap_profile not in ("quick", "full"):
-                nmap_profile = "quick"
-            nmap_os_guess = _bool_from_value(request.POST.get("nmap_os_guess"))
-            nmap_selected = (
-                _bool_from_value(request.POST.get("nmap_enable"))
-                or bool(profile_values)
-                or nmap_os_guess
-            )
-        if is_nmap_admin and nmap_selected:
+            nmap_enable = _bool_from_value(request.POST.get("nmap_enable"))
+        nmap_selected = nmap_enable or bool(profile_values) or nmap_os_guess
+        if nmap_selected:
             schedule_entries.append(
                 {
                     "scanner": "nmap",
@@ -977,7 +975,7 @@ class NetworkScanScheduleDelete(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "networkscanners/network_scan_schedule.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsViewer)
+    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def post(self, request):
         task_id = request.POST.get("task_id")
@@ -1918,7 +1916,7 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
     os_detection_enabled = os_guess and privileged
 
     def build_cmd(use_syn=True):
-        base = ["nmap", "-Pn", "-sV", "--script", "/usr/share/nmap/scripts/vulners.nse"]
+        base = ["nmap", "-Pn", "-sV", "--stats-every", "3s", "--script", "/usr/share/nmap/scripts/vulners.nse"]
         base.insert(2, "-sS" if use_syn else "-sT")
         if profile == 'full':
             base += ["-p", "1-65535", "-T3"]
@@ -1956,9 +1954,10 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
                 proc = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT)
             NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(runner_pid=str(proc.pid), updated_time=_tz.now())
             start_t = time.time()
+            est_dur = 300.0 if profile == 'full' else 40.0
             while True:
                 try:
-                    proc.wait(timeout=5)
+                    proc.wait(timeout=3)
                     break
                 except subprocess.TimeoutExpired:
                     if not NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).exists():
@@ -1973,7 +1972,31 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
                         except Exception:
                             pass
                         return False, "Scan deleted by user"
-                    if (time.time() - start_t) > max_secs:
+
+                    elapsed = time.time() - start_t
+                    pct = None
+                    try:
+                        if os.path.exists(log_path):
+                            with open(log_path, "r", encoding="utf-8", errors="ignore") as lf_check:
+                                content = lf_check.read()
+                            m = re.findall(r"About\s+(\d+(?:\.\d+)?)%\s+done", content)
+                            if m:
+                                pct = float(m[-1])
+                    except Exception:
+                        pct = None
+
+                    if pct is None:
+                        pct = min(95.0, round((elapsed / est_dur) * 95.0, 1))
+
+                    try:
+                        NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(
+                            scan_status=str(round(pct, 1)),
+                            updated_time=_tz.now(),
+                        )
+                    except Exception:
+                        pass
+
+                    if elapsed > max_secs:
                         try:
                             proc.kill()
                         except Exception:
@@ -2108,7 +2131,7 @@ class NmapLaunch(APIView):
 
 
 class NmapSetting(APIView):
-    permission_classes = (IsAuthenticated, permissions.IsViewer)
+    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
 
     def get(self, request):
         org = getattr(request.user, "organization", None)
