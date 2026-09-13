@@ -22,7 +22,7 @@ from django.utils import timezone
 from archeryapi.models import OrgAPIKey
 from dashboard.views import trend_update
 from networkscanners.models import NetworkScanDb, NetworkScanResultsDb
-from utility.email_notify import email_network_scan_summary
+from utility.email_notify import email_sch_notify
 
 name = ""
 creation_time = ""
@@ -189,12 +189,15 @@ def updated_xml_parser(root, project_id, scan_id, request, organization=None):
             total_dup=total_duplicate,
         )
     trend_update()
-    email_network_scan_summary(
-        subject="Archery Tool Scan Status - OpenVAS Report Uploaded",
-        scan_id=scan_id,
-        target_url="",
-        organization_id=getattr(organization, "id", None),
+    subject = "Archery Tool Scan Status - OpenVAS Report Uploaded"
+    message = (
+        "OpenVAS Scanner has completed the scan "
+        "  %s <br> Total: %s <br>High: %s <br>"
+        "Medium: %s <br>Low %s"
+        % (scan_id, total_vul, total_high, total_medium, total_low)
     )
+
+    email_sch_notify(subject=subject, message=message)
 
 
 def get_hosts(root):

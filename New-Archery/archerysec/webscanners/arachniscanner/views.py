@@ -179,13 +179,6 @@ def launch_arachni_scan(target, project_id, rescan_id, rescan, scan_id, user):
             scan_status = value
     start_ts = time.time()
     while scan_status != "done":
-        # If the scan row was deleted from the UI, stop polling/importing
-        if not WebScansDb.objects.filter(scan_id=scan_id, scanner="Arachni").exists():
-            try:
-                arachni.scan_abort(id=scan_run_id)
-            except Exception:
-                pass
-            break
         # Enforce 1 hour maximum
         if (time.time() - start_ts) > 3600:
             WebScansDb.objects.filter(scan_id=scan_id, scanner="Arachni").update(
@@ -216,9 +209,6 @@ def launch_arachni_scan(target, project_id, rescan_id, rescan, scan_id, user):
                 scan_status = value
         time.sleep(3)
     if scan_status == "done":
-        # If the scan was deleted from the UI while running, do not import results
-        if not WebScansDb.objects.filter(scan_id=scan_id, scanner="Arachni").exists():
-            return
         xml_report = arachni.scan_xml_report(id=scan_run_id).data
         root_xml = ET.fromstring(xml_report)
         arachni_xml_parser.xml_parser(

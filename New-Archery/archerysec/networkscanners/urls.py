@@ -34,8 +34,6 @@ urlpatterns = [
     path("scan_row/", views.NetworkScanRow.as_view(), name="scan_row"),
     # Nmap launch endpoint
     path("nmap_launch/", views.NmapLaunch.as_view(), name="nmap_launch"),
-    # Nmap connector settings
-    path("nmap_setting/", views.NmapSetting.as_view(), name="nmap_setting"),
     # Nmap log viewer
     path("nmap_log/", views.NmapLog.as_view(), name="nmap_log"),
     path("openvas_log/", views.OpenVASLog.as_view(), name="openvas_log"),

@@ -27,12 +27,8 @@ fi
 
 # Only the web role should perform migrations to avoid race conditions.
 if [ "${ARCHERY_WORKER:-False}" != "True" ]; then
-  echo "Running migrations (tolerating errors for already-applied schemas)"
-  python3 manage.py migrate --noinput || {
-    echo "WARN: migrate --noinput encountered errors; faking remaining and retrying"
-    python3 manage.py migrate --fake || true
-    python3 manage.py migrate --noinput || echo "WARN: migrate still failing; app will start anyway"
-  }
+  echo "Running migrations"
+  python3 manage.py migrate --noinput
   echo "Collecting static"
   python3 manage.py collectstatic --noinput
 fi
@@ -73,10 +69,7 @@ then
       done
       echo "django_session table present (worker)"
     fi
-    # The scheduler uses in-process threading.Timer (scheduler/background_tasks.py).
-    # Keep the container alive so gunicorn's scheduler threads continue firing.
-    echo "Worker container started — in-process scheduler handles execution."
-    exec tail -f /dev/null
+    python3 -u manage.py process_tasks -v 3 --traceback
 else
     echo 'Seeding default roles (idempotent)'
     echo "from user_management.models import UserRoles; data=[('Admin','Admin can manage organization level site'),('Analyst','Analyst can create scannings'),('Viewer','Viewers can only view dashboards'),('Organization Admin','Can manage users and settings within their organization')];

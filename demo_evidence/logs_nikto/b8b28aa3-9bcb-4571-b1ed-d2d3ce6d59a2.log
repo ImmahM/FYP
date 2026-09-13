@@ -1,0 +1,32 @@
+[archerysec] Queued Nikto scan for https://juice-shop.herokuapp.com/#/ (scan_id=b8b28aa3-9bcb-4571-b1ed-d2d3ce6d59a2)
+[archerysec] Nikto scan initialized for https://juice-shop.herokuapp.com/#/ (scan_id=b8b28aa3-9bcb-4571-b1ed-d2d3ce6d59a2)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /home/archerysec/app/nikto_result
+[archerysec] Using nikto at: /usr/bin/nikto
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ Target IP:          46.137.15.86
++ Target Hostname:    juice-shop.herokuapp.com
++ Target Port:        443
+---------------------------------------------------------------------------
++ SSL Info:        Subject: /CN=*.herokuapp.com
+                   Ciphers: ECDHE-RSA-AES128-GCM-SHA256
+                   Issuer:  /C=US/O=Amazon/CN=Amazon RSA 2048 M01
++ Start Time:         2026-09-01 17:51:53 (GMT8)
+---------------------------------------------------------------------------
++ Server: Heroku
++ Retrieved via header: 1.1 heroku-router
++ The anti-clickjacking X-Frame-Options header is not present.
++ Uncommon header 'report-to' found, with contents: {"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=DX43HnPtm0Xlc7NasmeKOcYrFws8q7WG5J9%2B4uEzcJ0%3D\u0026sid=812dcc77-0bd0-43b1-a5f1-b25750382959\u0026ts=1788256321"}],"max_age":3600}
++ Uncommon header 'nel' found, with contents: {"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}
++ Uncommon header 'reporting-endpoints' found, with contents: heroku-nel="https://nel.heroku.com/reports?s=DX43HnPtm0Xlc7NasmeKOcYrFws8q7WG5J9%2B4uEzcJ0%3D&sid=812dcc77-0bd0-43b1-a5f1-b25750382959&ts=1788256321"
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ "robots.txt" retrieved but it does not contain any 'disallow' entries (which is odd).
++ Server banner has changed from 'Heroku' to 'heroku-router' which may suggest a WAF, load balancer or proxy is in place
++ Server is using a wildcard certificate: '*.herokuapp.com'
++ Server leaks inodes via ETags, header found with file /kboard/, fields: 0xW/24b1 0x1a05c6aeac7 
++ Uncommon header 'access-control-allow-origin' found, with contents: *
++ Uncommon header 'feature-policy' found, with contents: payment 'self'
++ Uncommon header 'x-content-type-options' found, with contents: nosniff
++ Uncommon header 'x-frame-options' found, with contents: SAMEORIGIN
++ Uncommon header 'x-recruiting' found, with contents: /#/jobs
++ /kboard/: KBoard Forum 0.3.0 and prior have a security problem in forum_edit_post.php, forum_post.php and forum_reply.php

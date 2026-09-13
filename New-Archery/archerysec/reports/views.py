@@ -2261,8 +2261,8 @@ def download_report(request):
                         _mitre_csv_value(item.get("mitre_techniques", [])) if item.get("mitre_has_data") else "",
                         item.get("status", ""),
                         item.get("scanner", ""),
-                        str(item.get("description") or "").replace("\n", " ").replace("\r", " "),
-                        str(item.get("solution") or "").replace("\n", " ").replace("\r", " "),
+                        item.get("description", "").replace("\n", " ").replace("\r", " "),
+                        item.get("solution", "").replace("\n", " ").replace("\r", " "),
                     ])
         return response
 

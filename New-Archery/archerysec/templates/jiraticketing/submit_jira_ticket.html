@@ -27,7 +27,7 @@
                                                                 class="select2 form-control custom-select"
                                                                 style="width: 100%; height:36px;">
                                                             {% for jira_data in jira_projects %}
-                                                            <option value="{{jira_data.key}}">{{ jira_data.key }} - {{ jira_data.name }}
+                                                            <option value="{{jira_data.id}}">{{ jira_data.name }}
                                                             </option>
                                                             {% endfor %}
                                                         </select>
@@ -40,9 +40,8 @@
                                                         <select name="issue_type"
                                                                 class="select2 form-control custom-select"
                                                                 style="width: 100%; height:36px;">
-                                                            {% for itype in jira_issue_types %}
-                                                            <option>{{ itype }}</option>
-                                                            {% endfor %}
+                                                            <option>Bug</option>
+                                                            <option>Story</option>
 
                                                         </select>
                                                     </div>

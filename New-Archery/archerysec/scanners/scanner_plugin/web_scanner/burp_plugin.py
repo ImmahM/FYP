@@ -147,13 +147,6 @@ class burp_scans(object):
 
         start_ts = time.time()
         while int(scan_status) < 100:
-            # Scan deleted from UI -> stop this polling loop
-            if not WebScansDb.objects.filter(
-                scan_id=self.scan_id,
-                scanner="Burp",
-                organization=self.user.organization,
-            ).exists():
-                break
             if (time.time() - start_ts) > 3600:
                 # Exceeded 1 hour
                 WebScansDb.objects.filter(

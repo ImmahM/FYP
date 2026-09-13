@@ -54,7 +54,6 @@ from rest_framework.views import APIView
 from archerysettings import load_settings, save_settings
 from archerysettings.models import EmailDb, SettingsDb
 from jiraticketing.models import jirasetting
-from jiraticketing.utils import jira_issue_types as _jira_issue_types
 from networkscanners.models import (NetworkScanDb, NetworkScanResultsDb,
                                     TaskScheduleDb)
 from networkscanners.serializers import (NetworkScanDbSerializer,
@@ -69,7 +68,6 @@ from scheduler import background_tasks as scheduler
 from user_management import permissions
 from scanners.analysis import enrich_scan_result
 from scanners.audit import log_action
-from utility.email_notify import email_network_scan_summary
 from django.utils import timezone
 
 LOCAL_TZ = pytz.timezone(getattr(settings, "DEF_TIME_ZONE", "Asia/Kuala_Lumpur"))
@@ -523,7 +521,7 @@ def openvas_scanner(scan_ip, project_id, sel_profile, user, request, organizatio
 
 
 class OpenvasLaunchScan(APIView):
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def get(self, request):
         all_ip = NetworkScanDb.objects.filter(organization=request.user.organization)
@@ -640,7 +638,7 @@ class NetworkScan(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "networkscanners/ipscan.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def get(self, request):
         all_scans = NetworkScanDb.objects.filter(organization=request.user.organization)
@@ -830,7 +828,7 @@ class NetworkScanSchedule(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "networkscanners/network_scan_schedule.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def get(self, request):
         all_scans_db = ProjectDb.objects.filter(
@@ -908,17 +906,19 @@ class NetworkScanSchedule(APIView):
         nmap_selected = False
         nmap_profile = "quick"
         nmap_os_guess = False
-        profile_values = [val for val in request.POST.getlist("nmap_profile") if val]
-        if profile_values:
-            nmap_profile = profile_values[0].strip().lower()
-        if nmap_profile not in ("quick", "full"):
-            nmap_profile = "quick"
-        nmap_os_guess = _bool_from_value(request.POST.get("nmap_os_guess"))
-        nmap_enable = False
         if is_nmap_admin:
-            nmap_enable = _bool_from_value(request.POST.get("nmap_enable"))
-        nmap_selected = nmap_enable or bool(profile_values) or nmap_os_guess
-        if nmap_selected:
+            profile_values = [val for val in request.POST.getlist("nmap_profile") if val]
+            if profile_values:
+                nmap_profile = profile_values[0].strip().lower()
+            if nmap_profile not in ("quick", "full"):
+                nmap_profile = "quick"
+            nmap_os_guess = _bool_from_value(request.POST.get("nmap_os_guess"))
+            nmap_selected = (
+                _bool_from_value(request.POST.get("nmap_enable"))
+                or bool(profile_values)
+                or nmap_os_guess
+            )
+        if is_nmap_admin and nmap_selected:
             schedule_entries.append(
                 {
                     "scanner": "nmap",
@@ -975,7 +975,7 @@ class NetworkScanScheduleDelete(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "networkscanners/network_scan_schedule.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def post(self, request):
         task_id = request.POST.get("task_id")
@@ -1009,8 +1009,8 @@ class OpenvasSettingEnable(APIView):
             organization=org,
         )
         nv_enabled = str(load_nv_setting.nv_enabled())
-        nv_online = str(load_nv_setting.nv_online())
-        nv_version = str(load_nv_setting.nv_version())
+        nv_online = str(load_nv_setting.nv_enabled())
+        nv_version = str(load_nv_setting.nv_enabled())
         nv_timing = load_nv_setting.nv_timing()
 
         return render(
@@ -1486,8 +1486,7 @@ class NetworkScanDetails(APIView):
         return render(
             request,
             "networkscanners/scans/vuln_details.html",
-            {"vul_dat": vul_dat, "jira_projects": jira_projects,
-             "jira_issue_types": _jira_issue_types(jira_ser) if jira_projects is not None else []},
+            {"vul_dat": vul_dat, "jira_projects": jira_projects},
         )
 
 
@@ -1701,12 +1700,6 @@ def _nmap_results_to_network(scan_id, project_id, request):
                     desc_lines.append(f"{k}: {val}")
             description = "\n".join(desc_lines)
             from networkscanners.models import NetworkScanResultsDb
-            dup_key = f"{title}|{r.ip_address or ''}|{port_s}|{proto}|Nmap"
-            dup_hash = hashlib.sha256(dup_key.encode("utf-8")).hexdigest()
-            if NetworkScanResultsDb.objects.filter(
-                scan_id=scan_id, dup_hash=dup_hash, scanner='Nmap', organization=org
-            ).exists():
-                continue
             NetworkScanResultsDb.objects.create(
                 scan_id=scan_id,
                 project_id=project_id,
@@ -1718,10 +1711,7 @@ def _nmap_results_to_network(scan_id, project_id, request):
                 description=description,
                 port=port_s,
                 ip=r.ip_address or '',
-                false_positive='No',
                 vuln_status=('Open' if (state_l == 'open' or state_l.startswith('open')) else (state.title() if state else 'Info')),
-                dup_hash=dup_hash,
-                vuln_duplicate='No',
                 scanner='Nmap',
                 organization=org,
                 created_by=request.user,
@@ -1747,45 +1737,28 @@ def _nmap_results_to_network(scan_id, project_id, request):
         fam, ven, gen, acc = best_os
         title = "OS guess: " + " ".join([p for p in [fam, gen, ven] if p])
         desc = f"family: {fam}\nvendor: {ven}\ngeneration: {gen}\naccuracy: {acc}"
-        dup_key = f"{title}|Nmap"
-        dup_hash = hashlib.sha256(dup_key.encode("utf-8")).hexdigest()
-        if not NetworkScanResultsDb.objects.filter(
-            scan_id=scan_id, dup_hash=dup_hash, scanner='Nmap', organization=org
-        ).exists():
-            try:
-                NetworkScanResultsDb.objects.create(
-                    scan_id=scan_id,
-                    project_id=project_id,
-                    vuln_id=uuid.uuid4(),
-                    title=title,
-                    date_time=_tz.now(),
-                    severity='Info',
-                    severity_color='info',
-                    description=desc,
-                    port='',
-                    ip='',
-                    false_positive='No',
-                    vuln_status='Open',
-                    dup_hash=dup_hash,
-                    vuln_duplicate='No',
-                    scanner='Nmap',
-                    organization=org,
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-            except Exception:
-                pass
+        try:
+            NetworkScanResultsDb.objects.create(
+                scan_id=scan_id,
+                project_id=project_id,
+                vuln_id=uuid.uuid4(),
+                title=title,
+                date_time=_tz.now(),
+                severity='Info',
+                severity_color='info',
+                description=desc,
+                port='',
+                ip='',
+                vuln_status='Open',
+                scanner='Nmap',
+                organization=org,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+        except Exception:
+            pass
     # Update parent totals AFTER inserts
-    _update_nmap_totals(scan_id, org)
-
-
-def _update_nmap_totals(scan_id, org):
-    """Recompute parent NetworkScanDb severity counts for an Nmap scan."""
     from networkscanners.models import NetworkScanDb, NetworkScanResultsDb
-    try:
-        from django.utils import timezone as _tz2
-    except Exception:
-        _tz2 = None
     qs = NetworkScanResultsDb.objects.filter(scan_id=scan_id, organization=org)
     total = qs.count()
     crit = qs.filter(severity__iexact='Critical').count()
@@ -1793,109 +1766,16 @@ def _update_nmap_totals(scan_id, org):
     med = qs.filter(severity__iexact='Medium').count()
     low = qs.filter(severity__iexact='Low').count()
     info = qs.filter(severity__istartswith='Info').count()
+    try:
+        from django.utils import timezone as _tz2
+    except Exception:
+        _tz2 = None
     msg = None if total > 0 else "Completed: no open ports detected (no findings mapped)."
     NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(
         total_vul=total, critical_vul=crit, high_vul=high, medium_vul=med, low_vul=low, info_vul=info,
         updated_time=_tz2.now() if _tz2 else None,
         failure_reason=msg,
     )
-
-
-def _cvss_sev_color(severity):
-    return {
-        "Critical": "critical",
-        "High": "danger",
-        "Medium": "warning",
-        "Low": "info",
-    }.get(severity, "info")
-
-
-def _nmap_vulners_to_network(root_xml, scan_id, project_id, org, user):
-    """Insert CVSS-rated findings from the `vulners` NSE script output.
-
-    Mirrors the CVSS thresholds used by the Nmap Vulners report parser so the
-    live scan path rates service CVEs identically (>=9 Critical, >=7 High,
-    >=4 Medium, >=0.1 Low). Open-port rows remain 'Info' (they are not a
-    vulnerability); only matched CVE entries get a real severity.
-    Returns the number of findings inserted.
-    """
-    from networkscanners.models import NetworkScanResultsDb
-    from scanners.analysis.cvss_calculator import cvss_score_to_severity
-    count = 0
-    for host in root_xml.findall("./host"):
-        try:
-            addr = host.find("./address").get("addr") or ""
-        except Exception:
-            addr = ""
-        for port_el in host.findall("./ports/port"):
-            port = port_el.get("portid") or ""
-            script_el = port_el.find("./script[@id='vulners']")
-            if script_el is None:
-                continue
-            output = script_el.get("output") or ""
-            for svc_table in script_el.findall("./table"):
-                svc = svc_table.get("key") or ""
-                for vuln in svc_table.findall("./table"):
-                    try:
-                        id_el = vuln.find("./elem[@key='id']")
-                        cveid = id_el.text if id_el is not None else None
-                        if not cveid:
-                            continue
-                        cvss_el = vuln.find("./elem[@key='cvss']")
-                        try:
-                            cvss = float(cvss_el.text) if cvss_el is not None and cvss_el.text else None
-                        except (TypeError, ValueError):
-                            cvss = None
-                        if cvss is not None and cvss > 0:
-                            sev = cvss_score_to_severity(cvss)
-                        else:
-                            # vulners only reports genuine CVEs; without a score treat as Low
-                            sev = "Low"
-                        try:
-                            is_exploit = any(
-                                e is not None and (e.text or '').strip().lower() == 'true'
-                                for e in (vuln.findall("./elem[@key='is_exploit']") or [])
-                            )
-                        except Exception:
-                            is_exploit = False
-                        desc_line = next((l.strip() for l in output.splitlines() if cveid in l), "")
-                        description = "CVE detected by nmap vulners script.\n"
-                        if desc_line:
-                            description += desc_line + "\n"
-                        description += f"service: {svc}\nport: {port}\nip: {addr}\ncvss: {cvss if cvss is not None else 'n/a'}"
-                        if is_exploit:
-                            description += "\nexploit-db/exploit available"
-                        title = f"{svc} | {cveid}"
-                        dup_key = f"{cveid}|{svc}|{port}|{addr}|Nmap"
-                        dup_hash = hashlib.sha256(dup_key.encode("utf-8")).hexdigest()
-                        if NetworkScanResultsDb.objects.filter(
-                            scan_id=scan_id, dup_hash=dup_hash, scanner='Nmap', organization=org
-                        ).exists():
-                            continue
-                        NetworkScanResultsDb.objects.create(
-                            scan_id=scan_id,
-                            project_id=project_id,
-                            vuln_id=uuid.uuid4(),
-                            title=title,
-                            date_time=timezone.now(),
-                            severity=sev,
-                            severity_color=_cvss_sev_color(sev),
-                            description=description,
-                            port=port,
-                            ip=addr,
-                            false_positive='No',
-                            vuln_status='Open',
-                            dup_hash=dup_hash,
-                            vuln_duplicate='No',
-                            scanner='Nmap',
-                            organization=org,
-                            created_by=user,
-                            updated_by=user,
-                        )
-                        count += 1
-                    except Exception:
-                        continue
-    return count
 
 
 def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
@@ -1916,7 +1796,7 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
     os_detection_enabled = os_guess and privileged
 
     def build_cmd(use_syn=True):
-        base = ["nmap", "-Pn", "-sV", "--stats-every", "3s", "--script", "/usr/share/nmap/scripts/vulners.nse"]
+        base = ["nmap", "-Pn", "-sV"]
         base.insert(2, "-sS" if use_syn else "-sT")
         if profile == 'full':
             base += ["-p", "1-65535", "-T3"]
@@ -1953,60 +1833,19 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
                     pass
                 proc = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT)
             NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(runner_pid=str(proc.pid), updated_time=_tz.now())
-            start_t = time.time()
-            est_dur = 300.0 if profile == 'full' else 40.0
-            while True:
+            try:
+                proc.wait(timeout=max_secs)
+            except Exception:
                 try:
-                    proc.wait(timeout=3)
-                    break
-                except subprocess.TimeoutExpired:
-                    if not NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).exists():
-                        # Scan deleted from the UI -> stop nmap and bail
-                        try:
-                            proc.kill()
-                        except Exception:
-                            pass
-                        try:
-                            with open(log_path, "a", encoding="utf-8", errors="ignore") as lf2:
-                                lf2.write("\n[archerysec] Scan deleted by user. nmap process stopped.\n")
-                        except Exception:
-                            pass
-                        return False, "Scan deleted by user"
-
-                    elapsed = time.time() - start_t
-                    pct = None
-                    try:
-                        if os.path.exists(log_path):
-                            with open(log_path, "r", encoding="utf-8", errors="ignore") as lf_check:
-                                content = lf_check.read()
-                            m = re.findall(r"About\s+(\d+(?:\.\d+)?)%\s+done", content)
-                            if m:
-                                pct = float(m[-1])
-                    except Exception:
-                        pct = None
-
-                    if pct is None:
-                        pct = min(95.0, round((elapsed / est_dur) * 95.0, 1))
-
-                    try:
-                        NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(
-                            scan_status=str(round(pct, 1)),
-                            updated_time=_tz.now(),
-                        )
-                    except Exception:
-                        pass
-
-                    if elapsed > max_secs:
-                        try:
-                            proc.kill()
-                        except Exception:
-                            pass
-                        try:
-                            with open(log_path, "a", encoding="utf-8", errors="ignore") as lf2:
-                                lf2.write("\n[archerysec] Timeout reached: 1 hour. Process killed.\n")
-                        except Exception:
-                            pass
-                        return False, "nmap timed out after 1 hour"
+                    proc.kill()
+                except Exception:
+                    pass
+                try:
+                    with open(log_path, "a", encoding="utf-8", errors="ignore") as lf2:
+                        lf2.write("\n[archerysec] Timeout reached: 1 hour. Process killed.\n")
+                except Exception:
+                    pass
+                return False, "nmap timed out after 1 hour"
         except Exception as e:
             try:
                 with open(log_path, "a", encoding="utf-8", errors="ignore") as lf3:
@@ -2020,8 +1859,6 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
             return False, "nmap produced no XML output"
 
     ok, reason = run_once(use_syn=True)
-    if reason == "Scan deleted by user":
-        return
     if not ok:
         ok, reason2 = run_once(use_syn=False)
         if not ok:
@@ -2030,25 +1867,13 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
             )
             return
 
-    # If the scan was deleted from the UI while nmap ran, do not import orphan results
-    if not NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).exists():
-        return
-
     # Parse XML
     try:
         tree = ET.parse(xml_path)
         root_xml = tree.getroot()
         nmap_parser.xml_parser(root=root_xml, project_id=project_id, scan_id=scan_id, request=request)
         _nmap_results_to_network(scan_id, project_id, request)
-        _nmap_vulners_to_network(root_xml, scan_id, project_id, org, request.user)
-        _update_nmap_totals(scan_id, org)
         NetworkScanDb.objects.filter(scan_id=scan_id, organization=org).update(scan_status='100', failure_reason=None, runner_pid=None, updated_time=_tz.now())
-        email_network_scan_summary(
-            subject="Archery Tool Scan Status - Nmap Scan Completed",
-            scan_id=scan_id,
-            target_url=str(target),
-            organization_id=org.id,
-        )
     except Exception as e:
         try:
             with open(log_path, "a", encoding="utf-8", errors="ignore") as lf4:
@@ -2061,7 +1886,7 @@ def _run_nmap(scan_id, target, project_id, profile, os_guess, request):
 
 
 class NmapLaunch(APIView):
-    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
+    permission_classes = (IsAuthenticated, permissions.IsViewer)
 
     def post(self, request):
         # Inputs
@@ -2069,28 +1894,6 @@ class NmapLaunch(APIView):
         project_uu_id = request.POST.get("project_id")
         profile = request.POST.get("nmap_profile") or 'quick'  # quick|full
         os_guess = (str(request.POST.get("nmap_os_guess")).lower() in ('1','true','on','yes'))
-
-        # Preflight: ensure org-level Nmap connector exists and is enabled (parity with OpenVAS/ZAP)
-        try:
-            from archerysettings.models import SettingsDb as _SettingsDb
-            has_connector = _SettingsDb.objects.filter(
-                setting_scanner="Nmap",
-                organization=request.user.organization,
-                setting_status=True,
-            ).exists()
-        except Exception:
-            has_connector = False
-        if not has_connector:
-            msg = "Nmap settings are missing or disabled for your organization. Configure it under Settings → Add Connector → Nmap."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=400)
-            try:
-                from django.contrib import messages as _msgs
-                _msgs.warning(request, msg)
-            except Exception:
-                pass
-            return HttpResponse(msg, status=400)
-
         # Resolve project safely: accept UUID or fallback to a recent project in org
         from uuid import UUID as _UUID
         base_projects = ProjectDb.objects.filter(organization=request.user.organization)
@@ -2128,72 +1931,6 @@ class NmapLaunch(APIView):
             thread.daemon = True
             thread.start()
         return HttpResponse(status=200)
-
-
-class NmapSetting(APIView):
-    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
-
-    def get(self, request):
-        org = getattr(request.user, "organization", None)
-        from archerysettings.models import NmapSettingDb as _NmapSettingDb
-        if not _NmapSettingDb.objects.filter(organization=org).exists():
-            _NmapSettingDb.objects.create(
-                setting_id=uuid.uuid4(),
-                binary_path='',
-                enabled=True,
-                organization=org,
-            )
-        row = _NmapSettingDb.objects.filter(organization=org).first()
-        nmap_binary = (row.binary_path or "") if row else ""
-        nmap_enabled = bool(getattr(row, "enabled", True)) if row else False
-        if request.path[:4] == "/api":
-            return Response({
-                "nmap_binary": nmap_binary,
-                "nmap_enabled": "True" if nmap_enabled else "False",
-            })
-        return render(
-            request,
-            "networkscanners/nmap_setting.html",
-            {
-                "nmap_binary": nmap_binary,
-                "nmap_enabled": "True" if nmap_enabled else "False",
-            },
-        )
-
-    def post(self, request):
-        from archerysettings.models import NmapSettingDb as _NmapSettingDb
-        from archerysettings.models import SettingsDb as _SettingsDb2
-        from user_management.models import Organization as _Org
-        org = getattr(request.user, "organization", None)
-        _org_id = request.POST.get("org") or request.GET.get("org")
-        if getattr(request.user, "is_superuser", False) and _org_id:
-            try:
-                org = _Org.objects.get(pk=_org_id)
-            except Exception:
-                pass
-
-        enabled = request.POST.get("nmap_enabled") == "on"
-        binary = (request.POST.get("nmap_binary") or "").strip()
-        _NmapSettingDb.objects.filter(organization=org).delete()
-        setting_id = uuid.uuid4()
-        _NmapSettingDb.objects.create(
-            setting_id=setting_id,
-            binary_path=binary,
-            enabled=enabled,
-            organization=org,
-            created_by=request.user,
-            updated_by=request.user,
-        )
-        # Reset connector status until the admin runs a Test
-        _SettingsDb2.objects.update_or_create(
-            organization=org,
-            setting_scanner="Nmap",
-            defaults={"setting_id": setting_id, "setting_status": False},
-        )
-        redirect_url = reverse("archerysettings:settings")
-        if org:
-            redirect_url = f"{redirect_url}?org={org.id}"
-        return HttpResponseRedirect(redirect_url)
 
 
 class NetworkStop(APIView):
@@ -2699,11 +2436,7 @@ class OpenVASLog(APIView):
                 content_parts.append(header + (data or ""))
         elif primary is not None:
             # Explicit fallback to per-scan file if requested via ?fallback=1
-            if raw:
-                # Byte-parity: Download/raw must match the container file exactly
-                content_parts.append(primary)
-            else:
-                content_parts.append(f"----- Scan {scan_id}.log -----\n" + primary)
+            content_parts.append(f"----- Scan {scan_id}.log -----\n" + primary)
 
         if not content_parts:
             # No files found: quick, non-blocking message with guidance

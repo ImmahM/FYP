@@ -16,7 +16,6 @@
 
 from __future__ import unicode_literals
 
-import hashlib
 import json
 import os
 import threading
@@ -37,10 +36,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from selenium import webdriver
 import pytz
 
 from archerysettings.models import EmailDb, SettingsDb, ZapSettingsDb
-from utility.email_notify import email_scan_summary
 from user_management.models import Organization
 from projects.models import ProjectDb
 from scanners.audit import log_action
@@ -461,9 +460,19 @@ def email_notify(user, subject, message):
         notify.send(user, recipient=user, verb="Email Settings Not Configured")
 
 
-def email_sch_notify(subject, message, html=None):
-    from utility.email_notify import email_sch_notify as _notify
-    return _notify(subject, message, html=html)
+def email_sch_notify(subject, message):
+    global to_mail
+    all_email = EmailDb.objects.all()
+    for email in all_email:
+        to_mail = email.recipient_list
+
+    print(to_mail)
+    email_from = settings.EMAIL_HOST_USER
+    recipient_list = [to_mail]
+    try:
+        send_mail(subject, message, email_from, recipient_list)
+    except Exception as e:
+        print(e)
 
 
 def _build_zap_scan_type(do_spider, do_ajax_spider, do_pscan_wait, do_active, do_forced_browse):
@@ -641,36 +650,6 @@ def launch_zap_scan(
     zap.cookies()
     time.sleep(3)
     # (Row already created above)
-
-    # Configure form-based authentication if set in Zap settings
-    try:
-        from archerysettings.models import ZapSettingsDb as _ZapSettings
-        _zapset = None
-        try:
-            _zapset = _ZapSettings.objects.filter(
-                organization=request.user.organization
-            ).order_by("-id").first()
-        except Exception:
-            _zapset = None
-        if _zapset and _zapset.auth_method == "formBased" and _zapset.login_url:
-            _zap_log(scan_id, "Configuring form-based authentication for scan")
-            ctx_id = zap.setup_auth(
-                auth_method=_zapset.auth_method,
-                login_url=_zapset.login_url,
-                username_field=_zapset.username_field or "username",
-                password_field=_zapset.password_field or "password",
-                username_value=_zapset.username_value or "",
-                password_value=_zapset.password_value or "",
-                logged_in_regex=_zapset.logged_in_regex or "",
-            )
-            if ctx_id is not None:
-                _zap_log(scan_id, f"Form-based auth configured (context={ctx_id})")
-            else:
-                _zap_log(scan_id, "Form-based auth setup failed; continuing unauthenticated")
-        else:
-            _zap_log(scan_id, "No authentication configured; scanning unauthenticated")
-    except Exception as e:
-        _zap_log(scan_id, f"Auth setup skipped ({e})")
 
     notify.send(user, recipient=user, verb="Web scan started")
     _zap_log(scan_id, "ZAP scan started")
@@ -1032,12 +1011,14 @@ def launch_zap_scan(
 
     notify.send(user, recipient=user, verb="ZAP Scan URL %s Completed" % target_url)
 
-    email_scan_summary(
-        subject="Archery Tool Scan Status - ZAP Scan Completed",
-        scan_id=scan_id,
-        target_url=target_url,
-        organization_id=request.user.organization_id,
+    subject = "Archery Tool Scan Status - ZAP Scan Completed"
+    message = (
+        "ZAP Scanner has completed the scan "
+        "  %s <br> Total: %s <br>High: %s <br>"
+        "Medium: %s <br>Low %s"
+        % (target_url, total_vuln, total_high, total_medium, total_low)
     )
+    email_sch_notify(subject=subject, message=message)
 
 
 def launch_schudle_zap_scan(
@@ -1147,12 +1128,15 @@ def launch_schudle_zap_scan(
         total_medium = data.medium_vul
         total_low = data.low_vul
 
-    email_scan_summary(
-        subject="Archery Tool Scan Status - ZAP Scan Completed",
-        scan_id=scan_id,
-        target_url=target_url,
-        organization_id=request.user.organization_id,
+    subject = "Archery Tool Scan Status - ZAP Scan Completed"
+    message = (
+        "ZAP Scanner has completed the scan "
+        "  %s <br> Total: %s <br>High: %s <br>"
+        "Medium: %s <br>Low %s"
+        % (target_url, total_vuln, total_high, total_medium, total_low)
     )
+
+    email_sch_notify(subject=subject, message=message)
 
 
 class ZapScan(APIView):
@@ -1390,27 +1374,13 @@ class ZapScan(APIView):
                 "max_files": _to_int(request.POST.get("fb_max_files"), 20000, 0, 200000),
                 "wordlist": _resolve_wordlist_path(_to_str(request.POST.get("fb_wordlist"))),
             }
-        # Resolve project safely: accept UUID or fallback to a recent project in the org
-        try:
-            from uuid import UUID as _UUID
-            base_projects = ProjectDb.objects.filter(organization=request.user.organization)
-            if project_uu_id:
-                proj_row = base_projects.filter(uu_id=_UUID(str(project_uu_id))).values("id").first()
-            else:
-                proj_row = None
-            if not proj_row:
-                proj_row = base_projects.order_by("-updated_time", "-created_time").values("id").first()
-            if not proj_row:
-                msg = "No project available. Please create a project first."
-                if request.path[:4] == "/api":
-                    return Response({"error": msg}, status=400)
-                return HttpResponse(msg, status=400)
-            project_id = proj_row["id"]
-        except Exception:
-            msg = "No project available. Please create a project first."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=400)
-            return HttpResponse(msg, status=400)
+        project_id = (
+            ProjectDb.objects.filter(
+                uu_id=project_uu_id, organization=request.user.organization
+            )
+            .values("id")
+            .get()["id"]
+        )
         rescan_id = None
         rescan = "No"
         targets, invalid_targets = _parse_target_urls(target_url)
@@ -1466,29 +1436,13 @@ class ZapSetting(APIView):
         zap_hosts = None
         zap_ports = None
         zap_enabled = False
-        zap_auth_method = "none"
-        zap_login_url = ""
-        zap_username_field = "username"
-        zap_password_field = "password"
-        zap_username_value = ""
-        zap_password_value = ""
-        zap_logged_in_regex = ""
 
-        all_zap = ZapSettingsDb.objects.filter(
-            organization=getattr(request.user, "organization", None)
-        )
+        all_zap = ZapSettingsDb.objects.filter()
         for zap in all_zap:
             zap_api_key = zap.zap_api
             zap_hosts = zap.zap_url
             zap_ports = zap.zap_port
             zap_enabled = zap.enabled
-            zap_auth_method = zap.auth_method or "none"
-            zap_login_url = zap.login_url or ""
-            zap_username_field = zap.username_field or "username"
-            zap_password_field = zap.password_field or "password"
-            zap_username_value = zap.username_value or ""
-            zap_password_value = zap.password_value or ""
-            zap_logged_in_regex = zap.logged_in_regex or ""
 
         if zap_enabled:
             zap_enabled = "True"
@@ -1502,13 +1456,6 @@ class ZapSetting(APIView):
                     "zap_hosts": zap_hosts,
                     "zap_ports": zap_ports,
                     "zap_enabled": zap_enabled,
-                    "auth_method": zap_auth_method,
-                    "login_url": zap_login_url,
-                    "username_field": zap_username_field,
-                    "password_field": zap_password_field,
-                    "username_value": zap_username_value,
-                    "password_value": zap_password_value,
-                    "logged_in_regex": zap_logged_in_regex,
                 }
             )
         else:
@@ -1520,13 +1467,6 @@ class ZapSetting(APIView):
                     "zap_host": zap_hosts,
                     "zap_port": zap_ports,
                     "zap_enabled": zap_enabled,
-                    "zap_auth_method": zap_auth_method,
-                    "zap_login_url": zap_login_url,
-                    "zap_username_field": zap_username_field,
-                    "zap_password_field": zap_password_field,
-                    "zap_username_value": zap_username_value,
-                    "zap_password_value": zap_password_value,
-                    "zap_logged_in_regex": zap_logged_in_regex,
                 },
             )
 
@@ -1601,13 +1541,6 @@ class ZapSettingUpdate(APIView):
             zap_api=apikey,
             enabled=zap_enabled,
             organization=org,
-            auth_method=request.POST.get("auth_method", "none"),
-            login_url=request.POST.get("login_url", "") or "",
-            username_field=request.POST.get("username_field", "username") or "username",
-            password_field=request.POST.get("password_field", "password") or "password",
-            username_value=request.POST.get("username_value", "") or "",
-            password_value=request.POST.get("password_value", "") or "",
-            logged_in_regex=request.POST.get("logged_in_regex", "") or "",
         )
         save_data.save()
 

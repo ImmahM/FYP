@@ -1,0 +1,10 @@
+[archerysec] Queued Nikto scan for http://192.168.174.130:5000/ (scan_id=e6ec00ec-f7d2-4be8-9f1d-8a7836159c65)
+[archerysec] Nikto scan initialized for http://192.168.174.130:5000/ (scan_id=e6ec00ec-f7d2-4be8-9f1d-8a7836159c65)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /home/archerysec/app/nikto_result
+[archerysec] Using nikto at: /usr/bin/nikto
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ No web server found on 192.168.174.130:5000
+---------------------------------------------------------------------------
++ 0 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/e6ec00ec-f7d2-4be8-9f1d-8a7836159c65.html -Format htm -timeout 15 -ask no -Tuning 3b -host 192.168.174.130:5000

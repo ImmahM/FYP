@@ -148,18 +148,7 @@ class OpenVAS_Plugin:
                 # If user requested stop, bail out early and try to stop/cancel upstream
                 from networkscanners.models import NetworkScanDb as _NS
                 row = _NS.objects.filter(scan_id=scan_id, organization=self.organization).only('failure_reason', 'scan_status').first()
-                if row is None:
-                    # Scan row was deleted from the UI -> stop/cancel the upstream scan
-                    # and exit this polling thread.
-                    try:
-                        try:
-                            scanner.stop_scan(str(scan_id))
-                        except Exception:
-                            scanner.cancel_scan(str(scan_id))
-                    except Exception:
-                        pass
-                    break
-                if getattr(row, 'failure_reason', '') == 'Stopped by user':
+                if row and getattr(row, 'failure_reason', '') == 'Stopped by user':
                     try:
                         try:
                             scanner.stop_scan(str(scan_id))

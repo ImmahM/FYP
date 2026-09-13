@@ -19,7 +19,6 @@ from __future__ import unicode_literals
 import codecs
 import hashlib
 import os
-import random
 import subprocess
 import uuid
 from datetime import datetime
@@ -53,7 +52,6 @@ from tools.nmap_vulners.nmap_vulners_view import (nmap_vulners,
                                                   nmap_vulners_port,
                                                   nmap_vulners_scan)
 from user_management import permissions
-from utility.email_notify import email_scan_summary
 
 sslscan_output = None
 nikto_output = ""
@@ -249,18 +247,6 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
         # still updates, but the UI will keep showing 'Waiting for output'.
         pass
 
-    def _scan_still_present():
-        """True unless the scan was deleted from the UI while nikto runs."""
-        if org is None:
-            return True
-        try:
-            from webscanners.models import WebScansDb as _WS
-            from tools.models import NiktoResultDb as _NR
-            return (_WS.objects.filter(scan_id=scan_id, organization=org).exists()
-                    or _NR.objects.filter(scan_id=scan_id, organization=org).exists())
-        except Exception:
-            return True
-
     def _exec(cmd):
         with open(log_path, "a", encoding="utf-8", errors="ignore") as lf:
             lf.write("$ "+" ".join(cmd)+"\n")
@@ -302,42 +288,6 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
             except Exception:
                 pass
             start_elapsed_guard = time.time()
-            est_dur = (int(maxtime_min) * 60) if maxtime_min else (180.0 if str(profile_tuning) in ('57', 'x6') else 50.0)
-            while True:
-                try:
-                    proc.wait(timeout=3)
-                    break
-                except subprocess.TimeoutExpired:
-                    if not _scan_still_present():
-                        try:
-                            os.killpg(pgid, 9)
-                        except Exception:
-                            try:
-                                proc.kill()
-                            except Exception:
-                                pass
-                        try:
-                            with open(log_path, "a", encoding="utf-8", errors="ignore") as lf2:
-                                lf2.write("\n[archerysec] Scan deleted by user. Nikto process stopped.\n")
-                        except Exception:
-                            pass
-                        proc.wait()
-                        return 999
-
-                    elapsed = time.time() - start_elapsed_guard
-                    pct = min(95.0, round((elapsed / est_dur) * 95.0, 1))
-                    try:
-                        from django.utils import timezone as _tz
-                        from webscanners.models import WebScansDb as _WS
-                        _WS.objects.filter(scan_id=scan_id, organization=org).update(
-                            scan_status=str(pct),
-                            updated_time=_tz.now(),
-                        )
-                        NiktoResultDb.objects.filter(scan_id=scan_id, organization=org).update(
-                            nikto_status=f"Running ({pct}%)"
-                        )
-                    except Exception:
-                        pass
             proc.wait()
             try:
                 with open(log_path, 'r', encoding='utf-8', errors='ignore') as rf:
@@ -406,14 +356,6 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
     # Normalize target and decide flags
     parsed = urlparse(scans_url)
     target_host = parsed.hostname or scans_url
-    # Preserve explicit port (and root path) in the host spec so that
-    # targets like http://host:5000/app/ actually hit that port/path.
-    if parsed.port:
-        try:
-            target_host = netloc = parsed.netloc.split(":", 1)[0]
-            target_host = f"{target_host}:{parsed.port}"
-        except Exception:
-            pass
 
     def _is_ip(s):
         try:
@@ -490,8 +432,6 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
     cmd += ["-host", target_host]
 
     rc = _exec(cmd)
-    if rc == 999:
-        return  # scan deleted while running
     if rc != 0:
         # fallback to nikto.pl
         cmd2 = [
@@ -553,46 +493,15 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
         cmd2 += ["-host", target_host]
         rc = _exec(cmd2)
 
-    # If the scan was deleted from the UI while nikto ran, do not import orphan results
-    if not _scan_still_present():
-        return
-
     # Attempt to parse if HTML exists
     try:
         if os.path.exists(nikto_res_path):
             with codecs.open(nikto_res_path, "r") as f:
                 data = f.read()
             nikto_html_parser(data, project_id, scan_id, request)
-            _is_scanner_admin = (
-                user.is_superuser
-                or str(getattr(user, "role", "")) in ("Admin", "Organization Admin")
-            )
-            notify.send(
-                user,
-                recipient=user,
-                verb=(
-                    "Nikto Scan Completed"
-                    if _is_scanner_admin
-                    else "Web Scan Completed"
-                ),
-            )
+            notify.send(user, recipient=user, verb="Nikto Scan Completed")
             NiktoResultDb.objects.filter(scan_id=scan_id, organization=org).update(
                 nikto_status="Scan Completed"
-            )
-            try:
-                from django.utils import timezone as _tz
-                from webscanners.models import WebScansDb as _WS
-                _WS.objects.filter(scan_id=scan_id, organization=org).update(
-                    scan_status="100.0",
-                    updated_time=_tz.now(),
-                )
-            except Exception:
-                pass
-            email_scan_summary(
-                subject="Archery Tool Scan Status - Nikto Scan Completed",
-                scan_id=scan_id,
-                target_url=scans_url,
-                organization_id=getattr(org, "id", None),
             )
         else:
             NiktoResultDb.objects.filter(scan_id=scan_id, organization=org).update(
@@ -620,72 +529,6 @@ def _run_nikto_scan(*, scans_url, scan_id, project_id, profile_tuning, request, 
             pass
 
 
-class NiktoSetting(APIView):
-    permission_classes = (IsAuthenticated, permissions.IsViewer)
-
-    def get(self, request):
-        org = getattr(request.user, "organization", None)
-        from archerysettings.models import NiktoSettingDb as _NiktoSettingDb
-        if not _NiktoSettingDb.objects.filter(organization=org).exists():
-            _NiktoSettingDb.objects.create(
-                setting_id=uuid.uuid4(),
-                binary_path='',
-                enabled=True,
-                organization=org,
-            )
-        row = _NiktoSettingDb.objects.filter(organization=org).first()
-        nikto_binary = (row.binary_path or "") if row else ""
-        nikto_enabled = bool(getattr(row, "enabled", True)) if row else False
-        if request.path[:4] == "/api":
-            return Response({
-                "nikto_binary": nikto_binary,
-                "nikto_enabled": "True" if nikto_enabled else "False",
-            })
-        return render(
-            request,
-            "tools/nikto_setting.html",
-            {
-                "nikto_binary": nikto_binary,
-                "nikto_enabled": "True" if nikto_enabled else "False",
-            },
-        )
-
-    def post(self, request):
-        from archerysettings.models import NiktoSettingDb as _NiktoSettingDb
-        from archerysettings.models import SettingsDb as _SettingsDb2
-        from user_management.models import Organization as _Org
-        org = getattr(request.user, "organization", None)
-        _org_id = request.POST.get("org") or request.GET.get("org")
-        if getattr(request.user, "is_superuser", False) and _org_id:
-            try:
-                org = _Org.objects.get(pk=_org_id)
-            except Exception:
-                pass
-
-        enabled = request.POST.get("nikto_enabled") == "on"
-        binary = (request.POST.get("nikto_binary") or "").strip()
-        _NiktoSettingDb.objects.filter(organization=org).delete()
-        setting_id = uuid.uuid4()
-        _NiktoSettingDb.objects.create(
-            setting_id=setting_id,
-            binary_path=binary,
-            enabled=enabled,
-            organization=org,
-            created_by=request.user,
-            updated_by=request.user,
-        )
-        # Reset connector status until the admin runs a Test
-        _SettingsDb2.objects.update_or_create(
-            organization=org,
-            setting_scanner="Nikto",
-            defaults={"setting_id": setting_id, "setting_status": False},
-        )
-        redirect_url = reverse("archerysettings:settings")
-        if org:
-            redirect_url = f"{redirect_url}?org={org.id}"
-        return HttpResponseRedirect(redirect_url)
-
-
 class NiktoScanLaunch(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "tools/nikto_scan_list.html"
@@ -695,28 +538,6 @@ class NiktoScanLaunch(APIView):
     def post(self, request):
         user = request.user
         timeout_s = 15
-
-        # Preflight: ensure org-level Nikto connector exists and is enabled (parity with ZAP/OpenVAS)
-        try:
-            from archerysettings.models import SettingsDb as _SettingsDb
-            has_connector = _SettingsDb.objects.filter(
-                setting_scanner="Nikto",
-                organization=request.user.organization,
-                setting_status=True,
-            ).exists()
-        except Exception:
-            has_connector = False
-        if not has_connector:
-            msg = "Nikto settings are missing or disabled for your organization. Configure it under Settings → Add Connector → Nikto."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                from django.contrib import messages as _msgs
-                _msgs.warning(request, msg)
-            except Exception:
-                pass
-            return HttpResponse(msg, status=400)
-
         # Accept either 'scan_url' (tools form) or 'url' (web scanner form)
         scan_url = request.POST.get("scan_url") or request.POST.get("url")
         # Convert project uu_id to numeric id if needed
@@ -736,13 +557,13 @@ class NiktoScanLaunch(APIView):
         # New multi-switch inputs (custom tuning removed per request)
         def _to_bool(v):
             return str(v).lower() in ("1","true","on","yes")
-        comp = _to_bool(request.POST.get("ws_comprehensive"))  # repurposed: File Retrieval preset
-        base = _to_bool(request.POST.get("ws_baseline"))       # repurposed: Stealth Info preset
-        inj = _to_bool(request.POST.get("ws_injection"))       # repurposed: Targeted Injection preset
-        broad = _to_bool(request.POST.get("ws_broad"))         # new: Broad excluding DoS
+        comp = _to_bool(request.POST.get("nikto_comprehensive"))  # repurposed: File Retrieval preset
+        base = _to_bool(request.POST.get("nikto_baseline"))       # repurposed: Stealth Info preset
+        inj = _to_bool(request.POST.get("nikto_injection"))       # repurposed: Targeted Injection preset
+        broad = _to_bool(request.POST.get("nikto_broad"))         # new: Broad excluding DoS
         force_cgi_toggle = _to_bool(request.POST.get("nikto_force_cgi"))
         # Optional max time in minutes
-        maxtime_raw = request.POST.get("ws_maxtime_min")
+        maxtime_raw = request.POST.get("nikto_maxtime_min")
         try:
             maxtime_min = int(str(maxtime_raw).strip()) if str(maxtime_raw).strip() else None
             if maxtime_min is not None and maxtime_min < 1:
@@ -805,7 +626,7 @@ class NiktoScanLaunch(APIView):
         disable_failures = str(request.POST.get("nikto_disable_failures")).lower() in ("1","true","on","yes")
         failures_value = None
         try:
-            _raw = request.POST.get("ws_failures")
+            _raw = request.POST.get("nikto_failures")
             if _raw is not None:
                 _s = str(_raw).strip()
                 if _s != "":
@@ -1436,21 +1257,6 @@ class NiktoRescan(APIView):
         old_scan_id = request.POST.get("scan_id")
         if not old_scan_id:
             return HttpResponse("scan_id required", status=400)
-        # Preflight: require the org-level Nikto connector (parity with other launch endpoints)
-        try:
-            from archerysettings.models import SettingsDb as _SettingsDb
-            has_connector = _SettingsDb.objects.filter(
-                setting_scanner="Nikto",
-                organization=request.user.organization,
-                setting_status=True,
-            ).exists()
-        except Exception:
-            has_connector = False
-        if not has_connector:
-            msg = "Nikto settings are missing or disabled for your organization. Configure it under Settings → Add Connector → Nikto."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-            return HttpResponse(msg, status=400)
         try:
             prev = NiktoResultDb.objects.filter(
                 scan_id=old_scan_id, organization=request.user.organization
@@ -1550,7 +1356,7 @@ class NmapScan(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "tools/nmap_scan.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
+    permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         all_nmap = NmapScanDb.objects.filter(organization=request.user.organization)
@@ -1562,7 +1368,7 @@ class Nmap(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "tools/nmap_list.html"
 
-    permission_classes = (IsAuthenticated, permissions.IsAdminOrITUser)
+    permission_classes = (IsAuthenticated, permissions.IsAnalyst)
 
     def get(self, request):
         ip_address = request.GET.get("ip")
@@ -1580,22 +1386,6 @@ class Nmap(APIView):
         ip_address = request.POST.get("ip")
         project_id = request.POST.get("project_id")
         scan_id = uuid.uuid4()
-
-        # Preflight: require the org-level Nmap connector (parity with networkscanners launch)
-        try:
-            from archerysettings.models import SettingsDb as _SettingsDb
-            has_connector = _SettingsDb.objects.filter(
-                setting_scanner="Nmap",
-                organization=request.user.organization,
-                setting_status=True,
-            ).exists()
-        except Exception:
-            has_connector = False
-        if not has_connector:
-            msg = "Nmap settings are missing or disabled for your organization. Configure it under Settings → Add Connector → Nmap."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-            return HttpResponse(msg, status=400)
 
         try:
             print("Start Nmap scan")
@@ -1623,7 +1413,7 @@ class Nmap(APIView):
             root_xml = tree.getroot()
 
             nmap_parser.xml_parser(
-                root=root_xml, scan_id=scan_id, project_id=project_id, request=request
+                root=root_xml, scan_id=scan_id, project_id=project_id
             )
 
         except Exception as e:

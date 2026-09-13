@@ -631,9 +631,6 @@ class ListAllScanResults(APIView):
             "solution",
             "scanner",
             "target",
-            "cvss_score",
-            "mitre_techniques",
-            "risk_score",
         )
 
         # Filter resulting queries
@@ -885,6 +882,6 @@ class ReportDownloadAPI(APIView):
             params.append(("status", status_filter))
 
         from django.urls import reverse
-        url = f"{reverse('reports:download_report')}?{urlencode(params)}"
+        url = f"{reverse('reports:report_download')}?{urlencode(params)}"
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect(url)

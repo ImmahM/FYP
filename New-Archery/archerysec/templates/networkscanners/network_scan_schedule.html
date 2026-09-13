@@ -3,7 +3,6 @@
 {% load custom_tags %}
 {% block body %}
 {% load static %}
-<script type="text/javascript" src="{% static 'archerysecurity/js/unified-scanner-api.js' %}"></script>
 <script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
 <script type="text/javascript">
     // Initialize Legacy API Client
@@ -358,42 +357,6 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <div class="card">
-                                    <div class="card-body">
-                                        {% if user.is_superuser or user.role == 'Admin' %}
-                                            <div class="d-md-flex align-items-center">
-                                                <h5 class="card-title mb-2">Nmap Scan Types</h5>
-                                            </div>
-                                            <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b mb-3" style="max-width:220px;">
-                                                <label class="d-flex align-items-center">
-                                                    <input name="nmap_enable" id="schedule_nmap_enable" type="checkbox">
-                                                    <span>Enable Nmap</span>
-                                                </label>
-                                            </div>
-                                            <p class="mb-2">Select which Nmap profile to run:</p>
-                                        {% else %}
-                                            <div class="d-md-flex align-items-center">
-                                                <h5 class="card-title mb-2">Additional Network Scan</h5>
-                                            </div>
-                                            <p class="mb-2">Select additional network scan options:</p>
-                                        {% endif %}
-                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
-                                            <input type="checkbox" name="nmap_profile" value="quick"
-                                                   id="schedule_nmap_profile_quick">
-                                            <span>Quick</span>
-                                        </label>
-                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b ml-3">
-                                            <input type="checkbox" name="nmap_profile" value="full"
-                                                   id="schedule_nmap_profile_full">
-                                            <span>Full</span>
-                                        </label>
-                                        <label class="checkbox inline checkbox-slider--b-flat checkbox-slider--b ml-3">
-                                            <input name="nmap_os_guess" id="schedule_nmap_os_guess" type="checkbox">
-                                            <span>OS guess</span>
-                                        </label>
-                                        <small class="text-muted d-inline-block mt-2">Pick Quick or Full for this schedule.</small>
-                                    </div>
-                                </div>
                                 <div class="form-actions">
                                     <button type="submit" class="btn btn-success">Save</button>
                                 </div>
@@ -558,6 +521,16 @@
         if (!$) { return; }
         $(document).on('change', 'input[name="ov_profile"]', function () {
             $('input[name="ov_profile"]').not(this).prop('checked', false);
+        });
+        $(document).on('change', '#schedule_nmap_profile_quick', function () {
+            if (this.checked) {
+                $('#schedule_nmap_profile_full').prop('checked', false);
+            }
+        });
+        $(document).on('change', '#schedule_nmap_profile_full', function () {
+            if (this.checked) {
+                $('#schedule_nmap_profile_quick').prop('checked', false);
+            }
         });
     })(window.jQuery);
 </script>

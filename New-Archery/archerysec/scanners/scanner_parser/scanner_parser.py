@@ -52,6 +52,19 @@ for parser_code in parser_function_dict:
     if "icon" in parser_function_dict[parser_code]:
         icon_dict[dbName]["icon"] = parser_function_dict[parser_code]["icon"]
 
+# Jira
+# IconDict["Jira"] = {
+#     "icon": "/static/tools/jira.png",
+#     "displayName": "Jira",
+#     "codeName": "jira"
+# }
+# Email
+# IconDict["Email"] = {
+#     "icon": "/static/tools/email.png",
+#     "displayName": "Email",
+#     "codeName": "email"
+# }
+
 
 # Django specific definitions
 def parser_dict(request):
@@ -61,54 +74,12 @@ def parser_dict(request):
 
 @register.filter
 def get_icon(dictionary, key):
-    if not key:
-        return "/static/tools/unknown.png"
-    k_str = str(key).strip()
-    k_lower = k_str.lower()
-    if k_lower in ("nikto", "nikto_scan", "nikto scan"):
-        return "/static/tools/nikto.svg"
-    if k_lower in ("nmap", "nmap_scan", "nmap scan", "additional network scan"):
-        return "/static/tools/nmap.svg"
-    if k_lower in ("zap", "zapscanner", "web scan"):
-        return "/static/tools/zap.png"
-    if k_lower in ("openvas", "open_vas", "openvas scan"):
-        return "/static/tools/openvas.png"
-
-    if isinstance(dictionary, dict):
-        icon = dictionary.get(k_str, {}).get("icon")
-        if icon:
-            return icon
-        for d_key, d_val in dictionary.items():
-            if str(d_key).lower() == k_lower and isinstance(d_val, dict) and d_val.get("icon"):
-                return d_val["icon"]
-
-    return "/static/tools/unknown.png"
+    return dictionary.get(key, {}).get("icon", "/static/tools/unknown.png")
 
 
 @register.filter
 def get_displayName(dictionary, key):
-    if not key:
-        return "Unknown"
-    k_str = str(key).strip()
-    k_lower = k_str.lower()
-    if k_lower in ("nikto", "nikto_scan", "nikto scan"):
-        return "Nikto"
-    if k_lower in ("nmap", "nmap_scan", "nmap scan", "additional network scan"):
-        return "Nmap"
-    if k_lower in ("zap", "zapscanner"):
-        return "ZAP"
-    if k_lower in ("openvas", "open_vas"):
-        return "OpenVAS"
-
-    if isinstance(dictionary, dict):
-        dname = dictionary.get(k_str, {}).get("displayName")
-        if dname:
-            return dname
-        for d_key, d_val in dictionary.items():
-            if str(d_key).lower() == k_lower and isinstance(d_val, dict) and d_val.get("displayName"):
-                return d_val["displayName"]
-
-    return k_str
+    return dictionary.get(key, {}).get("displayName", "Unknown display name")
 
 
 @register.filter

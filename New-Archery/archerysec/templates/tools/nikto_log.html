@@ -20,7 +20,7 @@
     async function pull() {
       if (paused) return;
       try {
-        const resp = await fetch(`?scan_id=${encodeURIComponent(scanId)}&raw=1&full=1&ts=${Date.now()}`, { cache: 'no-store' });
+        const resp = await fetch(`?scan_id=${encodeURIComponent(scanId)}&raw=1&ts=${Date.now()}`, { cache: 'no-store' });
         const statusEl = document.getElementById('status');
         const capEl = document.getElementById('capnote');
         const timeEl = document.getElementById('timing');
@@ -71,7 +71,7 @@ Nikto v2.x\n(Empty yet — waiting for tool output)';
     }
 
     window.addEventListener('load', () => {
-      document.getElementById('download').href = `?scan_id=${encodeURIComponent(scanId)}&raw=1&full=1`;
+      document.getElementById('download').href = `?scan_id=${encodeURIComponent(scanId)}&raw=1`;
       {% if has_log %}
       document.getElementById('status').textContent = 'Live';
       {% else %}

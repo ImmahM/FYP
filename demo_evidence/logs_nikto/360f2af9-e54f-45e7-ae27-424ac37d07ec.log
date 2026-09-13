@@ -1,0 +1,6 @@
+[archerysec] Nikto scan initialized for http://127.0.0.1 (scan_id=360f2af9-e54f-45e7-ae27-424ac37d07ec)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /tmp
+[archerysec] Using nikto at: /usr/bin/nikto
+
+[archerysec] Scan deleted by user. Nikto process stopped.
+$ nikto -o /tmp/nikto_360f2af9-e54f-45e7-ae27-424ac37d07ec.html -Format htm -timeout 15 -ask no -nolookup -host 127.0.0.1

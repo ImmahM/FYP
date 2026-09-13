@@ -117,7 +117,7 @@ $(document).on('click', '.confirm-delete', function(){
                                 <td>
                                     {% if data.mitre_has_data %}{% for t in data.mitre_techniques %}<a href="https://attack.mitre.org/techniques/{{ t.id|cut:'.' }}/" target="_blank" rel="noopener" class="badge badge-pill badge-purple mr-1" data-toggle="tooltip" title="{{ t.tactic }} :: {{ t.name }}">{{ t.id }}</a> {% endfor %}{% else %}&mdash;{% endif %}
                                 </td>
-                                <td><a href="{{jira_url}}/browse/{{data.jira_ticket}}" target="_blank">{{data.jira_ticket}}</a>
+                                <td><a href="{{jira_url}}browse/{{data.jira_ticket}}" target="_blank">{{data.jira_ticket}}</a>
                                 </td>
 
                                 <td>

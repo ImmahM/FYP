@@ -5,18 +5,6 @@ from django.conf import settings
 from django.db import migrations, models
 
 
-def remove_reated_time_if_exists(apps, schema_editor):
-    cursor = schema_editor.connection.cursor()
-    cursor.execute(
-        "SELECT column_name FROM information_schema.columns "
-        "WHERE table_name='webscanners_webscansdb' AND column_name='reated_time'"
-    )
-    if cursor.fetchone():
-        WebScansDb = apps.get_model("webscanners", "webscansdb")
-        field = WebScansDb._meta.get_field("reated_time")
-        schema_editor.remove_field(WebScansDb, field)
-
-
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -25,7 +13,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(remove_reated_time_if_exists, migrations.RunPython.noop),
+        migrations.RemoveField(
+            model_name="webscansdb",
+            name="reated_time",
+        ),
         migrations.AddField(
             model_name="burp_issue_definitions",
             name="created_by",

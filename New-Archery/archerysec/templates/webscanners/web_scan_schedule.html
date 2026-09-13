@@ -1,9 +1,8 @@
-﻿{% extends 'dashboard/base.html' %}
+{% extends 'dashboard/base.html' %}
 {% load static %}
 {% load custom_tags %}
 {% block body %}
 {% load static %}
-<script type="text/javascript" src="{% static 'archerysecurity/js/unified-scanner-api.js' %}"></script>
 <script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
 <script>
 (function ($) {
@@ -365,45 +364,46 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                                {% if user.is_superuser or user.role == 'Admin' or user.role == 'Organization Admin' %}
                                 <div class="card mt-3">
                                     <div class="card-body">
                                         <div class="d-md-flex align-items-center">
-                                            <h5 class="card-title">{% if user.is_superuser or user.role == 'Admin' or user.role == 'Organization Admin' %}Nikto Scan Types{% else %}Additional Web Scan{% endif %}</h5>
+                                            <h5 class="card-title">Nikto Scan Types</h5>
                                         </div>
                                         <div class="form-group mb-3">
                                             <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                                                 <label>
-                                                    <input name="run_ws" id="schedule_run_ws" type="checkbox">
-                                                    <span>{% if user.is_superuser or user.role == 'Admin' or user.role == 'Organization Admin' %}Enable Nikto <span class="text-muted" data-toggle="tooltip" title="Run Nikto web server checks for each URL.">&#x2754;</span>{% else %}Enable Additional Web Scan <span class="text-muted" data-toggle="tooltip" title="Run an additional web server check for each URL.">&#x2754;</span>{% endif %}</span>
+                                                    <input name="run_nikto" id="schedule_run_nikto" type="checkbox">
+                                                    <span>Enable Nikto <span class="text-muted" data-toggle="tooltip" title="Run Nikto web server checks for each URL.">&#x2754;</span></span>
                                                 </label>
                                             </div>
                                         </div>
-                                        <p class="mb-2">{% if user.is_superuser or user.role == 'Admin' or user.role == 'Organization Admin' %}Select which Nikto options to run:{% else %}Select which additional web scan options to run:{% endif %}</p>
+                                        <p class="mb-2">Select which Nikto options to run:</p>
                                         <style>
-                                            .ws-options-row{
+                                            .nikto-options-row{
                                                 display:grid;
                                                 grid-template-columns:repeat(2, minmax(480px, 1fr));
                                                 gap:1rem 4rem;
                                                 width:100%;
                                             }
                                             @media (max-width:1200px){
-                                                .ws-options-row{
+                                                .nikto-options-row{
                                                     grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));
                                                 }
                                             }
-                                            .ws-options-row .checkbox label{
+                                            .nikto-options-row .checkbox label{
                                                 display:inline-flex;
                                                 align-items:center;
                                                 gap:12px;
                                                 width:100%;
                                             }
                                         </style>
-                                        <div class="ws-options-row">
+                                        <div class="nikto-options-row">
                                             <div>
                                                 <div class="form-group">
                                                     <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                                                         <label>
-                                                            <input name="ws_baseline" id="schedule_ws_baseline" type="checkbox">
+                                                            <input name="nikto_baseline" id="schedule_nikto_baseline" type="checkbox">
                                                             <span>Stealthy Information Gathering &amp; Software Identification <span class="text-muted" data-toggle="tooltip" title="Fingerprints web/server software and versions, checks for info disclosure and misconfigurations, and builds a tech inventory. Uses a small pause to be quieter and avoids aggressive probes.">&#x2754;</span></span>
                                                         </label>
                                                     </div>
@@ -411,7 +411,7 @@
                                                 <div class="form-group">
                                                     <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                                                         <label>
-                                                            <input name="ws_injection" id="schedule_ws_injection" type="checkbox">
+                                                            <input name="nikto_injection" id="schedule_nikto_injection" type="checkbox">
                                                             <span>Targeted Injection &amp; XSS Vulnerability Scan <span class="text-muted" data-toggle="tooltip" title="Sends crafted payloads to detect injection points and reflected XSS. Adds basic evasion to slip past naive filters.">&#x2754;</span></span>
                                                         </label>
                                                     </div>
@@ -421,7 +421,7 @@
                                                 <div class="form-group">
                                                     <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                                                         <label>
-                                                            <input name="ws_comprehensive" id="schedule_ws_comprehensive" type="checkbox">
+                                                            <input name="nikto_comprehensive" id="schedule_nikto_comprehensive" type="checkbox">
                                                             <span>Comprehensive File Retrieval &amp; Server-Side Scan <span class="text-muted" data-toggle="tooltip" title="Tries to fetch sensitive/backup files, exposes server-side script issues, default admin panels/credentials, and deeper misconfigurations.">&#x2754;</span></span>
                                                         </label>
                                                     </div>
@@ -429,8 +429,8 @@
                                                 <div class="form-group">
                                                     <div class="checkbox inline checkbox-slider--b-flat checkbox-slider--b">
                                                         <label>
-                                                            <input name="ws_broad" id="schedule_ws_broad" type="checkbox">
-                                                            <span>Broad Scan with Dangerous Test Exclusions <span class="text-muted" data-toggle="tooltip" title="Runs a wide sweep of web server checks while skipping denial-of-service probes.">&#x2754;</span></span>
+                                                            <input name="nikto_broad" id="schedule_nikto_broad" type="checkbox">
+                                                            <span>Broad Scan with Dangerous Test Exclusions <span class="text-muted" data-toggle="tooltip" title="Runs a wide sweep of Nikto checks while skipping denial-of-service probes.">&#x2754;</span></span>
                                                         </label>
                                                     </div>
                                                 </div>
@@ -438,6 +438,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                {% endif %}
                                 <div class="form-actions">
                                     <button type="submit" class="btn btn-success">Save</button>
                                 </div>

@@ -1,0 +1,37 @@
+[archerysec] Queued Nikto scan for https://juice-shop.herokuapp.com/#/ (scan_id=7f95edc7-5b56-475a-b4ef-47193bec6a65)
+[archerysec] Nikto scan initialized for https://juice-shop.herokuapp.com/#/ (scan_id=7f95edc7-5b56-475a-b4ef-47193bec6a65)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /home/archerysec/app/nikto_result
+[archerysec] Using nikto at: /usr/bin/nikto
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ Target IP:          54.220.192.176
++ Target Hostname:    juice-shop.herokuapp.com
++ Target Port:        443
+---------------------------------------------------------------------------
++ SSL Info:        Subject: /CN=*.herokuapp.com
+                   Ciphers: ECDHE-RSA-AES128-GCM-SHA256
+                   Issuer:  /C=US/O=Amazon/CN=Amazon RSA 2048 M01
++ Start Time:         2026-07-08 12:33:56 (GMT8)
+---------------------------------------------------------------------------
++ Server: Heroku
++ Retrieved via header: 1.1 heroku-router
++ Server leaks inodes via ETags, header found with file /, fields: 0xW/26af 0x19f3fdf5250 
++ Uncommon header 'access-control-allow-origin' found, with contents: *
++ Uncommon header 'x-recruiting' found, with contents: /#/jobs
++ Uncommon header 'nel' found, with contents: {"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}
++ Uncommon header 'x-frame-options' found, with contents: SAMEORIGIN
++ Uncommon header 'x-content-type-options' found, with contents: nosniff
++ Uncommon header 'report-to' found, with contents: {"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=StjGJyiWSkEVTQNLWNLogvzaoGsvmeRB4IyOaPhh8Bc%3D\u0026sid=812dcc77-0bd0-43b1-a5f1-b25750382959\u0026ts=1783485236"}],"max_age":3600}
++ Uncommon header 'reporting-endpoints' found, with contents: heroku-nel="https://nel.heroku.com/reports?s=StjGJyiWSkEVTQNLWNLogvzaoGsvmeRB4IyOaPhh8Bc%3D&sid=812dcc77-0bd0-43b1-a5f1-b25750382959&ts=1783485236"
++ Uncommon header 'feature-policy' found, with contents: payment 'self'
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ File/dir '/ftp/' in robots.txt returned a non-forbidden or redirect HTTP code (200)
++ "robots.txt" contains 1 entry which should be manually viewed.
++ Server banner has changed from 'Heroku' to 'heroku-router' which may suggest a WAF, load balancer or proxy is in place
++ Server is using a wildcard certificate: '*.herokuapp.com'
++ Uncommon header 'access-control-allow-methods' found, with contents: GET,HEAD,PUT,PATCH,POST,DELETE
++ 66 items checked: 3 error(s) and 14 item(s) reported on remote host
++ End Time:           2026-07-08 12:39:15 (GMT8) (319 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/7f95edc7-5b56-475a-b4ef-47193bec6a65.html -Format htm -timeout 15 -ask no -Tuning 3b -ssl -host juice-shop.herokuapp.com

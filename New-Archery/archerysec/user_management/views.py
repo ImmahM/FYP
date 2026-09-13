@@ -632,24 +632,6 @@ class UsersAdd(APIView):
         role = request.data.get("role")
         name = request.data.get("name")
 
-        # Validate required fields are not empty
-        if not organization:
-            org = Organization.objects.all()
-            if str(getattr(request.user, "role", ""))  == "Organization Admin":
-                roles = UserRoles.objects.filter(role__in=["User", "Analyst", "Organization Admin"])
-            else:
-                roles = UserRoles.objects.exclude(role__in=["Viewer"])
-            messages.error(request, "Please select an organization.")
-            return Response({
-                "org": org,
-                "roles": roles,
-                "error_organization": "Please select an organization.",
-                "posted_name": name,
-                "posted_email": email,
-                "posted_org": organization,
-                "posted_role": role,
-            })
-
         # Confirm password must match
         if password2 is None or str(password) != str(password2):
             org = Organization.objects.all()

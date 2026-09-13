@@ -34,7 +34,6 @@ from cloudscanners.models import CloudScansDb, CloudScansResultsDb
 from cloudscanners.serializers import (CloudScanDbSerializer,
                                        CloudScanResultsDbSerializer)
 from jiraticketing.models import jirasetting
-from jiraticketing.utils import jira_issue_types as _jira_issue_types
 from user_management import permissions
 from scanners.analysis import enrich_scan_result
 
@@ -242,8 +241,7 @@ class CloudScanDetails(APIView):
         return render(
             request,
             "cloudscanners/scans/vuln_details.html",
-            {"vul_dat": vul_dat, "jira_projects": jira_projects,
-             "jira_issue_types": _jira_issue_types(jira_ser) if jira_projects is not None else []},
+            {"vul_dat": vul_dat, "jira_projects": jira_projects},
         )
 
 

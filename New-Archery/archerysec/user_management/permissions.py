@@ -102,14 +102,10 @@ class VerifyAPIKey(permissions.BasePermission):
     def has_permission(self, request, view):
         """Check if user with admin access"""
         api_key = request.META.get("HTTP_X_API_KEY")
-        key_object = OrgAPIKey.objects.select_related("created_by").filter(api_key=api_key).first()
+        key_object = OrgAPIKey.objects.filter(api_key=api_key).first()
         if key_object is None:
             return False
-        if not key_object.is_active:
-            return False
-        if key_object.created_by and not request.user.is_authenticated:
-            request.user = key_object.created_by
-        return True
+        return key_object.is_active
 
 
 class IsAdminOrITUser(permissions.BasePermission):

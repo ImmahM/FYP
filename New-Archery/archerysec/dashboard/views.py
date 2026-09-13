@@ -31,7 +31,6 @@ from django.db.models import OuterRef, Q, Subquery, Sum, Value, TextField
 from django.db.models.functions import Coalesce
 from django.shortcuts import HttpResponse, HttpResponseRedirect, render
 from django.urls import reverse
-from django.utils import timezone
 from notifications.models import Notification
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
@@ -526,7 +525,7 @@ def my_dashboard(request):
 
     all_recent = sorted(
         chain(recent_web, recent_net, recent_static, recent_cloud),
-        key=lambda x: x.get("date_time") if x.get("date_time") else timezone.now(),
+        key=lambda x: x.get("date_time") or datetime.datetime.min,
         reverse=True,
     )[:10]
 
@@ -577,7 +576,7 @@ def my_dashboard(request):
             (_recent_high(static_res, "Static") if StaticScanResultsDb else []),
             (_recent_high(cloud_res, "Cloud") if CloudScansResultsDb else []),
         ),
-        key=lambda x: x.get("date_time") if x.get("date_time") else timezone.now(),
+        key=lambda x: x.get("date_time") or datetime.datetime.min,
         reverse=True,
     )[:10]
 

@@ -3,7 +3,6 @@
 {% load custom_tags %}
 {% block body %}
 {% load static %}
-<script type="text/javascript" src="{% static 'archerysecurity/js/unified-scanner-api.js' %}"></script>
 <script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
 <script type="text/javascript">
 
@@ -39,14 +38,13 @@
         try{var s=document.createElement('style'); s.type='text/css'; s.appendChild(document.createTextNode(css)); document.head.appendChild(s);}catch(e){}
     })();
 
-    // Initialize Legacy API Client (unified-scanner-api.js MUST load first)
-    let api = null;
-    try { api = new LegacyScannerAPI(); } catch (e) { console.error('Delete API client failed to init:', e); }
+    // Initialize Legacy API Client
+    const api = new LegacyScannerAPI();
 
+    $("#mainCheckbox").change(function () {
+        $("input:checkbox").prop('checked', $(this).prop("checked"));
+    });
     $(document).ready(function() {
-        $("#mainCheckbox").change(function () {
-            $("input:checkbox").prop('checked', $(this).prop("checked"));
-        });
         $('.btn-delete').click(function(){
             if (confirm('Are you sure you want to delete this?')) {
                 var scan_id = [];
@@ -55,7 +53,6 @@
                 });
 
                 // Use new unified API
-                if (!api) { alert('Delete API client failed to load. Hard-refresh and try again.'); return; }
                 api.webScans.delete(scan_id).then(function() {
                     setTimeout(function(){location.reload();},1000);
                 }).catch(function(err) {
@@ -550,6 +547,9 @@
                     var ids = [];
                     document.querySelectorAll('tr.scan-row').forEach(function(row){
                         var p = parseInt((row.getAttribute('data-percent')||'0'), 10);
+                        var sc = (row.getAttribute('data-scanner')||'').toLowerCase();
+                        // Skip Nikto rows to avoid auto-refresh/polling for them
+                        if (sc === 'nikto') return;
                         if (!isNaN(p) && p < 100) { ids.push(row.getAttribute('data-scanid')); }
                     });
                     if (ids.length === 0) return;

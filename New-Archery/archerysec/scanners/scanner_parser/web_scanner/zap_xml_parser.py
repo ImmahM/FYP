@@ -23,11 +23,7 @@ from datetime import datetime
 
 from dashboard.views import trend_update
 from scanners.vuln_checker import check_false_positive
-from scanners.analysis.cvss_calculator import severity_to_cvss_score
-from scanners.analysis.mitre_attack import enrich_finding
-from scanners.analysis.risk_scorer import RiskScorer
-from scanners.base.result_models import SeverityLevel
-from utility.email_notify import email_scan_summary
+from utility.email_notify import email_sch_notify
 from webscanners.models import WebScanResultsDb, WebScansDb
 from archeryapi.models import OrgAPIKey
 
@@ -186,39 +182,6 @@ def xml_parser(root, project_id, scan_id, request):
 
             data_store.save()
 
-            try:
-                cvss = severity_to_cvss_score(risk)
-                enriched = enrich_finding({
-                    "title": title,
-                    "description": desc,
-                    "reference": reference,
-                    "severity": risk,
-                })
-                tech_str = "; ".join(
-                    f"{t['id']} ({t['name']})" for t in (enriched.get("mitre_techniques") or [])
-                ) if enriched.get("mitre_techniques") else ""
-                _sev_map = {
-                    "critical": SeverityLevel.CRITICAL,
-                    "high": SeverityLevel.HIGH,
-                    "medium": SeverityLevel.MEDIUM,
-                    "low": SeverityLevel.LOW,
-                    "informational": SeverityLevel.INFO,
-                    "info": SeverityLevel.INFO,
-                }
-                scorer = RiskScorer()
-                rs = scorer.score(
-                    severity=_sev_map.get((risk or "").lower(), SeverityLevel.LOW),
-                    cvss_score=cvss,
-                    cve_id=reference or "",
-                    has_evidence=bool(inst),
-                )
-                data_store.cvss_score = cvss
-                data_store.mitre_techniques = tech_str
-                data_store.risk_score = rs.score if rs else None
-                data_store.save(update_fields=["cvss_score", "mitre_techniques", "risk_score"])
-            except Exception:
-                pass
-
     zap_all_vul = WebScanResultsDb.objects.filter(
         scan_id=scan_id, false_positive="No", organization=organization
     )
@@ -260,12 +223,15 @@ def xml_parser(root, project_id, scan_id, request):
 
     trend_update()
 
-    email_scan_summary(
-        subject="Archery Tool Scan Status - ZAP Report Uploaded",
-        scan_id=scan_id,
-        target_url=scan_url,
-        organization_id=getattr(organization, "id", None),
+    subject = "Archery Tool Scan Status - ZAP Report Uploaded"
+    message = (
+        "ZAP Scanner has completed the scan "
+        "  %s <br> Total: %s <br>High: %s <br>"
+        "Medium: %s <br>Low %s"
+        % (scan_url, total_vul, total_high, total_medium, total_low)
     )
+
+    email_sch_notify(subject=subject, message=message)
 
 
 parser_header_dict = {

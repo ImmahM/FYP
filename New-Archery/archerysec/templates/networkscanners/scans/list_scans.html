@@ -3,12 +3,10 @@
 {% load static %}
 {% block body %}
 {% load static %}
-<script type="text/javascript" src="{% static 'archerysecurity/js/unified-scanner-api.js' %}"></script>
 <script type="text/javascript" src="{% static 'archerysecurity/js/legacy-api-compat.js' %}"></script>
 <script type="text/javascript">
-    // Initialize Legacy API Client (unified-scanner-api.js MUST load first)
-    let api = null;
-    try { api = new LegacyScannerAPI(); } catch (e) { console.error('Delete API client failed to init:', e); }
+    // Initialize Legacy API Client
+    const api = new LegacyScannerAPI();
 
     // Enable simple console debugging for live row updates
     window.NET_SCAN_LIVE_DEBUG = true;
@@ -58,7 +56,6 @@
                         });
 
                         // Use new unified API
-                        if (!api) { alert('Delete API client failed to load. Hard-refresh and try again.'); return; }
                         api.networkScans.delete(scan_id).then(function() {
                             setTimeout(function () {
                                 location.reload();
@@ -785,21 +782,6 @@
             setInterval(pollActive, Math.max(1500, intervalSec*1000));
             // Poll for newly created/updated scans and append missing rows
             var lastSince = (new Date()).toISOString();
-            // Strip known scanner prefixes so the scanner identity stays hidden from non-admins
-            function userScanType(value, fallback){
-                fallback = fallback === undefined ? 'Network Scan' : fallback;
-                var s = String(value || '').trim();
-                if (!s) return fallback;
-                var low = s.toLowerCase();
-                var prefixes = ['zap','nikto','openvas-scanner','openvasscanner','openvas','nmap'];
-                var hit = null;
-                for (var i=0;i<prefixes.length;i++){
-                    if (low.indexOf(prefixes[i]) === 0){ hit = prefixes[i]; break; }
-                }
-                if (hit){ s = s.substring(hit.length).replace(/^[\-:\s]+/, ''); }
-                s = s.trim();
-                return s || fallback;
-            }
             function appendRecent(){
                 try {
                     getJSONCompat('{% url "networkscanners:recent_scans" %}', { since: lastSince }, function(payload){
@@ -817,6 +799,9 @@
                                   parts.push('<div class="action-group">');
                                   parts.push(`<button type="button" class="btn btn-primary btn-sm rounded-pill btn-action btn-rescan" title="Available after scan stops or completes" aria-label="Rescan" data-toggle="tooltip" data-scanid="${it.scan_id}" data-scanner="${it.scanner||''}" data-target="${it.ip||''}" disabled><i class="fas fa-redo"></i></button>`);
                                   parts.push(`<button type="button" class="btn btn-danger btn-sm rounded-pill btn-action btn-stop" title="Stop only available while scan is in progress" aria-label="Stop Scan" data-toggle="tooltip" data-scanid="${it.scan_id}" data-scanner="${it.scanner||''}" data-target="${it.ip||''}"><i class="fas fa-stop"></i></button>`);
+                                  if (String((it.scanner||'')).toLowerCase()==='nmap'){
+                                    parts.push(` <a class="btn btn-outline-secondary btn-xs" href="{% url 'networkscanners:nmap_log' %}?scan_id=${it.scan_id}" data-toggle="tooltip" title="View Nmap log">View Log</a>`);
+                                  }
                                   parts.push('</div>');
                                   parts.push('</td>');
                                   parts.push('<td><form><label class="customcheckbox"><input type="checkbox" class="listCheckbox" name="del_scan_id" value="'+it.scan_id+'"><span class="checkmark"></span></label></form></td>');
@@ -836,7 +821,7 @@
                                       parts.push(html);
                                   })();
                                   {% else %}
-                                  parts.push(`<td>${userScanType(it.scan_type)}</td>`);
+                                  parts.push(`<td>${(it.scan_type && it.scan_type.trim()) || 'Network Scan'}</td>`);
                                   {% endif %}
                                   {% if orgs or owners or show_owner %}
                                   parts.push(`<td>${(it.created_by_name||it.created_by_email||it.owner_name||it.owner_email||'&mdash;')}</td>`);

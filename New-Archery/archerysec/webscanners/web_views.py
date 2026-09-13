@@ -317,12 +317,12 @@ class WebScanSchedule(APIView):
             "zap_forced_browse": _bool_from_value(request.POST.get("zap_forced_browse")),
         }
         nikto_flags = {
-            "nikto_baseline": _bool_from_value(request.POST.get("ws_baseline")),
-            "nikto_injection": _bool_from_value(request.POST.get("ws_injection")),
+            "nikto_baseline": _bool_from_value(request.POST.get("nikto_baseline")),
+            "nikto_injection": _bool_from_value(request.POST.get("nikto_injection")),
             "nikto_comprehensive": _bool_from_value(
-                request.POST.get("ws_comprehensive")
+                request.POST.get("nikto_comprehensive")
             ),
-            "nikto_broad": _bool_from_value(request.POST.get("ws_broad")),
+            "nikto_broad": _bool_from_value(request.POST.get("nikto_broad")),
         }
         schedule_entries = []
         # Non-admins cannot toggle individual ZAP steps, so default to spider + active.
@@ -364,9 +364,10 @@ class WebScanSchedule(APIView):
                 }
             )
         nikto_selected = False
-        nikto_selected = _bool_from_value(request.POST.get("run_ws")) or any(
-            nikto_flags.values()
-        )
+        if is_scanner_admin:
+            nikto_selected = _bool_from_value(request.POST.get("run_nikto")) or any(
+                nikto_flags.values()
+            )
         if nikto_selected:
             if not any(nikto_flags.values()):
                 messages.error(request, "Pick at least one Nikto profile to schedule.")

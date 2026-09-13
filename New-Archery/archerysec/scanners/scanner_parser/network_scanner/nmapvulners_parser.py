@@ -21,7 +21,7 @@ import uuid
 from archeryapi.models import OrgAPIKey
 from dashboard.views import trend_update
 from networkscanners.models import NetworkScanDb, NetworkScanResultsDb
-from utility.email_notify import email_network_scan_summary
+from utility.email_notify import email_sch_notify
 
 agent = "NA"
 description = "NA"
@@ -121,47 +121,75 @@ def xml_parser(root, project_id, scan_id, request):
 
                 dup_data = target + serviceName + cveid + port
                 duplicate_hash = hashlib.sha256(dup_data.encode("utf-8")).hexdigest()
-                # Per-scan de-dup: if this finding already exists for the scan,
-                # skip it rather than inserting a marked duplicate row.
-                if NetworkScanResultsDb.objects.filter(
-                    scan_id=scan_id,
-                    dup_hash=duplicate_hash,
-                    organization=organization,
-                ).exists():
-                    continue
-
-                false_p = NetworkScanResultsDb.objects.filter(
-                    false_positive_hash=duplicate_hash,
-                    organization=organization,
+                match_dup = (
+                    NetworkScanResultsDb.objects.filter(
+                        dup_hash=duplicate_hash, organization=organization
+                    )
+                    .values("dup_hash")
+                    .distinct()
                 )
-                fp_lenth_match = len(false_p)
-                if fp_lenth_match == 1:
-                    false_positive = "Yes"
+                lenth_match = len(match_dup)
+
+                if lenth_match == 0:
+                    duplicate_vuln = "No"
+
+                    global false_positive
+                    false_p = NetworkScanResultsDb.objects.filter(
+                        false_positive_hash=duplicate_hash,
+                        organization=organization,
+                    )
+                    fp_lenth_match = len(false_p)
+                    if fp_lenth_match == 1:
+                        false_positive = "Yes"
+                    else:
+                        false_positive = "No"
+                    if risk_factor == "None":
+                        risk_factor = "Low"
+
+                    all_data_save = NetworkScanResultsDb(
+                        project_id=project_id,
+                        scan_id=scan_id,
+                        date_time=date_time,
+                        title=title,
+                        ip=target,
+                        vuln_id=vuln_id,
+                        description=description,
+                        solution=solution,
+                        severity=risk_factor,
+                        port=port,
+                        false_positive=false_positive,
+                        vuln_status="Open",
+                        dup_hash=duplicate_hash,
+                        vuln_duplicate=duplicate_vuln,
+                        severity_color=vuln_color,
+                        scanner="Nmapvulners",
+                        organization=organization,
+                    )
+                    all_data_save.save()
+
                 else:
-                    false_positive = "No"
-                if risk_factor == "None":
-                    risk_factor = "Low"
+                    duplicate_vuln = "Yes"
 
-                all_data_save = NetworkScanResultsDb(
-                    project_id=project_id,
-                    scan_id=scan_id,
-                    date_time=date_time,
-                    title=title,
-                    ip=target,
-                    vuln_id=vuln_id,
-                    description=description,
-                    solution=solution,
-                    severity=risk_factor,
-                    port=port,
-                    false_positive=false_positive,
-                    vuln_status="Open",
-                    dup_hash=duplicate_hash,
-                    vuln_duplicate="No",
-                    severity_color=vuln_color,
-                    scanner="Nmapvulners",
-                    organization=organization,
-                )
-                all_data_save.save()
+                    all_data_save = NetworkScanResultsDb(
+                        project_id=project_id,
+                        scan_id=scan_id,
+                        date_time=date_time,
+                        title=pluginName,
+                        ip=target,
+                        vuln_id=vuln_id,
+                        description=description,
+                        solution=solution,
+                        severity=risk_factor,
+                        port=port,
+                        false_positive="Duplicate",
+                        vuln_status="Duplicate",
+                        dup_hash=duplicate_hash,
+                        vuln_duplicate=duplicate_vuln,
+                        severity_color=vuln_color,
+                        scanner="Nmapvulners",
+                        organization=organization,
+                    )
+                    all_data_save.save()
 
     try:
         target_filter = NetworkScanResultsDb.objects.filter(
@@ -196,12 +224,15 @@ def xml_parser(root, project_id, scan_id, request):
         # pass
 
     trend_update()
-    email_network_scan_summary(
-        subject="Archery Tool Scan Status - Nmap Vulners Report Uploaded",
-        scan_id=scan_id,
-        target_url=target,
-        organization_id=getattr(organization, "id", None),
+    subject = "Archery Tool Scan Status - Nmap Vulners Report Uploaded"
+    message = (
+        "Nmap Vulners has completed the scan "
+        "  %s <br> Total: %s <br>High: %s <br>"
+        "Medium: %s <br>Low %s"
+        % (scan_id, total_vul, total_high, total_medium, total_low)
     )
+
+    email_sch_notify(subject=subject, message=message)
 
 
 def get_host(root):

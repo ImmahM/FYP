@@ -375,28 +375,6 @@ class ZAPScanner:
         self.zap = zap_connect(random_port=random_port)
         self.request = request
 
-        # Start every scan from a fresh ZAP session so old crawl/active-scan state
-        # is not carried over. Without this, re-scanning the same URL reuses the
-        # previously stored site tree and cached results, hiding that a fix was applied.
-        safe_session_token = re.sub(r"[^a-zA-Z0-9_-]", "_", self.target_url or "scan")
-        session_name = f"archerysec_{safe_session_token}_{int(time.time())}"
-        try:
-            self.zap.core.new_session(name=session_name, overwrite="true")
-        except Exception as e:
-            print(f"[ZAP] Primary new_session('{session_name}') failed: {e}")
-            try:
-                fallback_name = f"archerysec_{int(time.time())}"
-                self.zap.core.new_session(name=fallback_name, overwrite="true")
-            except Exception as e2:
-                print(f"[ZAP] Fallback new_session failed: {e2}")
-
-        # In addition, purge site nodes matching the target URL from ZAP's site tree
-        try:
-            if self.target_url:
-                self.zap.core.delete_site_node(url=self.target_url)
-        except Exception:
-            pass
-
         # Try installing useful add-ons once per scanner instance (best-effort)
         try:
             _ = self.zap.autoupdate
@@ -421,111 +399,6 @@ class ZAPScanner:
                     pass
         except Exception:
             pass
-
-        self.context_id = None
-        self.context_name = None
-
-    def setup_auth(self, auth_method="none", login_url="",
-                   username_field="username", password_field="password",
-                   username_value="", password_value="", logged_in_regex=""):
-        """Configure ZAP context with form-based authentication.
-
-        When auth_method is ``"formBased"`` this creates a ZAP context,
-        configures form-based login, creates a user with the supplied
-        credentials and enables forced-user mode so that spider and
-        active scan traffic is always authenticated.
-
-        Returns the ZAP context id (or None if auth is disabled).
-        """
-        if auth_method != "formBased" or not login_url:
-            return None
-
-        try:
-            # 1. Create a dedicated context for this scan
-            ctx_name = f"archery-{self.target_url[:60]}"
-            ctx_id = self.zap.context.new_context(ctx_name)
-            if isinstance(ctx_id, str) and ctx_id.isdigit():
-                ctx_id = int(ctx_id)
-            self.context_id = ctx_id
-            self.context_name = ctx_name
-            print(f"[ZAP Auth] Created context id={ctx_id} name={ctx_name}")
-
-            # 2. Include the target URL in the context
-            try:
-                self.zap.context.include_in_context(
-                    ctx_name,
-                    f"{re.escape(self.target_url)}.*",
-                )
-            except Exception as e:
-                print(f"[ZAP Auth] include warn: {e}")
-            print(f"[ZAP Auth] Included target in context")
-
-            # 3. Build the LoginRequestData string
-            #    Format:  field1={%username%}&field2={%password%}
-            login_data = (
-                f"{username_field}={{%username%}}"
-                f"&{password_field}={{%password%}}"
-            )
-            from urllib.parse import urlencode as _urlencode
-            auth_params = _urlencode({
-                "loginUrl": login_url,
-                "loginRequestData": login_data,
-                "loggedInIndicatorRegex": logged_in_regex,
-            }) if logged_in_regex else _urlencode({
-                "loginUrl": login_url,
-                "loginRequestData": login_data,
-            })
-
-            # 4. Set form-based authentication on the context
-            self.zap.authentication.set_authentication_method(
-                str(ctx_id),
-                "formBasedAuthentication",
-                auth_params,
-            )
-            print(f"[ZAP Auth] Set form-based auth for context {ctx_id}: {auth_params}")
-
-            # 5. Create a ZAP user with the supplied credentials
-            user_id = self.zap.users.new_user(
-                str(ctx_id),
-                "archery_user",
-            )
-            if isinstance(user_id, str) and user_id.isdigit():
-                user_id = int(user_id)
-            print(f"[ZAP Auth] Created user id={user_id}")
-
-            # 6. Set the user's authentication credentials
-            #    Credentials must also be supplied as urlencoded form values.
-            cred_params = _urlencode({
-                "username": username_value,
-                "password": password_value,
-            })
-            self.zap.users.set_authentication_credentials(
-                str(ctx_id),
-                str(user_id),
-                cred_params,
-            )
-            print(f"[ZAP Auth] Set credentials for user {user_id}")
-
-            # 7. Enable forced-user mode so all requests use this user
-            try:
-                self.zap.forcedUser.set_forced_user_mode_enabled("true")
-            except Exception as e1:
-                print(f"[ZAP Auth] forced mode warn: {e1}")
-
-            try:
-                self.zap.forcedUser.set_forced_user(
-                    str(ctx_id),
-                    str(user_id),
-                )
-            except Exception as e2:
-                print(f"[ZAP Auth] set forced user warn: {e2}")
-
-            print(f"[ZAP Auth] Forced-user mode enabled for context {ctx_id}")
-            return ctx_id
-
-        except Exception as e:
-            print(f"[ZAP Auth] Error setting up authentication: {e}")
-            return None
 
     def _map_risk(self, value: str):
         v = (value or "").strip()
@@ -686,12 +559,7 @@ class ZAPScanner:
         try:
             print("targets:-----", self.target_url)
             try:
-                if self.context_name:
-                    spider_id = self.zap.spider.scan(
-                        self.target_url, contextname=self.context_name
-                    )
-                else:
-                    spider_id = self.zap.spider.scan(self.target_url)
+                spider_id = self.zap.spider.scan(self.target_url)
             except Exception as e:
                 print("Spider Error")
             time.sleep(5)
@@ -841,37 +709,6 @@ class ZAPScanner:
         except Exception:
             return False
 
-    def _deepen_active_scan(self):
-        """Enable every active-scan rule and raise attack strength to HIGH.
-
-        The default ZAP policy ships with most attack rules disabled and at
-        DEFAULT (medium) strength, so fresh active scans mostly report
-        informational/passive alerts and miss the real Medium/Low findings.
-        Apply this before each active scan so results include the deeper
-        attack coverage expected for a full scan.
-        """
-        try:
-            policy = "Default Policy"
-            self.zap.ascan.enable_all_scanners(
-                scanpolicyname=policy, apikey=zap_api_key
-            )
-            try:
-                scanners = self.zap.ascan.scanners(scanpolicyname=policy)
-                for rule in scanners:
-                    rule_id = str(rule.get("id") or "")
-                    if not rule_id:
-                        continue
-                    try:
-                        self.zap.ascan.set_scanner_attack_strength(
-                            rule_id, "High", scanpolicyname=policy, apikey=zap_api_key
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        except Exception:
-            pass
-
     def zap_scan(self):
         """
         The function Trigger scan in ZAP scanner
@@ -894,14 +731,7 @@ class ZAPScanner:
                     pass
             # Small delay to give ZAP time to register the site
             time.sleep(2)
-            # Enable all attack rules at HIGH strength so scans find real vulns
-            self._deepen_active_scan()
-            if self.context_id is not None:
-                scan_id = self.zap.ascan.scan(
-                    self.target_url, contextid=str(self.context_id)
-                )
-            else:
-                scan_id = self.zap.ascan.scan(self.target_url)
+            scan_id = self.zap.ascan.scan(self.target_url)
         except Exception as e:
             print("ZAP SCAN ERROR")
 
@@ -924,19 +754,7 @@ class ZAPScanner:
                 try:
                     from webscanners.models import WebScansDb as _WS
                     row = _WS.objects.filter(scan_id=un_scanid).only('failure_reason').first()
-                    if row is None:
-                        # Scan row was deleted from the UI -> stop the active ZAP scan
-                        # and exit this polling thread.
-                        try:
-                            try:
-                                self.zap.ascan.stop(scan_id)
-                            except Exception:
-                                self.zap.ascan.pause(scan_id)
-                        except Exception:
-                            pass
-                        error_msg = "Scan deleted by user"
-                        break
-                    if getattr(row, 'failure_reason', '') == 'Stopped by user':
+                    if row and getattr(row, 'failure_reason', '') == 'Stopped by user':
                         try:
                             try:
                                 self.zap.ascan.stop(scan_id)
@@ -993,13 +811,10 @@ class ZAPScanner:
                     except Exception:
                         alerts = []
                 if alerts:
-                    # Only persist alerts while the scan row still exists (it may have
-                    # been deleted from the UI while the scan was running).
-                    if _WS.objects.filter(scan_id=un_scanid).exists():
-                        # Keep only same host
-                        host = urlparse(self.target_url).netloc.lstrip('www.')
-                        alerts = [a for a in alerts if urlparse(str(a.get('url') or '')).netloc.lstrip('www.') == host]
-                        self._persist_alerts(alerts, un_scanid, self.project_id)
+                    # Keep only same host
+                    host = urlparse(self.target_url).netloc.lstrip('www.')
+                    alerts = [a for a in alerts if urlparse(str(a.get('url') or '')).netloc.lstrip('www.') == host]
+                    self._persist_alerts(alerts, un_scanid, self.project_id)
 
                 time.sleep(10)
                 WebScansDb.objects.filter(scan_id=un_scanid).update(

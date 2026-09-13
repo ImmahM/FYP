@@ -54,64 +54,6 @@
                                                         <small><em>ZAP API Port (Ex. 8080)</em></small>
                                                     </div>
                                                 </div>
-
-                                                <hr>
-
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Authentication</label>
-                                                    <div class="col-sm-6">
-                                                        <select name="auth_method" class="form-control">
-                                                            <option value="none" {% if zap_auth_method == "none" or not zap_auth_method %}selected{% endif %}>No Authentication</option>
-                                                            <option value="formBased" {% if zap_auth_method == "formBased" %}selected{% endif %}>Form-Based Login</option>
-                                                        </select>
-                                                        <small><em>Enables ZAP to log into the target before scanning (finds auth-gated vulnerabilities)</em></small>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Login URL</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="login_url" value="{{ zap_login_url }}" class="form-control"
-                                                               placeholder="http://target.com/login"/>
-                                                        <small><em>Full URL of the login form</em></small>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Username Field</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="username_field" value="{{ zap_username_field }}" class="form-control"
-                                                               placeholder="username"/>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Password Field</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="password_field" value="{{ zap_password_field }}" class="form-control"
-                                                               placeholder="password"/>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Username Value</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="username_value" value="{{ zap_username_value }}" class="form-control"
-                                                               placeholder="username to log in as"/>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Password Value</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="password_value" value="{{ zap_password_value }}" class="form-control"
-                                                               placeholder="password to log in with"/>
-                                                    </div>
-                                                </div>
-                                                <div class="form-group row">
-                                                    <label class="col-sm-4 col-form-label">Logged-In Indicator</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" name="logged_in_regex" value="{{ zap_logged_in_regex }}" class="form-control"
-                                                               placeholder="e.g. Dashboard"/>
-                                                        <small><em>Regex matching a page shown only when logged in</em></small>
-                                                    </div>
-                                                </div>
-
                                                 <div class="form-actions">
                                                     <button type="submit" class="btn btn-success">Save</button>
                                                 </div>

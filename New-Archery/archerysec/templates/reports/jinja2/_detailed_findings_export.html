@@ -2,7 +2,7 @@
 <section class="section-card" style="margin-top:14px;">
   <div class="section-heading">
     <div>
-      <p class="section-eyebrow">Findings Detail</p>
+      <p class="eyebrow">Findings Detail</p>
       <h3>Detailed Vulnerabilities ({{ findings.total }})</h3>
       <p class="section-subtitle">Titles are deduplicated; supporting fields (solutions, references, notes) remain intact.</p>
     </div>
@@ -16,9 +16,9 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="">Severity</th>
-            <th style="">Findings</th>
-            <th style="">% Share</th>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">Severity</th>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">Findings</th>
+            <th style="background: linear-gradient(180deg, #eef2f7 0%, #e6edff 100%);">% Share</th>
           </tr>
         </thead>
         <tbody>
@@ -68,7 +68,7 @@
   {% for group in findings.grouped %}
   <div class="section-heading" style="margin-top: 8px; align-items: center;">
     <div>
-      <p class="section-eyebrow">Severity</p>
+      <p class="eyebrow">Severity</p>
       <h4>{{ group.label }} Findings ({{ group.count }})</h4>
       <p class="section-subtitle">Showing {{ group.shown_count }} unique vulnerabilities in this band.</p>
     </div>

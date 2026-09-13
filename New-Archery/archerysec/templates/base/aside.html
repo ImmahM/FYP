@@ -62,6 +62,25 @@
                 </li>
                 {% endif %}
 
+                {% if user.is_superuser or user.role == 'Admin' %}
+                    <li class="sidebar-item"><a class="sidebar-link has-arrow waves-effect waves-dark"
+                                                href="#" aria-expanded="false"><i
+                            class="fas fa-list-ul"></i><span class="hide-menu">Compliance Scans</span></a>
+                        <ul aria-expanded="false" class="collapse  first-level">
+                            <li class="sidebar-item"><a href="{% url 'inspec:inspec_list' %}" class="sidebar-link"><i
+                                    class="mdi mdi-note-plus"></i><span class="hide-menu"> Inspec </span></a></li>
+                            <li class="sidebar-item"><a href="{% url 'dockle:dockle_list' %}" class="sidebar-link"><i
+                                    class="mdi mdi-note-plus"></i><span class="hide-menu"> Dockle </span></a></li>
+                        </ul>
+                    </li>
+                {% endif %}
+                {% if user.is_superuser or user.role == 'Admin' %}
+                    <li class="sidebar-item"><a class="sidebar-link" href="{% url 'cicd:cicd_list' %}"
+                                                aria-expanded="false"><i
+                            class="fas fa-code-branch"></i><span class="hide-menu">CI/CD</span></a>
+                    </li>
+                {% endif %}
+
                 <!-- 📊 REPORT SECTION -->
                 <!-- Reports Section with collapsible submenu -->
                 <li class="sidebar-item"><a class="sidebar-link has-arrow waves-effect waves-dark"
@@ -88,7 +107,11 @@
                                 <i class="fas fa-plug"></i><span class="hide-menu"> Connectors </span>
                             </a>
                         </li>
-</li>
+                        <li class="sidebar-item">
+                            <a href="{% url 'archeryapi:access-key' %}" class="sidebar-link">
+                                <i class="fas fa-key"></i><span class="hide-menu"> Access Keys </span>
+                            </a>
+                        </li>
                         <li class="sidebar-item">
                             <a href="{% url 'archerysettings:email_setting' %}" class="sidebar-link">
                                 <i class="fas fa-envelope"></i><span class="hide-menu"> Email </span>

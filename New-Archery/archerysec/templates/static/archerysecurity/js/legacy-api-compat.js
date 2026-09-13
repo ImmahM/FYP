@@ -14,24 +14,6 @@
 class LegacyScannerAPI {
     constructor() {
         this.client = new UnifiedScannerAPI();
-        // Object-literal methods below lose their `this` (=> plugin object, not the
-        // instance), so `this.client` would be undefined. Rebind every method to the
-        // instance so `api.webScans.delete(...)` etc. resolve `this.client`.
-        const groups = [
-            'webScans', 'zapScanner', 'networkScans',
-            'staticScans', 'cloudScans', 'complianceScans',
-            'tools', 'cookies', 'excludedUrls', 'import', 'stats', 'search',
-        ];
-        for (const group of groups) {
-            const obj = this[group];
-            if (obj && typeof obj === 'object') {
-                for (const key of Object.keys(obj)) {
-                    if (typeof obj[key] === 'function') {
-                        obj[key] = obj[key].bind(this);
-                    }
-                }
-            }
-        }
     }
 
     // ===== WEB SCANNER COMPATIBILITY =====

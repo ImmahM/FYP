@@ -1,0 +1,20 @@
+[archerysec] Queued Nikto scan for http://192.168.174.130:5000/ (scan_id=baa57754-22a6-40c2-9429-adc091b83ab0)
+[archerysec] Nikto scan initialized for http://192.168.174.130:5000/ (scan_id=baa57754-22a6-40c2-9429-adc091b83ab0)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /home/archerysec/app/nikto_result
+[archerysec] Using nikto at: /usr/bin/nikto
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ Target IP:          192.168.174.130
++ Target Hostname:    192.168.174.130
++ Target Port:        5000
++ Start Time:         2026-09-01 21:11:36 (GMT8)
+---------------------------------------------------------------------------
++ Server: Werkzeug/3.0.3 Python/3.12.3
++ The anti-clickjacking X-Frame-Options header is not present.
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Allowed HTTP Methods: HEAD, OPTIONS, GET 
++ 66 items checked: 0 error(s) and 2 item(s) reported on remote host
++ End Time:           2026-09-01 21:12:03 (GMT8) (27 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/baa57754-22a6-40c2-9429-adc091b83ab0.html -Format htm -timeout 15 -ask no -Tuning 3b -host 192.168.174.130:5000

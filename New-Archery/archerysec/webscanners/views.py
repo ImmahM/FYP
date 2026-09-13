@@ -39,7 +39,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from jiraticketing.models import jirasetting
-from jiraticketing.utils import jira_issue_types as _jira_issue_types
 from user_management.models import Organization, UserProfile
 from user_management import permissions
 from webscanners.models import WebScanResultsDb, WebScansDb
@@ -499,8 +498,7 @@ class WebScanDetails(APIView):
         return render(
             request,
             "webscanners/scans/vuln_details.html",
-            {"vul_dat": vul_dat, "jira_projects": jira_projects,
-             "jira_issue_types": _jira_issue_types(jira_ser) if jira_projects is not None else []},
+            {"vul_dat": vul_dat, "jira_projects": jira_projects},
         )
 
 
@@ -1019,23 +1017,6 @@ class WebRescan(APIView):
         allowed_scanners = ["zap", "nikto"]
         if scan_type not in allowed_scan_types or scanner not in allowed_scanners:
             return Response({"message": "Invalid scan type or scanner."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Preflight: require the org-level connector to be enabled (parity with launch endpoints)
-        connector_label = {"zap": "Zap", "nikto": "Nikto"}.get(scanner, scanner)
-        try:
-            from archerysettings.models import SettingsDb as _SettingsDb
-            has_connector = _SettingsDb.objects.filter(
-                setting_scanner=connector_label,
-                organization=request.user.organization,
-                setting_status=True,
-            ).exists()
-        except Exception:
-            has_connector = False
-        if not has_connector:
-            msg = f"{connector_label} settings are missing or disabled for your organization. Configure it under Settings → Add Connector."
-            if request.path[:4] == "/api":
-                return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-            return HttpResponse(msg, status=400)
 
         # Check if a scan with the same ID is already in progress
         existing_scan = WebScansDb.objects.filter(scan_id=scan_id, organization=user.organization)

@@ -1,0 +1,14 @@
+[archerysec] Queued Nikto scan for http://192.168.174.130:5000/ (scan_id=deb879e5-7df0-4cbb-907c-e1162cc0c816)
+[archerysec] Nikto scan initialized for http://192.168.174.130:5000/ (scan_id=deb879e5-7df0-4cbb-907c-e1162cc0c816)
+[archerysec] Logs: /home/archerysec/app/logs/nikto | Results: /home/archerysec/app/nikto_result
+[archerysec] Using nikto at: /usr/bin/nikto
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ ERROR: Host maximum execution time of 900 seconds reached
++ ERROR: Host maximum execution time of 900 seconds reached
++ ERROR: Host maximum execution time of 900 seconds reached
++ ERROR: Host maximum execution time of 900 seconds reached
++ No web server found on 192.168.174.130:80
+---------------------------------------------------------------------------
++ 0 host(s) tested
+$ nikto -o /home/archerysec/app/nikto_result/deb879e5-7df0-4cbb-907c-e1162cc0c816.html -Format htm -timeout 15 -ask no -nolookup -maxtime 15m -Tuning 57 -host 192.168.174.130
